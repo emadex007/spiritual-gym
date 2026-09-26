@@ -1,0 +1,19 @@
+name = "spiritual-gym"
+main = "./src/server.ts"
+compatibility_date = "2025-09-02"
+compatibility_flags = ["nodejs_compat"]
+
+[[d1_databases]]
+binding = "DB"
+database_name = "spiritual_gym_db"
+database_id = "931dd191-fd07-46a9-992c-1e3edc9aa598"
+migrations_dir = "migrations"
+
+[[r2_buckets]]
+binding = "MEDIA"
+bucket_name = "spiritual-gym-media"
+
+# Secrets (later): npx wrangler secret put RESEND_API_KEY / AI_API_KEY
+
+[vars]
+SITE_ENV = "production"
