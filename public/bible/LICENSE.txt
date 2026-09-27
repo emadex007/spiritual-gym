@@ -1,0 +1,4 @@
+BSB: Berean Standard Bible, dedicated to the public domain (CC0).
+ASV: American Standard Version (1901), public domain.
+BBE: Bible in Basic English (1949/1964), public domain.
+Source: github.com/scrollmapper/bible_databases
