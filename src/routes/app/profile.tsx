@@ -8,6 +8,7 @@ import { FormError, errorText } from '~/components/AuthShell'
 import { ThemeSwitch } from '~/components/ThemeSwitch'
 import { AvatarUpload } from '~/components/AvatarUpload'
 import { InstallApp } from '~/components/InstallApp'
+import { NotificationSettings } from '~/components/NotificationSettings'
 
 export const Route = createFileRoute('/app/profile')({
   loader: async () => {
@@ -125,6 +126,11 @@ function Profile() {
       </section>
 
       <div className="mt-5"><InstallApp /></div>
+
+      <section className="card mt-5">
+        <p className="eyebrow mb-4">Notifications & reminders</p>
+        <NotificationSettings />
+      </section>
 
       <section className="card mt-5">
         <p className="eyebrow">Appearance</p>

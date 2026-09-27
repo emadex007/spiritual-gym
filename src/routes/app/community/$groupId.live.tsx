@@ -5,6 +5,7 @@ import { purposeOf } from '~/lib/content'
 import { useLivePrayer } from '~/hooks/useLivePrayer'
 import { HandsIcon, SunriseScene } from '~/components/Art'
 import { Avatar } from '~/components/Avatar'
+import { nextStart, relativeStart } from '~/lib/schedule'
 
 export const Route = createFileRoute('/app/community/$groupId/live')({
   loader: ({ params }) => getGroup({ data: params.groupId }),
@@ -46,6 +47,12 @@ function LivePrayer() {
             <p className="mx-auto mt-3 max-w-sm text-white/75">
               {g.live_count > 0 ? `${g.live_count} ${g.live_count === 1 ? 'person is' : 'people are'} praying right now.` : 'No one is praying yet. You can start, and others will join.'}
             </p>
+            {(() => {
+              const next = d.schedules.map((s) => ({ s, t: nextStart(s) })).filter((x) => x.t != null).sort((a, b) => a.t! - b.t!)[0]
+              return next ? (
+                <p className="mx-auto mt-4 inline-block rounded-full bg-white/10 px-4 py-1.5 text-sm">⏰ {next.s.title}: {relativeStart(next.t!, next.s.duration_min)}</p>
+              ) : null
+            })()}
             <ul className="mx-auto mt-6 max-w-sm space-y-2 text-left text-sm text-white/80">
               <li>🎙️ Your microphone will be on. You can mute any time.</li>
               <li>🎧 Headphones help others hear you clearly.</li>

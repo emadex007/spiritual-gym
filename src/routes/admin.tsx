@@ -23,6 +23,7 @@ const NAV = [
   { to: '/admin/verses', label: 'Verses', icon: '📖', exact: false },
   { to: '/admin/community', label: 'Community', icon: '🙏', exact: false },
   { to: '/admin/reports', label: 'Reports', icon: '🚩', exact: false },
+  { to: '/admin/notifications', label: 'Notifications', icon: '🔔', exact: false },
   { to: '/admin/users', label: 'Users', icon: '👥', exact: false },
   { to: '/admin/audit', label: 'Activity log', icon: '🗂️', exact: false },
 ] as const

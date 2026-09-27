@@ -4,6 +4,7 @@ import { joinGroup, listGroups, type GroupCard } from '~/fns/community'
 import { PRAYER_PURPOSES, purposeOf } from '~/lib/content'
 import { HandsIcon, HeartIcon, JourneyCover } from '~/components/Art'
 import { FormError, errorText } from '~/components/AuthShell'
+import { nextStart, relativeStart } from '~/lib/schedule'
 
 export const Route = createFileRoute('/app/community/')({
   loader: () => listGroups(),
@@ -11,7 +12,7 @@ export const Route = createFileRoute('/app/community/')({
 })
 
 function Community() {
-  const groups = Route.useLoaderData()
+  const { groups, schedules } = Route.useLoaderData()
   const router = useRouter()
   const [filter, setFilter] = useState('all')
   const [code, setCode] = useState('')
@@ -55,6 +56,30 @@ function Community() {
           </div>
         </section>
       )}
+
+      {(() => {
+        const soon = schedules
+          .map((s) => ({ s, t: nextStart(s), g: groups.find((x) => x.id === s.group_id) }))
+          .filter((x) => x.t != null && x.g && x.t - Date.now() < 36 * 3600_000)
+          .sort((a, b) => a.t! - b.t!)
+          .slice(0, 4)
+        return soon.length ? (
+          <section className="mt-6">
+            <p className="eyebrow">⏰ Coming up in your groups</p>
+            <div className="mt-3 space-y-2">
+              {soon.map(({ s, t, g }) => (
+                <Link key={s.id} to="/app/community/$groupId" params={{ groupId: s.group_id }} className="card flex items-center justify-between !p-4 hover:border-accent">
+                  <span className="min-w-0">
+                    <span className="block font-semibold">{s.title}</span>
+                    <span className="block truncate text-xs text-muted">{g!.name}</span>
+                  </span>
+                  <span className="shrink-0 rounded-full bg-accent-soft px-3 py-1 text-xs font-semibold text-accent">{relativeStart(t!, s.duration_min)}</span>
+                </Link>
+              ))}
+            </div>
+          </section>
+        ) : null
+      })()}
 
       {mine.length > 0 && (
         <section className="mt-8">

@@ -7,6 +7,7 @@ import { firstName, greeting } from '~/lib/util'
 import { CheckIcon, PlayIcon } from '~/components/Icons'
 import { Avatar } from '~/components/Avatar'
 import { InstallApp } from '~/components/InstallApp'
+import { NotificationBell } from '~/components/NotificationBell'
 import { BibleIcon, DoveIcon, HandsIcon, HeartIcon, JourneyCover, LampIcon, MOOD_STYLE, STEP_STYLE, SunriseScene, stepStyle } from '~/components/Art'
 
 export const Route = createFileRoute('/app/')({
@@ -36,9 +37,12 @@ function Home() {
       {/* Greeting banner */}
       <section className="relative isolate overflow-hidden rounded-[1.75rem] px-6 pt-6 pb-20 text-white shadow-lg shadow-navy/10">
         <SunriseScene className="absolute inset-0 -z-10 h-full w-full" />
-        <Link to="/app/profile" className="absolute top-5 right-5 rounded-full ring-2 ring-white/60" aria-label="Your profile">
-          <Avatar name={h.name} src={h.avatar} />
-        </Link>
+        <div className="absolute top-5 right-5 flex items-center gap-2">
+          <NotificationBell />
+          <Link to="/app/profile" className="rounded-full ring-2 ring-white/60" aria-label="Your profile">
+            <Avatar name={h.name} src={h.avatar} />
+          </Link>
+        </div>
         <p className="text-sm text-white/75">{new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'Africa/Lagos' })}</p>
         <h1 className="mt-1 font-display text-3xl font-semibold tracking-tight drop-shadow-sm">
           {greeting()}, {firstName(h.name)}.
@@ -209,10 +213,13 @@ function Home() {
 
       <section className="relative mt-5 mb-6 overflow-hidden rounded-[1.75rem] p-6" style={{ background: 'linear-gradient(135deg,#fce6ec,#ebe8fd)' }}>
         <HeartIcon className="absolute -right-3 -bottom-3 h-28 w-28 text-[#e05a7a]/15" />
-        <p className="text-xs font-semibold tracking-[0.14em] text-[#b8375a] uppercase">Pray together</p>
-        <p className="mt-2 font-semibold text-[#12203a]">Join a prayer group and pray live with others</p>
-        <p className="mt-1 max-w-sm text-sm text-[#5b6477]">Share what’s on your heart and hear each other pray.</p>
-        <Link to="/app/community" className="mt-4 inline-flex rounded-full bg-[#e05a7a] px-4 py-2 text-sm font-semibold text-white">Open Community →</Link>
+        <p className="text-xs font-semibold tracking-[0.14em] text-[#b8375a] uppercase">Walk with me</p>
+        <p className="mt-2 font-semibold text-[#12203a]">Invite a friend to encourage each other daily</p>
+        <p className="mt-1 max-w-sm text-sm text-[#5b6477]">See “completed today”, send a word of encouragement. Your journal stays private.</p>
+        <div className="mt-4 flex flex-wrap gap-2">
+          <Link to="/app/walk" className="inline-flex rounded-full bg-[#e05a7a] px-4 py-2 text-sm font-semibold text-white">Walk with me →</Link>
+          <Link to="/app/community" className="inline-flex rounded-full bg-white/70 px-4 py-2 text-sm font-semibold text-[#b8375a]">Pray together</Link>
+        </div>
       </section>
     </main>
   )

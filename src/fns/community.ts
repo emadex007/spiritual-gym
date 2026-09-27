@@ -3,6 +3,7 @@ import { db } from '~/lib/env'
 import { requireCommunityUser as requireUser } from '~/lib/auth'
 import { PRAYER_PURPOSES, POST_KINDS, REPORT_REASONS } from '~/lib/content'
 import { newId } from '~/lib/util'
+import { notify } from '~/lib/notify'
 
 export type GroupCard = {
   id: string
@@ -59,7 +60,14 @@ export const listGroups = createServerFn({ method: 'GET' }).handler(async () => 
     )
     .bind(user.id)
     .all<GroupCard>()
-  return results
+  const { results: schedules } = await db()
+    .prepare(
+      `SELECT s.id, s.group_id, s.title, s.days, s.time, s.timezone, s.duration_min FROM prayer_schedules s
+       JOIN prayer_group_members m ON m.group_id = s.group_id AND m.user_id = ?`,
+    )
+    .bind(user.id)
+    .all<{ id: string; group_id: string; title: string; days: string; time: string; timezone: string; duration_min: number }>()
+  return { groups: results, schedules }
 })
 
 export const createGroup = createServerFn({ method: 'POST' })
@@ -94,18 +102,18 @@ export const getGroup = createServerFn({ method: 'GET' })
     const g = await db()
       .prepare(
         `SELECT g.id, g.name, g.purpose, g.description, g.is_private, g.is_featured, g.invite_code, g.created_by, g.member_count, g.live_count, g.is_hidden,
-                m.role AS my_role
+                m.role AS my_role, m.notify AS my_notify
          FROM prayer_groups g LEFT JOIN prayer_group_members m ON m.group_id = g.id AND m.user_id = ?
          WHERE g.id = ?`,
       )
       .bind(user.id, id)
       .first<{
         id: string; name: string; purpose: string; description: string | null; is_private: number; is_featured: number; invite_code: string
-        created_by: string | null; member_count: number; live_count: number; is_hidden: number; my_role: string | null
+        created_by: string | null; member_count: number; live_count: number; is_hidden: number; my_role: string | null; my_notify: number | null
       }>()
     if (!g || g.is_hidden || (g.is_private && !g.my_role)) throw new Error('This group isn’t available.')
     const isMember = !!g.my_role
-    const [posts, replies, members] = await Promise.all([
+    const [posts, replies, members, schedules] = await Promise.all([
       isMember || !g.is_private
         ? db()
             .prepare(
@@ -135,8 +143,13 @@ export const getGroup = createServerFn({ method: 'GET' })
         )
         .bind(id)
         .all<{ id: string; name: string; avatar_key: string | null; role: string }>(),
+      db()
+        .prepare('SELECT id, title, days, time, timezone, duration_min FROM prayer_schedules WHERE group_id = ? ORDER BY time')
+        .bind(id)
+        .all<{ id: string; title: string; days: string; time: string; timezone: string; duration_min: number }>(),
     ])
     const isOwner = g.my_role === 'owner'
+    const isAdmin = user.role === 'admin'
     return {
       group: { ...g, invite_code: isMember ? g.invite_code : null },
       me: user.id,
@@ -144,6 +157,9 @@ export const getGroup = createServerFn({ method: 'GET' })
       meAvatar: user.avatar_key,
       isMember,
       isOwner,
+      canSchedule: isOwner || isAdmin,
+      notifyOn: g.my_notify !== 0,
+      schedules: schedules.results,
       posts: posts.results.map((p) => ({ ...p, replies: replies.results.filter((r) => r.post_id === p.id) })),
       members: members.results.map((m) => ({ id: m.id, name: m.name.split(' ')[0], avatar: m.avatar_key, role: m.role })),
     }
@@ -211,6 +227,16 @@ export const replyToPost = createServerFn({ method: 'POST' })
     await requireMember(p.group_id, user.id)
     await checkRate('prayer_replies', user.id, 40)
     await db().prepare('INSERT INTO prayer_replies (id, post_id, user_id, body) VALUES (?, ?, ?, ?)').bind(newId(), data.postId, user.id, data.body).run()
+    const author = await db()
+      .prepare('SELECT p.user_id, pr.notify_replies FROM prayer_posts p LEFT JOIN profiles pr ON pr.user_id = p.user_id WHERE p.id = ?')
+      .bind(data.postId)
+      .first<{ user_id: string; notify_replies: number | null }>()
+    if (author && author.user_id !== user.id && author.notify_replies !== 0) {
+      await notify(
+        { userIds: [author.user_id] },
+        { kind: 'reply', title: `💬 ${user.name.split(' ')[0]} replied to your post`, body: data.body.slice(0, 120), url: `/app/community/${p.group_id}`, tag: `reply-${data.postId}` },
+      )
+    }
     return { ok: true }
   })
 
@@ -224,6 +250,16 @@ export const togglePrayed = createServerFn({ method: 'POST' })
     const ins = await db().prepare('INSERT OR IGNORE INTO prayer_post_prayed (post_id, user_id) VALUES (?, ?)').bind(data.postId, user.id).run()
     if (ins.meta.changes) {
       await db().prepare('UPDATE prayer_posts SET prayed_count = prayed_count + 1 WHERE id = ?').bind(data.postId).run()
+      const author = await db()
+        .prepare('SELECT p.user_id, p.kind, pr.notify_prayed FROM prayer_posts p LEFT JOIN profiles pr ON pr.user_id = p.user_id WHERE p.id = ?')
+        .bind(data.postId)
+        .first<{ user_id: string; kind: string; notify_prayed: number | null }>()
+      if (author && author.user_id !== user.id && author.notify_prayed !== 0) {
+        await notify(
+          { userIds: [author.user_id] },
+          { kind: 'prayed', title: `🙏 ${user.name.split(' ')[0]} prayed for you`, body: author.kind === 'request' ? 'Someone is standing with you in prayer.' : 'Someone was encouraged by what you shared.', url: `/app/community/${p.group_id}`, tag: `prayed-${data.postId}` },
+        )
+      }
       return { prayed: true }
     }
     await db().batch([
@@ -271,5 +307,57 @@ export const blockUser = createServerFn({ method: 'POST' })
     const user = await requireUser()
     if (data.userId === user.id) throw new Error('You can’t block yourself.')
     await db().prepare('INSERT OR IGNORE INTO user_blocks (user_id, blocked_id) VALUES (?, ?)').bind(user.id, data.userId).run()
+    return { ok: true }
+  })
+
+// ---------------- Scheduled prayer times ----------------
+async function canManageSchedules(groupId: string, user: { id: string; role: string }) {
+  if (user.role === 'admin') return true
+  const m = await db().prepare('SELECT role FROM prayer_group_members WHERE group_id = ? AND user_id = ?').bind(groupId, user.id).first<{ role: string }>()
+  return m?.role === 'owner'
+}
+
+export const saveSchedule = createServerFn({ method: 'POST' })
+  .validator((d: { groupId: string; title: string; days: string; time: string; timezone?: string; durationMin?: number }) => {
+    const title = String(d?.title ?? '').trim().slice(0, 60) || 'Group prayer'
+    const days = d?.days === 'daily' ? 'daily' : String(d?.days ?? '').split(',').map(Number).filter((n) => n >= 0 && n <= 6).sort().join(',')
+    if (!days) throw new Error('Choose at least one day.')
+    if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(String(d.time))) throw new Error('Choose a time.')
+    let tz = String(d.timezone || 'Africa/Lagos').slice(0, 60)
+    try {
+      new Intl.DateTimeFormat('en', { timeZone: tz })
+    } catch {
+      tz = 'Africa/Lagos'
+    }
+    const durationMin = Math.max(10, Math.min(240, Math.round(Number(d.durationMin) || 30)))
+    return { groupId: String(d.groupId), title, days, time: d.time, timezone: tz, durationMin }
+  })
+  .handler(async ({ data }) => {
+    const user = await requireUser()
+    if (!(await canManageSchedules(data.groupId, user))) throw new Error('Only the group leader can set prayer times.')
+    const n = await db().prepare('SELECT COUNT(*) AS n FROM prayer_schedules WHERE group_id = ?').bind(data.groupId).first<{ n: number }>()
+    if ((n?.n ?? 0) >= 10) throw new Error('A group can have up to 10 prayer times.')
+    await db()
+      .prepare('INSERT INTO prayer_schedules (id, group_id, title, days, time, timezone, duration_min, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
+      .bind(newId(), data.groupId, data.title, data.days, data.time, data.timezone, data.durationMin, user.id)
+      .run()
+    return { ok: true }
+  })
+
+export const deleteSchedule = createServerFn({ method: 'POST' })
+  .validator((d: { id: string }) => ({ id: String(d?.id ?? '') }))
+  .handler(async ({ data }) => {
+    const user = await requireUser()
+    const s = await db().prepare('SELECT group_id FROM prayer_schedules WHERE id = ?').bind(data.id).first<{ group_id: string }>()
+    if (!s || !(await canManageSchedules(s.group_id, user))) throw new Error('Only the group leader can remove prayer times.')
+    await db().prepare('DELETE FROM prayer_schedules WHERE id = ?').bind(data.id).run()
+    return { ok: true }
+  })
+
+export const setGroupNotify = createServerFn({ method: 'POST' })
+  .validator((d: { groupId: string; on: boolean }) => ({ groupId: String(d?.groupId ?? ''), on: d?.on ? 1 : 0 }))
+  .handler(async ({ data }) => {
+    const user = await requireUser()
+    await db().prepare('UPDATE prayer_group_members SET notify = ? WHERE group_id = ? AND user_id = ?').bind(data.on, data.groupId, user.id).run()
     return { ok: true }
   })

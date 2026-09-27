@@ -4,6 +4,7 @@ import { CommunityIcon, HomeIcon, JournalIcon, ProfileIcon, TrainIcon } from '~/
 import { Logo } from '~/components/Logo'
 import { BibleIcon } from '~/components/Art'
 import { ThemeSwitch } from '~/components/ThemeSwitch'
+import { NotificationBell } from '~/components/NotificationBell'
 
 export const Route = createFileRoute('/app')({
   beforeLoad: async () => {
@@ -35,9 +36,12 @@ function AppLayout() {
     <div className="min-h-dvh md:flex">
       {/* Desktop sidebar */}
       <aside className="sticky top-0 hidden h-dvh w-60 shrink-0 flex-col border-r border-line px-4 py-6 md:flex">
-        <Link to="/app" className="px-2">
-          <Logo />
-        </Link>
+        <div className="flex items-center justify-between px-2">
+          <Link to="/app">
+            <Logo />
+          </Link>
+          <NotificationBell tone="dark" />
+        </div>
         <nav className="mt-8 space-y-1">
           {NAV.map(({ to, label, Icon, ...rest }) => (
             <Link

@@ -63,6 +63,15 @@ Optional, for live prayer on strict mobile networks: create a TURN key in Cloudf
 - Year of birth at sign-up (13+). Prayer groups and live prayer are 18+, enforced on the server. Older accounts are asked once.
 - Migration `0008_launch.sql`
 
+## Notifications, prayer times, Walk With Me
+- In-app 🔔 notifications + phone notifications (Web Push, RFC 8291/8292 in WebCrypto: `src/lib/webpush.ts`, verified against the RFC test vector)
+- Pushes are queued in `push_outbox` and sent 40 at a time by the `PushDispatcher` Durable Object (free-plan limits)
+- Cron Trigger every 5 minutes (`src/lib/cron.ts`): group prayer-time reminders (15 min before), daily reminders at each person's chosen time
+- Scheduled prayer times per group (leaders/admins), per-group mute, "Coming up" on Community
+- Walk With Me: invite link, partner sees only "completed today" + journey day, preset encouragements
+- Admin → Notifications: announcements to everyone or a group, stats, all prayer times
+- Setup: `node scripts/vapid.mjs` and follow the printed steps. Migration `0009_engage.sql`
+
 ## Setup (Windows, PowerShell)
 ```powershell
 nvm use 22

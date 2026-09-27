@@ -3,6 +3,7 @@ import { db, env } from '~/lib/env'
 import { audit, requireAdmin } from '~/lib/admin'
 import { currentUser } from '~/lib/auth'
 import { dayString, newId } from '~/lib/util'
+import { notify } from '~/lib/notify'
 
 const LEVELS = ['recovery', 'build', 'deepen', 'intensive']
 const STEP_KINDS = ['stillness', 'breathe', 'scripture', 'prayer', 'worship', 'reflection', 'thanksgiving']
@@ -514,3 +515,62 @@ export const getCommunityStats = createServerFn({ method: 'GET' }).handler(async
     return { groups: 0, liveNow: 0, postsWeek: 0, liveWeek: 0, openReports: 0, bibleVerses: 0 }
   }
 })
+
+// ---------------- Notifications & engagement ----------------
+export const getEngagementAdmin = createServerFn({ method: 'GET' }).handler(async () => {
+  await requireAdmin()
+  const e = env()
+  const q = <T,>(sql: string) => db().prepare(sql).first<T>()
+  const [subs, subUsers, reminders, walks, sent7, schedules, groups] = await Promise.all([
+    q<{ n: number }>('SELECT COUNT(*) AS n FROM push_subscriptions'),
+    q<{ n: number }>('SELECT COUNT(DISTINCT user_id) AS n FROM push_subscriptions'),
+    q<{ n: number }>('SELECT COUNT(*) AS n FROM profiles WHERE reminder_time IS NOT NULL'),
+    q<{ n: number }>(`SELECT COUNT(*) AS n FROM walk_pairs WHERE status = 'active'`),
+    q<{ n: number }>(`SELECT COUNT(*) AS n FROM notifications WHERE created_at > datetime('now', '-7 days')`),
+    db()
+      .prepare(
+        `SELECT s.id, s.title, s.days, s.time, s.timezone, s.duration_min, g.id AS group_id, g.name AS group_name
+         FROM prayer_schedules s JOIN prayer_groups g ON g.id = s.group_id WHERE g.is_hidden = 0`,
+      )
+      .all<{ id: string; title: string; days: string; time: string; timezone: string; duration_min: number; group_id: string; group_name: string }>(),
+    db().prepare('SELECT id, name FROM prayer_groups WHERE is_hidden = 0 ORDER BY name').all<{ id: string; name: string }>(),
+  ])
+  return {
+    pushReady: !!(e.VAPID_PUBLIC_KEY && e.VAPID_PRIVATE_KEY),
+    devices: subs?.n ?? 0,
+    pushUsers: subUsers?.n ?? 0,
+    reminders: reminders?.n ?? 0,
+    walks: walks?.n ?? 0,
+    sent7: sent7?.n ?? 0,
+    schedules: schedules.results,
+    groups: groups.results,
+  }
+})
+
+export const adminBroadcast = createServerFn({ method: 'POST' })
+  .validator((d: { title: string; body: string; url?: string; groupId?: string }) => {
+    const title = String(d?.title ?? '').trim().slice(0, 80)
+    if (!title) throw new Error('Add a title.')
+    const url = String(d?.url ?? '').trim()
+    return {
+      title,
+      body: String(d?.body ?? '').trim().slice(0, 240),
+      url: url.startsWith('/') ? url.slice(0, 200) : '/app',
+      groupId: d?.groupId ? String(d.groupId) : null,
+    }
+  })
+  .handler(async ({ data }) => {
+    const admin = await requireAdmin()
+    await notify(data.groupId ? { groupId: data.groupId } : { all: true }, { kind: 'announcement', title: data.title, body: data.body, url: data.url, tag: 'announce' })
+    await audit(admin, 'notify.broadcast', data.groupId ?? 'everyone', data.title)
+    return { ok: true }
+  })
+
+export const adminDeleteSchedule = createServerFn({ method: 'POST' })
+  .validator((d: { id: string }) => ({ id: String(d?.id ?? '') }))
+  .handler(async ({ data }) => {
+    const admin = await requireAdmin()
+    await db().prepare('DELETE FROM prayer_schedules WHERE id = ?').bind(data.id).run()
+    await audit(admin, 'schedule.delete', data.id)
+    return { ok: true }
+  })

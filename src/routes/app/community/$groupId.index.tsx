@@ -6,6 +6,7 @@ import { JourneyCover } from '~/components/Art'
 import { FormError, errorText } from '~/components/AuthShell'
 import { ReportDialog } from '~/components/ReportDialog'
 import { Avatar, timeAgo } from '~/components/Avatar'
+import { PrayerTimes } from '~/components/PrayerTimes'
 
 export const Route = createFileRoute('/app/community/$groupId/')({
   loader: ({ params }) => getGroup({ data: params.groupId }),
@@ -101,6 +102,8 @@ function GroupPage() {
             <p className="mt-4 text-sm text-white/80">Join the group to pray live.</p>
           )}
         </section>
+
+        <PrayerTimes groupId={g.id} schedules={d.schedules} canSchedule={d.canSchedule} isMember={d.isMember} notifyOn={d.notifyOn} />
 
         <div className="mt-6 grid grid-cols-2 gap-1 rounded-full bg-surface-2 p-1">
           {(['wall', 'members'] as const).map((t) => (

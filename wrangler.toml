@@ -23,9 +23,21 @@ bucket_name = "spiritual-gym-media"
 name = "PRAYER_ROOMS"
 class_name = "PrayerRoom"
 
+[[durable_objects.bindings]]
+name = "PUSH"
+class_name = "PushDispatcher"
+
 [[migrations]]
 tag = "v1"
 new_sqlite_classes = ["PrayerRoom"]
+
+[[migrations]]
+tag = "v2"
+new_sqlite_classes = ["PushDispatcher"]
+
+# --- Every 5 minutes: prayer-time reminders + daily reminders ---
+[triggers]
+crons = ["*/5 * * * *"]
 
 # --- Secrets: set with `npx wrangler secret put <NAME>`, never commit them ---
 # RESEND_API_KEY        password reset + reminder emails   (Phase 2)
@@ -34,3 +46,6 @@ new_sqlite_classes = ["PrayerRoom"]
 
 [vars]
 SITE_ENV = "production"
+# Push notifications: run `node scripts/vapid.mjs`, paste the public key here, and save the private key as a secret
+VAPID_PUBLIC_KEY = "BMUAnllpFPiro5d06ph7PNTgKKDkY4tKdnd4DmtOf0ns67eCyNaNlznvlW3SBpojOKSVigAhimXgCnN5gLW9sy4"
+VAPID_SUBJECT = "mailto:admin@example.com"

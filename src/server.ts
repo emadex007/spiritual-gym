@@ -2,6 +2,8 @@ import handler from '@tanstack/react-start/server-entry'
 import type { AppEnv } from '~/lib/env'
 
 export { PrayerRoom } from '~/lib/prayer-room'
+export { PushDispatcher } from '~/lib/push-dispatcher'
+import { runCron } from '~/lib/cron'
 
 const COOKIE = 'sg_session'
 const MAX_UPLOAD = 5 * 1024 * 1024 // 5 MB
@@ -13,6 +15,11 @@ const IMAGE_TYPES: Record<string, string> = {
 }
 
 export default {
+  // Every 5 minutes: prayer-time reminders, daily reminders, housekeeping (see [triggers] in wrangler.toml)
+  async scheduled(_controller: ScheduledController, _env: AppEnv, ctx: ExecutionContext) {
+    ctx.waitUntil(runCron())
+  },
+
   async fetch(request: Request, env: AppEnv) {
     const url = new URL(request.url)
 

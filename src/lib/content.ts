@@ -145,3 +145,13 @@ export const MIN_AGE = 13
 export const COMMUNITY_MIN_AGE = 18
 /** Age this year (from year of birth only, so it may be one year high before the birthday) */
 export const ageFromYear = (birthYear: number, now = new Date()) => now.getFullYear() - birthYear
+
+// ---------- Walk With Me ----------
+export const WALK_CHEERS = [
+  '🙏 Praying for you today',
+  '💪 Keep going, you’re doing great',
+  '📖 Don’t forget your time with God today',
+  '🌅 Proud of you for showing up',
+  '❤️ Thinking of you',
+  '✨ It’s okay to begin again',
+] as const

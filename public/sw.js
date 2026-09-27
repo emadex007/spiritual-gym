@@ -1,6 +1,6 @@
 // SpiritualGym service worker: installable app + offline fallback.
 // Never caches private data: server functions (/_serverFn), /api and signed-in pages always go to the network.
-const VERSION = 'sg-v1'
+const VERSION = 'sg-v2'
 const STATIC = `${VERSION}-static`
 const PRECACHE = ['/offline.html', '/icons/icon-192.png', '/manifest.webmanifest']
 
@@ -39,4 +39,41 @@ self.addEventListener('fetch', (e) => {
       }),
     )
   }
+})
+
+// ---------- Push notifications ----------
+self.addEventListener('push', (e) => {
+  let data = {}
+  try {
+    data = e.data ? e.data.json() : {}
+  } catch {
+    data = { title: 'SpiritualGym', body: e.data ? e.data.text() : '' }
+  }
+  const title = data.title || 'SpiritualGym'
+  e.waitUntil(
+    self.registration.showNotification(title, {
+      body: data.body || '',
+      icon: '/icons/icon-192.png',
+      badge: '/icons/icon-192.png',
+      tag: data.tag || undefined,
+      renotify: !!data.tag,
+      data: { url: data.url || '/app' },
+    }),
+  )
+})
+
+self.addEventListener('notificationclick', (e) => {
+  e.notification.close()
+  const target = new URL((e.notification.data && e.notification.data.url) || '/app', self.location.origin).href
+  e.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((wins) => {
+      for (const w of wins) {
+        if (w.url.startsWith(self.location.origin) && 'focus' in w) {
+          w.navigate(target)
+          return w.focus()
+        }
+      }
+      return self.clients.openWindow(target)
+    }),
+  )
 })

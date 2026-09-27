@@ -25,6 +25,7 @@ import { Route as AdminAuditRouteImport } from './routes/admin/audit'
 import { Route as AdminCommunityRouteImport } from './routes/admin/community'
 import { Route as AdminJourneysRouteImport } from './routes/admin/journeys'
 import { Route as AdminLoginRouteImport } from './routes/admin.login'
+import { Route as AdminNotificationsRouteImport } from './routes/admin/notifications'
 import { Route as AdminReportsRouteImport } from './routes/admin/reports'
 import { Route as AdminSettingsRouteImport } from './routes/admin/settings'
 import { Route as AdminUsersRouteImport } from './routes/admin/users'
@@ -34,6 +35,7 @@ import { Route as AppIndexRouteImport } from './routes/app/index'
 import { Route as AppCommunityRouteImport } from './routes/app/community'
 import { Route as AppCommunityAccessRouteImport } from './routes/app/community-access'
 import { Route as AppJournalRouteImport } from './routes/app/journal'
+import { Route as AppNotificationsRouteImport } from './routes/app/notifications'
 import { Route as AppProfileRouteImport } from './routes/app/profile'
 import { Route as AppTrainRouteImport } from './routes/app/train'
 import { Route as AppBibleIndexRouteImport } from './routes/app/bible/index'
@@ -41,12 +43,14 @@ import { Route as AppCommunityIndexRouteImport } from './routes/app/community/in
 import { Route as AppCommunityNewRouteImport } from './routes/app/community/new'
 import { Route as AppJournalIndexRouteImport } from './routes/app/journal/index'
 import { Route as AppJournalPrayerRouteImport } from './routes/app/journal/prayer'
+import { Route as AppWalkIndexRouteImport } from './routes/app/walk/index'
 import { Route as AppWorkoutSlugRouteImport } from './routes/app/workout.$slug'
 import { Route as AppBibleBookChapterRouteImport } from './routes/app/bible/$book.$chapter'
 import { Route as AppCommunityGroupIdIndexRouteImport } from './routes/app/community/$groupId.index'
 import { Route as AppCommunityGroupIdLiveRouteImport } from './routes/app/community/$groupId.live'
 import { Route as AppJournalMemoryIndexRouteImport } from './routes/app/journal/memory.index'
 import { Route as AppJournalMemoryIdRouteImport } from './routes/app/journal/memory.$id'
+import { Route as AppWalkJoinCodeRouteImport } from './routes/app/walk/join.$code'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -128,6 +132,11 @@ const AdminLoginRoute = AdminLoginRouteImport.update({
   path: '/login',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminNotificationsRoute = AdminNotificationsRouteImport.update({
+  id: '/notifications',
+  path: '/notifications',
+  getParentRoute: () => AdminRoute,
+} as any)
 const AdminReportsRoute = AdminReportsRouteImport.update({
   id: '/reports',
   path: '/reports',
@@ -173,6 +182,11 @@ const AppJournalRoute = AppJournalRouteImport.update({
   path: '/journal',
   getParentRoute: () => AppRoute,
 } as any)
+const AppNotificationsRoute = AppNotificationsRouteImport.update({
+  id: '/notifications',
+  path: '/notifications',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppProfileRoute = AppProfileRouteImport.update({
   id: '/profile',
   path: '/profile',
@@ -208,6 +222,11 @@ const AppJournalPrayerRoute = AppJournalPrayerRouteImport.update({
   path: '/prayer',
   getParentRoute: () => AppJournalRoute,
 } as any)
+const AppWalkIndexRoute = AppWalkIndexRouteImport.update({
+  id: '/walk/',
+  path: '/walk/',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppWorkoutSlugRoute = AppWorkoutSlugRouteImport.update({
   id: '/workout/$slug',
   path: '/workout/$slug',
@@ -239,6 +258,11 @@ const AppJournalMemoryIdRoute = AppJournalMemoryIdRouteImport.update({
   path: '/memory/$id',
   getParentRoute: () => AppJournalRoute,
 } as any)
+const AppWalkJoinCodeRoute = AppWalkJoinCodeRouteImport.update({
+  id: '/walk/join/$code',
+  path: '/walk/join/$code',
+  getParentRoute: () => AppRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -256,6 +280,7 @@ export interface FileRoutesByFullPath {
   '/admin/community': typeof AdminCommunityRoute
   '/admin/journeys': typeof AdminJourneysRoute
   '/admin/login': typeof AdminLoginRoute
+  '/admin/notifications': typeof AdminNotificationsRoute
   '/admin/reports': typeof AdminReportsRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/users': typeof AdminUsersRoute
@@ -264,6 +289,7 @@ export interface FileRoutesByFullPath {
   '/app/community': typeof AppCommunityRouteWithChildren
   '/app/community-access': typeof AppCommunityAccessRoute
   '/app/journal': typeof AppJournalRouteWithChildren
+  '/app/notifications': typeof AppNotificationsRoute
   '/app/profile': typeof AppProfileRoute
   '/app/train': typeof AppTrainRoute
   '/admin/': typeof AdminIndexRoute
@@ -274,9 +300,11 @@ export interface FileRoutesByFullPath {
   '/app/bible/': typeof AppBibleIndexRoute
   '/app/community/': typeof AppCommunityIndexRoute
   '/app/journal/': typeof AppJournalIndexRoute
+  '/app/walk/': typeof AppWalkIndexRoute
   '/app/bible/$book/$chapter': typeof AppBibleBookChapterRoute
   '/app/community/$groupId/live': typeof AppCommunityGroupIdLiveRoute
   '/app/journal/memory/$id': typeof AppJournalMemoryIdRoute
+  '/app/walk/join/$code': typeof AppWalkJoinCodeRoute
   '/app/community/$groupId/': typeof AppCommunityGroupIdIndexRoute
   '/app/journal/memory/': typeof AppJournalMemoryIndexRoute
 }
@@ -294,12 +322,14 @@ export interface FileRoutesByTo {
   '/admin/community': typeof AdminCommunityRoute
   '/admin/journeys': typeof AdminJourneysRoute
   '/admin/login': typeof AdminLoginRoute
+  '/admin/notifications': typeof AdminNotificationsRoute
   '/admin/reports': typeof AdminReportsRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/users': typeof AdminUsersRoute
   '/admin/verses': typeof AdminVersesRoute
   '/admin/workouts': typeof AdminWorkoutsRoute
   '/app/community-access': typeof AppCommunityAccessRoute
+  '/app/notifications': typeof AppNotificationsRoute
   '/app/profile': typeof AppProfileRoute
   '/app/train': typeof AppTrainRoute
   '/admin': typeof AdminIndexRoute
@@ -310,9 +340,11 @@ export interface FileRoutesByTo {
   '/app/bible': typeof AppBibleIndexRoute
   '/app/community': typeof AppCommunityIndexRoute
   '/app/journal': typeof AppJournalIndexRoute
+  '/app/walk': typeof AppWalkIndexRoute
   '/app/bible/$book/$chapter': typeof AppBibleBookChapterRoute
   '/app/community/$groupId/live': typeof AppCommunityGroupIdLiveRoute
   '/app/journal/memory/$id': typeof AppJournalMemoryIdRoute
+  '/app/walk/join/$code': typeof AppWalkJoinCodeRoute
   '/app/community/$groupId': typeof AppCommunityGroupIdIndexRoute
   '/app/journal/memory': typeof AppJournalMemoryIndexRoute
 }
@@ -333,6 +365,7 @@ export interface FileRoutesById {
   '/admin/community': typeof AdminCommunityRoute
   '/admin/journeys': typeof AdminJourneysRoute
   '/admin/login': typeof AdminLoginRoute
+  '/admin/notifications': typeof AdminNotificationsRoute
   '/admin/reports': typeof AdminReportsRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/users': typeof AdminUsersRoute
@@ -341,6 +374,7 @@ export interface FileRoutesById {
   '/app/community': typeof AppCommunityRouteWithChildren
   '/app/community-access': typeof AppCommunityAccessRoute
   '/app/journal': typeof AppJournalRouteWithChildren
+  '/app/notifications': typeof AppNotificationsRoute
   '/app/profile': typeof AppProfileRoute
   '/app/train': typeof AppTrainRoute
   '/admin/': typeof AdminIndexRoute
@@ -351,9 +385,11 @@ export interface FileRoutesById {
   '/app/bible/': typeof AppBibleIndexRoute
   '/app/community/': typeof AppCommunityIndexRoute
   '/app/journal/': typeof AppJournalIndexRoute
+  '/app/walk/': typeof AppWalkIndexRoute
   '/app/bible/$book/$chapter': typeof AppBibleBookChapterRoute
   '/app/community/$groupId/live': typeof AppCommunityGroupIdLiveRoute
   '/app/journal/memory/$id': typeof AppJournalMemoryIdRoute
+  '/app/walk/join/$code': typeof AppWalkJoinCodeRoute
   '/app/community/$groupId/': typeof AppCommunityGroupIdIndexRoute
   '/app/journal/memory/': typeof AppJournalMemoryIndexRoute
 }
@@ -375,6 +411,7 @@ export interface FileRouteTypes {
     | '/admin/community'
     | '/admin/journeys'
     | '/admin/login'
+    | '/admin/notifications'
     | '/admin/reports'
     | '/admin/settings'
     | '/admin/users'
@@ -383,6 +420,7 @@ export interface FileRouteTypes {
     | '/app/community'
     | '/app/community-access'
     | '/app/journal'
+    | '/app/notifications'
     | '/app/profile'
     | '/app/train'
     | '/admin/'
@@ -393,9 +431,11 @@ export interface FileRouteTypes {
     | '/app/bible/'
     | '/app/community/'
     | '/app/journal/'
+    | '/app/walk/'
     | '/app/bible/$book/$chapter'
     | '/app/community/$groupId/live'
     | '/app/journal/memory/$id'
+    | '/app/walk/join/$code'
     | '/app/community/$groupId/'
     | '/app/journal/memory/'
   fileRoutesByTo: FileRoutesByTo
@@ -413,12 +453,14 @@ export interface FileRouteTypes {
     | '/admin/community'
     | '/admin/journeys'
     | '/admin/login'
+    | '/admin/notifications'
     | '/admin/reports'
     | '/admin/settings'
     | '/admin/users'
     | '/admin/verses'
     | '/admin/workouts'
     | '/app/community-access'
+    | '/app/notifications'
     | '/app/profile'
     | '/app/train'
     | '/admin'
@@ -429,9 +471,11 @@ export interface FileRouteTypes {
     | '/app/bible'
     | '/app/community'
     | '/app/journal'
+    | '/app/walk'
     | '/app/bible/$book/$chapter'
     | '/app/community/$groupId/live'
     | '/app/journal/memory/$id'
+    | '/app/walk/join/$code'
     | '/app/community/$groupId'
     | '/app/journal/memory'
   id:
@@ -451,6 +495,7 @@ export interface FileRouteTypes {
     | '/admin/community'
     | '/admin/journeys'
     | '/admin/login'
+    | '/admin/notifications'
     | '/admin/reports'
     | '/admin/settings'
     | '/admin/users'
@@ -459,6 +504,7 @@ export interface FileRouteTypes {
     | '/app/community'
     | '/app/community-access'
     | '/app/journal'
+    | '/app/notifications'
     | '/app/profile'
     | '/app/train'
     | '/admin/'
@@ -469,9 +515,11 @@ export interface FileRouteTypes {
     | '/app/bible/'
     | '/app/community/'
     | '/app/journal/'
+    | '/app/walk/'
     | '/app/bible/$book/$chapter'
     | '/app/community/$groupId/live'
     | '/app/journal/memory/$id'
+    | '/app/walk/join/$code'
     | '/app/community/$groupId/'
     | '/app/journal/memory/'
   fileRoutesById: FileRoutesById
@@ -604,6 +652,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminLoginRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/notifications': {
+      id: '/admin/notifications'
+      path: '/notifications'
+      fullPath: '/admin/notifications'
+      preLoaderRoute: typeof AdminNotificationsRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/reports': {
       id: '/admin/reports'
       path: '/reports'
@@ -667,6 +722,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppJournalRouteImport
       parentRoute: typeof AppRoute
     }
+    '/app/notifications': {
+      id: '/app/notifications'
+      path: '/notifications'
+      fullPath: '/app/notifications'
+      preLoaderRoute: typeof AppNotificationsRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/app/profile': {
       id: '/app/profile'
       path: '/profile'
@@ -716,6 +778,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppJournalPrayerRouteImport
       parentRoute: typeof AppJournalRoute
     }
+    '/app/walk/': {
+      id: '/app/walk/'
+      path: '/walk'
+      fullPath: '/app/walk/'
+      preLoaderRoute: typeof AppWalkIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/app/workout/$slug': {
       id: '/app/workout/$slug'
       path: '/workout/$slug'
@@ -758,6 +827,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppJournalMemoryIdRouteImport
       parentRoute: typeof AppJournalRoute
     }
+    '/app/walk/join/$code': {
+      id: '/app/walk/join/$code'
+      path: '/walk/join/$code'
+      fullPath: '/app/walk/join/$code'
+      preLoaderRoute: typeof AppWalkJoinCodeRouteImport
+      parentRoute: typeof AppRoute
+    }
   }
 }
 
@@ -766,6 +842,7 @@ interface AdminRouteChildren {
   AdminCommunityRoute: typeof AdminCommunityRoute
   AdminJourneysRoute: typeof AdminJourneysRoute
   AdminLoginRoute: typeof AdminLoginRoute
+  AdminNotificationsRoute: typeof AdminNotificationsRoute
   AdminReportsRoute: typeof AdminReportsRoute
   AdminSettingsRoute: typeof AdminSettingsRoute
   AdminUsersRoute: typeof AdminUsersRoute
@@ -779,6 +856,7 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminCommunityRoute: AdminCommunityRoute,
   AdminJourneysRoute: AdminJourneysRoute,
   AdminLoginRoute: AdminLoginRoute,
+  AdminNotificationsRoute: AdminNotificationsRoute,
   AdminReportsRoute: AdminReportsRoute,
   AdminSettingsRoute: AdminSettingsRoute,
   AdminUsersRoute: AdminUsersRoute,
@@ -829,24 +907,30 @@ interface AppRouteChildren {
   AppCommunityRoute: typeof AppCommunityRouteWithChildren
   AppCommunityAccessRoute: typeof AppCommunityAccessRoute
   AppJournalRoute: typeof AppJournalRouteWithChildren
+  AppNotificationsRoute: typeof AppNotificationsRoute
   AppProfileRoute: typeof AppProfileRoute
   AppTrainRoute: typeof AppTrainRoute
   AppIndexRoute: typeof AppIndexRoute
   AppWorkoutSlugRoute: typeof AppWorkoutSlugRoute
   AppBibleIndexRoute: typeof AppBibleIndexRoute
+  AppWalkIndexRoute: typeof AppWalkIndexRoute
   AppBibleBookChapterRoute: typeof AppBibleBookChapterRoute
+  AppWalkJoinCodeRoute: typeof AppWalkJoinCodeRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
   AppCommunityRoute: AppCommunityRouteWithChildren,
   AppCommunityAccessRoute: AppCommunityAccessRoute,
   AppJournalRoute: AppJournalRouteWithChildren,
+  AppNotificationsRoute: AppNotificationsRoute,
   AppProfileRoute: AppProfileRoute,
   AppTrainRoute: AppTrainRoute,
   AppIndexRoute: AppIndexRoute,
   AppWorkoutSlugRoute: AppWorkoutSlugRoute,
   AppBibleIndexRoute: AppBibleIndexRoute,
+  AppWalkIndexRoute: AppWalkIndexRoute,
   AppBibleBookChapterRoute: AppBibleBookChapterRoute,
+  AppWalkJoinCodeRoute: AppWalkJoinCodeRoute,
 }
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
