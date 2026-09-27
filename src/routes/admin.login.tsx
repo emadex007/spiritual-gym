@@ -53,6 +53,7 @@ function AdminLogin() {
         </div>
         <FormError message={error} />
         <button className="btn-primary w-full" disabled={busy}>{busy ? 'Signing in…' : 'Sign in'}</button>
+        <a href="/forgot-password" className="block text-center text-sm font-semibold text-accent">Forgot password?</a>
       </form>
     </div>
   )

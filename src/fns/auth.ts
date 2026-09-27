@@ -1,10 +1,10 @@
 import { createServerFn } from '@tanstack/react-start'
 import { db } from '~/lib/env'
-import { createSession, currentUser, destroySession, hashPassword, verifyPassword } from '~/lib/auth'
+import { communityAccess, createSession, currentUser, destroySession, hashPassword, requireUser, verifyPassword } from '~/lib/auth'
 import { newId } from '~/lib/util'
 
 export type Me = {
-  user: { id: string; email: string; name: string; role: string; avatar_key: string | null }
+  user: { id: string; email: string; name: string; role: string; avatar_key: string | null; birth_year: number | null }
   onboarded: boolean
 }
 
@@ -19,14 +19,18 @@ export const getMe = createServerFn({ method: 'GET' }).handler(async (): Promise
 })
 
 export const signUp = createServerFn({ method: 'POST' })
-  .validator((d: { name: string; email: string; password: string }) => {
+  .validator((d: { name: string; email: string; password: string; birthYear: number }) => {
     const name = String(d?.name ?? '').trim()
     const email = String(d?.email ?? '').trim().toLowerCase()
     const password = String(d?.password ?? '')
     if (name.length < 2) throw new Error('Please enter your name.')
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new Error('Please enter a valid email address.')
     if (password.length < 8) throw new Error('Password must be at least 8 characters.')
-    return { name, email, password }
+    const birthYear = Math.round(Number(d?.birthYear))
+    const thisYear = new Date().getFullYear()
+    if (!birthYear || birthYear < thisYear - 110 || birthYear > thisYear) throw new Error('Please choose your year of birth.')
+    if (thisYear - birthYear < 13) throw new Error('SpiritualGym is for people aged 13 and over.')
+    return { name, email, password, birthYear }
   })
   .handler(async ({ data }) => {
     const exists = await db().prepare('SELECT id FROM users WHERE email = ?').bind(data.email).first()
@@ -34,8 +38,8 @@ export const signUp = createServerFn({ method: 'POST' })
     const id = newId()
     await db().batch([
       db()
-        .prepare('INSERT INTO users (id, email, password_hash, name) VALUES (?, ?, ?, ?)')
-        .bind(id, data.email, await hashPassword(data.password), data.name),
+        .prepare('INSERT INTO users (id, email, password_hash, name, birth_year) VALUES (?, ?, ?, ?, ?)')
+        .bind(id, data.email, await hashPassword(data.password), data.name, data.birthYear),
       db().prepare('INSERT INTO profiles (user_id) VALUES (?)').bind(id),
     ])
     await createSession(id)
@@ -66,4 +70,23 @@ export const signIn = createServerFn({ method: 'POST' })
 export const signOut = createServerFn({ method: 'POST' }).handler(async () => {
   await destroySession()
   return { ok: true }
+})
+
+/** For older accounts that signed up before we asked. Can only be set once (admins can correct it). */
+export const setBirthYear = createServerFn({ method: 'POST' })
+  .validator((d: { birthYear: number }) => {
+    const y = Math.round(Number(d?.birthYear))
+    const thisYear = new Date().getFullYear()
+    if (!y || y < thisYear - 110 || y > thisYear) throw new Error('Please choose your year of birth.')
+    return { birthYear: y }
+  })
+  .handler(async ({ data }) => {
+    const user = await requireUser()
+    await db().prepare('UPDATE users SET birth_year = ? WHERE id = ? AND birth_year IS NULL').bind(data.birthYear, user.id).run()
+    return { ok: true }
+  })
+
+export const getCommunityAccess = createServerFn({ method: 'GET' }).handler(async () => {
+  const user = await requireUser()
+  return communityAccess(user)
 })

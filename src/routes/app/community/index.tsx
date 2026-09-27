@@ -91,6 +91,7 @@ function Community() {
         <HeartIcon className="absolute -right-3 -bottom-3 h-24 w-24 text-[#e05a7a]/15" />
         <p className="font-semibold text-[#12203a]">A safe place to pray</p>
         <p className="mt-1 max-w-md text-sm text-[#5b6477]">Be kind. Never ask for money or personal details. Report anything that worries you, and our team will review it.</p>
+        <Link to="/guidelines" className="mt-3 inline-block text-sm font-semibold text-[#b8375a]">Read the community guidelines →</Link>
       </section>
     </main>
   )

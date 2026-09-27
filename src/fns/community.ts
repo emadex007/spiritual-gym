@@ -1,6 +1,6 @@
 import { createServerFn } from '@tanstack/react-start'
 import { db } from '~/lib/env'
-import { requireUser } from '~/lib/auth'
+import { requireCommunityUser as requireUser } from '~/lib/auth'
 import { PRAYER_PURPOSES, POST_KINDS, REPORT_REASONS } from '~/lib/content'
 import { newId } from '~/lib/util'
 

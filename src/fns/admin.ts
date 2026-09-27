@@ -7,7 +7,8 @@ import { dayString, newId } from '~/lib/util'
 const LEVELS = ['recovery', 'build', 'deepen', 'intensive']
 const STEP_KINDS = ['stillness', 'breathe', 'scripture', 'prayer', 'worship', 'reflection', 'thanksgiving']
 const FOCUSES = ['prayer', 'bible', 'worship', 'memory', 'fasting', 'gratitude', 'consistency', 'growth']
-const SETTING_KEYS = ['site_name', 'tagline', 'hero_title', 'hero_subtitle', 'hero_image', 'announcement', 'home_message', 'support_text', 'footer_text']
+const SETTING_KEYS = ['site_name', 'tagline', 'hero_title', 'hero_subtitle', 'hero_image', 'announcement', 'home_message', 'support_text', 'footer_text', 'contact_email', 'privacy_text', 'terms_text', 'guidelines_text']
+const LONG_KEYS = ['privacy_text', 'terms_text', 'guidelines_text']
 
 const slugify = (s: string) =>
   s.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 60) || 'item-' + Date.now()
@@ -65,11 +66,11 @@ export const listUsers = createServerFn({ method: 'GET' }).handler(async () => {
   // Deliberately NO journal, check-in, prayer or reflection content here.
   const { results } = await db()
     .prepare(
-      `SELECT u.id, u.name, u.email, u.role, u.avatar_key, u.created_at, p.last_active_date, p.daily_minutes,
+      `SELECT u.id, u.name, u.email, u.role, u.avatar_key, u.birth_year, u.created_at, p.last_active_date, p.daily_minutes,
               (SELECT COUNT(*) FROM workout_sessions ws WHERE ws.user_id = u.id) AS sessions
        FROM users u LEFT JOIN profiles p ON p.user_id = u.id ORDER BY u.created_at DESC LIMIT 500`,
     )
-    .all<{ id: string; name: string; email: string; role: string; avatar_key: string | null; created_at: string; last_active_date: string | null; daily_minutes: number | null; sessions: number }>()
+    .all<{ id: string; name: string; email: string; role: string; avatar_key: string | null; birth_year: number | null; created_at: string; last_active_date: string | null; daily_minutes: number | null; sessions: number }>()
   return results
 })
 
@@ -83,6 +84,15 @@ export const setUserRole = createServerFn({ method: 'POST' })
     if (data.id === admin.id && data.role !== 'admin') throw new Error('You can’t remove your own admin access.')
     await db().prepare('UPDATE users SET role = ? WHERE id = ?').bind(data.role, data.id).run()
     await audit(admin, 'user.role', data.id, data.role)
+    return { ok: true }
+  })
+
+export const adminSetBirthYear = createServerFn({ method: 'POST' })
+  .validator((d: { id: string; birthYear: number | null }) => ({ id: String(d?.id ?? ''), birthYear: d?.birthYear ? Math.round(Number(d.birthYear)) : null }))
+  .handler(async ({ data }) => {
+    const admin = await requireAdmin()
+    await db().prepare('UPDATE users SET birth_year = ? WHERE id = ?').bind(data.birthYear, data.id).run()
+    await audit(admin, 'user.birth_year', data.id, String(data.birthYear ?? 'cleared'))
     return { ok: true }
   })
 
@@ -132,7 +142,7 @@ export const getAdminSettings = createServerFn({ method: 'GET' }).handler(async 
 export const saveSettings = createServerFn({ method: 'POST' })
   .validator((d: Record<string, string>) => {
     const out: Record<string, string> = {}
-    for (const k of SETTING_KEYS) if (typeof d?.[k] === 'string') out[k] = d[k].slice(0, 2000)
+    for (const k of SETTING_KEYS) if (typeof d?.[k] === 'string') out[k] = d[k].slice(0, LONG_KEYS.includes(k) ? 30000 : 2000)
     return out
   })
   .handler(async ({ data }) => {

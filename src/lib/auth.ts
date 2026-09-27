@@ -33,7 +33,7 @@ export async function verifyPassword(password: string, stored: string) {
   return diff === 0
 }
 
-async function sha256(text: string) {
+export async function sha256(text: string) {
   return toHex(await crypto.subtle.digest('SHA-256', enc.encode(text)))
 }
 
@@ -53,20 +53,20 @@ export async function createSession(userId: string) {
   })
 }
 
-export type SessionUser = { id: string; email: string; name: string; role: string; avatar_key: string | null }
+export type SessionUser = { id: string; email: string; name: string; role: string; avatar_key: string | null; birth_year: number | null }
 
 export async function currentUser(): Promise<SessionUser | null> {
   const token = getCookie(COOKIE)
   if (!token) return null
   const row = await db()
     .prepare(
-      `SELECT u.id, u.email, u.name, u.role, u.avatar_key, s.expires_at
+      `SELECT u.id, u.email, u.name, u.role, u.avatar_key, u.birth_year, s.expires_at
        FROM sessions s JOIN users u ON u.id = s.user_id WHERE s.id = ?`,
     )
     .bind(await sha256(token))
     .first<SessionUser & { expires_at: string }>()
   if (!row || Date.parse(row.expires_at) < Date.now()) return null
-  return { id: row.id, email: row.email, name: row.name, role: row.role, avatar_key: row.avatar_key }
+  return { id: row.id, email: row.email, name: row.name, role: row.role, avatar_key: row.avatar_key, birth_year: row.birth_year }
 }
 
 /** Use inside every private server function */
@@ -80,4 +80,29 @@ export async function destroySession() {
   const token = getCookie(COOKIE)
   if (token) await db().prepare('DELETE FROM sessions WHERE id = ?').bind(await sha256(token)).run()
   deleteCookie(COOKIE, { path: '/' })
+}
+
+/** A random token for links (returned to the caller) and its hash (stored) */
+export async function newToken() {
+  const token = toHex(crypto.getRandomValues(new Uint8Array(32)))
+  return { token, hash: await sha256(token) }
+}
+
+/** Sign someone out everywhere (e.g. after a password reset) */
+export async function destroyAllSessions(userId: string) {
+  await db().prepare('DELETE FROM sessions WHERE user_id = ?').bind(userId).run()
+}
+
+/** Prayer groups & live prayer are for adults. "unknown" = we haven't asked this (older) account yet. */
+export function communityAccess(user: SessionUser): 'ok' | 'unknown' | 'underage' {
+  if (!user.birth_year) return 'unknown'
+  return new Date().getFullYear() - user.birth_year >= 18 ? 'ok' : 'underage'
+}
+
+export async function requireCommunityUser() {
+  const user = await requireUser()
+  const a = communityAccess(user)
+  if (a === 'unknown') throw new Error('Please confirm your year of birth to use prayer groups.')
+  if (a === 'underage') throw new Error('Prayer groups and live prayer are for adults (18+).')
+  return user
 }

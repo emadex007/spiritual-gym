@@ -55,6 +55,14 @@ Optional, for live prayer on strict mobile networks: create a TURN key in Cloudf
 - Profile photos: resized in the browser to 400×400, stored in R2 under `avatars/`, shown in community, live prayer, home and admin
 - Migration `0007_avatars.sql`
 
+## Launch essentials
+- Forgot password: `/forgot-password` → email with a 1-hour link (Resend). Without email set up, admins can make a 24-hour reset link in Admin → Users and send it on WhatsApp.
+  Email setup (optional): `wrangler secret put RESEND_API_KEY`, and add `EMAIL_FROM = "SpiritualGym <hello@yourdomain>"` (verified domain) and `APP_URL = "https://your-site"` under [vars].
+- Install on phone (PWA): manifest, icons, service worker (`public/sw.js`) with offline page; "Install app" card on Home and Profile.
+- Privacy policy, terms, community guidelines at `/privacy`, `/terms`, `/guidelines`, editable in Admin → Site content.
+- Year of birth at sign-up (13+). Prayer groups and live prayer are 18+, enforced on the server. Older accounts are asked once.
+- Migration `0008_launch.sql`
+
 ## Setup (Windows, PowerShell)
 ```powershell
 nvm use 22

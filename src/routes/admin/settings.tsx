@@ -4,6 +4,7 @@ import { getAdminSettings, saveSettings } from '~/fns/admin'
 import { Field, PageHead, Toast } from '~/components/AdminUI'
 import { FormError, errorText } from '~/components/AuthShell'
 import { mediaUrl } from '~/lib/util'
+import { DEFAULT_GUIDELINES, DEFAULT_PRIVACY, DEFAULT_TERMS } from '~/lib/legal'
 
 export const Route = createFileRoute('/admin/settings')({
   loader: () => getAdminSettings(),
@@ -100,6 +101,29 @@ function Settings() {
           <Field label="Support / crisis text" hint="Shown on the Profile page. Add local helpline numbers here.">
             <textarea rows={3} className="input" value={f.support_text ?? ''} onChange={set('support_text')} />
           </Field>
+        </section>
+
+        <section className="card space-y-4">
+          <p className="font-semibold">Legal pages</p>
+          <p className="text-sm text-muted">
+            SpiritualGym ships with starter drafts. Leave a box empty to keep the draft, or paste your own version. Format: <code>## Heading</code>, <code>- bullet</code>, blank line for a new paragraph, and <code>{'{{email}}'}</code> for the contact email. Have these reviewed for your organisation before a public launch.
+          </p>
+          <Field label="Contact email (shown in the legal pages)">
+            <input type="email" className="input" placeholder="e.g. hello@spiritualgym.com" value={f.contact_email ?? ''} onChange={set('contact_email')} />
+          </Field>
+          {([
+            ['privacy_text', 'Privacy policy', DEFAULT_PRIVACY, '/privacy'],
+            ['terms_text', 'Terms of use', DEFAULT_TERMS, '/terms'],
+            ['guidelines_text', 'Community guidelines', DEFAULT_GUIDELINES, '/guidelines'],
+          ] as const).map(([key, label, def, href]) => (
+            <Field key={key} label={label}>
+              <textarea rows={6} className="input font-mono text-xs" placeholder={def} value={f[key] ?? ''} onChange={set(key)} />
+              <span className="mt-1 flex gap-3 text-xs">
+                <a href={href} target="_blank" rel="noreferrer" className="font-semibold text-accent">View page ↗</a>
+                {!f[key] && <button type="button" className="font-semibold text-muted" onClick={() => setF({ ...f, [key]: def })}>Start from the draft</button>}
+              </span>
+            </Field>
+          ))}
         </section>
 
         <FormError message={error} />

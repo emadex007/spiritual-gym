@@ -12,9 +12,14 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as AppRouteImport } from './routes/app'
+import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
+import { Route as GuidelinesRouteImport } from './routes/guidelines'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as OnboardingRouteImport } from './routes/onboarding'
+import { Route as PrivacyRouteImport } from './routes/privacy'
+import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as SignupRouteImport } from './routes/signup'
+import { Route as TermsRouteImport } from './routes/terms'
 import { Route as AdminIndexRouteImport } from './routes/admin/index'
 import { Route as AdminAuditRouteImport } from './routes/admin/audit'
 import { Route as AdminCommunityRouteImport } from './routes/admin/community'
@@ -26,6 +31,8 @@ import { Route as AdminUsersRouteImport } from './routes/admin/users'
 import { Route as AdminVersesRouteImport } from './routes/admin/verses'
 import { Route as AdminWorkoutsRouteImport } from './routes/admin/workouts'
 import { Route as AppIndexRouteImport } from './routes/app/index'
+import { Route as AppCommunityRouteImport } from './routes/app/community'
+import { Route as AppCommunityAccessRouteImport } from './routes/app/community-access'
 import { Route as AppJournalRouteImport } from './routes/app/journal'
 import { Route as AppProfileRouteImport } from './routes/app/profile'
 import { Route as AppTrainRouteImport } from './routes/app/train'
@@ -56,6 +63,16 @@ const AppRoute = AppRouteImport.update({
   path: '/app',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ForgotPasswordRoute = ForgotPasswordRouteImport.update({
+  id: '/forgot-password',
+  path: '/forgot-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const GuidelinesRoute = GuidelinesRouteImport.update({
+  id: '/guidelines',
+  path: '/guidelines',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
@@ -66,9 +83,24 @@ const OnboardingRoute = OnboardingRouteImport.update({
   path: '/onboarding',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PrivacyRoute = PrivacyRouteImport.update({
+  id: '/privacy',
+  path: '/privacy',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ResetPasswordRoute = ResetPasswordRouteImport.update({
+  id: '/reset-password',
+  path: '/reset-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SignupRoute = SignupRouteImport.update({
   id: '/signup',
   path: '/signup',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TermsRoute = TermsRouteImport.update({
+  id: '/terms',
+  path: '/terms',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminIndexRoute = AdminIndexRouteImport.update({
@@ -126,6 +158,16 @@ const AppIndexRoute = AppIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AppRoute,
 } as any)
+const AppCommunityRoute = AppCommunityRouteImport.update({
+  id: '/community',
+  path: '/community',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppCommunityAccessRoute = AppCommunityAccessRouteImport.update({
+  id: '/community-access',
+  path: '/community-access',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppJournalRoute = AppJournalRouteImport.update({
   id: '/journal',
   path: '/journal',
@@ -147,14 +189,14 @@ const AppBibleIndexRoute = AppBibleIndexRouteImport.update({
   getParentRoute: () => AppRoute,
 } as any)
 const AppCommunityIndexRoute = AppCommunityIndexRouteImport.update({
-  id: '/community/',
-  path: '/community/',
-  getParentRoute: () => AppRoute,
+  id: '/',
+  path: '/',
+  getParentRoute: () => AppCommunityRoute,
 } as any)
 const AppCommunityNewRoute = AppCommunityNewRouteImport.update({
-  id: '/community/new',
-  path: '/community/new',
-  getParentRoute: () => AppRoute,
+  id: '/new',
+  path: '/new',
+  getParentRoute: () => AppCommunityRoute,
 } as any)
 const AppJournalIndexRoute = AppJournalIndexRouteImport.update({
   id: '/',
@@ -178,14 +220,14 @@ const AppBibleBookChapterRoute = AppBibleBookChapterRouteImport.update({
 } as any)
 const AppCommunityGroupIdIndexRoute =
   AppCommunityGroupIdIndexRouteImport.update({
-    id: '/community/$groupId/',
-    path: '/community/$groupId/',
-    getParentRoute: () => AppRoute,
+    id: '/$groupId/',
+    path: '/$groupId/',
+    getParentRoute: () => AppCommunityRoute,
   } as any)
 const AppCommunityGroupIdLiveRoute = AppCommunityGroupIdLiveRouteImport.update({
-  id: '/community/$groupId/live',
-  path: '/community/$groupId/live',
-  getParentRoute: () => AppRoute,
+  id: '/$groupId/live',
+  path: '/$groupId/live',
+  getParentRoute: () => AppCommunityRoute,
 } as any)
 const AppJournalMemoryIndexRoute = AppJournalMemoryIndexRouteImport.update({
   id: '/memory/',
@@ -202,9 +244,14 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRouteWithChildren
   '/app': typeof AppRouteWithChildren
+  '/forgot-password': typeof ForgotPasswordRoute
+  '/guidelines': typeof GuidelinesRoute
   '/login': typeof LoginRoute
   '/onboarding': typeof OnboardingRoute
+  '/privacy': typeof PrivacyRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/signup': typeof SignupRoute
+  '/terms': typeof TermsRoute
   '/admin/audit': typeof AdminAuditRoute
   '/admin/community': typeof AdminCommunityRoute
   '/admin/journeys': typeof AdminJourneysRoute
@@ -214,6 +261,8 @@ export interface FileRoutesByFullPath {
   '/admin/users': typeof AdminUsersRoute
   '/admin/verses': typeof AdminVersesRoute
   '/admin/workouts': typeof AdminWorkoutsRoute
+  '/app/community': typeof AppCommunityRouteWithChildren
+  '/app/community-access': typeof AppCommunityAccessRoute
   '/app/journal': typeof AppJournalRouteWithChildren
   '/app/profile': typeof AppProfileRoute
   '/app/train': typeof AppTrainRoute
@@ -233,9 +282,14 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/forgot-password': typeof ForgotPasswordRoute
+  '/guidelines': typeof GuidelinesRoute
   '/login': typeof LoginRoute
   '/onboarding': typeof OnboardingRoute
+  '/privacy': typeof PrivacyRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/signup': typeof SignupRoute
+  '/terms': typeof TermsRoute
   '/admin/audit': typeof AdminAuditRoute
   '/admin/community': typeof AdminCommunityRoute
   '/admin/journeys': typeof AdminJourneysRoute
@@ -245,6 +299,7 @@ export interface FileRoutesByTo {
   '/admin/users': typeof AdminUsersRoute
   '/admin/verses': typeof AdminVersesRoute
   '/admin/workouts': typeof AdminWorkoutsRoute
+  '/app/community-access': typeof AppCommunityAccessRoute
   '/app/profile': typeof AppProfileRoute
   '/app/train': typeof AppTrainRoute
   '/admin': typeof AdminIndexRoute
@@ -266,9 +321,14 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/admin': typeof AdminRouteWithChildren
   '/app': typeof AppRouteWithChildren
+  '/forgot-password': typeof ForgotPasswordRoute
+  '/guidelines': typeof GuidelinesRoute
   '/login': typeof LoginRoute
   '/onboarding': typeof OnboardingRoute
+  '/privacy': typeof PrivacyRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/signup': typeof SignupRoute
+  '/terms': typeof TermsRoute
   '/admin/audit': typeof AdminAuditRoute
   '/admin/community': typeof AdminCommunityRoute
   '/admin/journeys': typeof AdminJourneysRoute
@@ -278,6 +338,8 @@ export interface FileRoutesById {
   '/admin/users': typeof AdminUsersRoute
   '/admin/verses': typeof AdminVersesRoute
   '/admin/workouts': typeof AdminWorkoutsRoute
+  '/app/community': typeof AppCommunityRouteWithChildren
+  '/app/community-access': typeof AppCommunityAccessRoute
   '/app/journal': typeof AppJournalRouteWithChildren
   '/app/profile': typeof AppProfileRoute
   '/app/train': typeof AppTrainRoute
@@ -301,9 +363,14 @@ export interface FileRouteTypes {
     | '/'
     | '/admin'
     | '/app'
+    | '/forgot-password'
+    | '/guidelines'
     | '/login'
     | '/onboarding'
+    | '/privacy'
+    | '/reset-password'
     | '/signup'
+    | '/terms'
     | '/admin/audit'
     | '/admin/community'
     | '/admin/journeys'
@@ -313,6 +380,8 @@ export interface FileRouteTypes {
     | '/admin/users'
     | '/admin/verses'
     | '/admin/workouts'
+    | '/app/community'
+    | '/app/community-access'
     | '/app/journal'
     | '/app/profile'
     | '/app/train'
@@ -332,9 +401,14 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/forgot-password'
+    | '/guidelines'
     | '/login'
     | '/onboarding'
+    | '/privacy'
+    | '/reset-password'
     | '/signup'
+    | '/terms'
     | '/admin/audit'
     | '/admin/community'
     | '/admin/journeys'
@@ -344,6 +418,7 @@ export interface FileRouteTypes {
     | '/admin/users'
     | '/admin/verses'
     | '/admin/workouts'
+    | '/app/community-access'
     | '/app/profile'
     | '/app/train'
     | '/admin'
@@ -364,9 +439,14 @@ export interface FileRouteTypes {
     | '/'
     | '/admin'
     | '/app'
+    | '/forgot-password'
+    | '/guidelines'
     | '/login'
     | '/onboarding'
+    | '/privacy'
+    | '/reset-password'
     | '/signup'
+    | '/terms'
     | '/admin/audit'
     | '/admin/community'
     | '/admin/journeys'
@@ -376,6 +456,8 @@ export interface FileRouteTypes {
     | '/admin/users'
     | '/admin/verses'
     | '/admin/workouts'
+    | '/app/community'
+    | '/app/community-access'
     | '/app/journal'
     | '/app/profile'
     | '/app/train'
@@ -398,9 +480,14 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AdminRoute: typeof AdminRouteWithChildren
   AppRoute: typeof AppRouteWithChildren
+  ForgotPasswordRoute: typeof ForgotPasswordRoute
+  GuidelinesRoute: typeof GuidelinesRoute
   LoginRoute: typeof LoginRoute
   OnboardingRoute: typeof OnboardingRoute
+  PrivacyRoute: typeof PrivacyRoute
+  ResetPasswordRoute: typeof ResetPasswordRoute
   SignupRoute: typeof SignupRoute
+  TermsRoute: typeof TermsRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -426,6 +513,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/forgot-password': {
+      id: '/forgot-password'
+      path: '/forgot-password'
+      fullPath: '/forgot-password'
+      preLoaderRoute: typeof ForgotPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/guidelines': {
+      id: '/guidelines'
+      path: '/guidelines'
+      fullPath: '/guidelines'
+      preLoaderRoute: typeof GuidelinesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/login': {
       id: '/login'
       path: '/login'
@@ -440,11 +541,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof OnboardingRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/privacy': {
+      id: '/privacy'
+      path: '/privacy'
+      fullPath: '/privacy'
+      preLoaderRoute: typeof PrivacyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/reset-password': {
+      id: '/reset-password'
+      path: '/reset-password'
+      fullPath: '/reset-password'
+      preLoaderRoute: typeof ResetPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/signup': {
       id: '/signup'
       path: '/signup'
       fullPath: '/signup'
       preLoaderRoute: typeof SignupRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/terms': {
+      id: '/terms'
+      path: '/terms'
+      fullPath: '/terms'
+      preLoaderRoute: typeof TermsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin/': {
@@ -524,6 +646,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppIndexRouteImport
       parentRoute: typeof AppRoute
     }
+    '/app/community': {
+      id: '/app/community'
+      path: '/community'
+      fullPath: '/app/community'
+      preLoaderRoute: typeof AppCommunityRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/community-access': {
+      id: '/app/community-access'
+      path: '/community-access'
+      fullPath: '/app/community-access'
+      preLoaderRoute: typeof AppCommunityAccessRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/app/journal': {
       id: '/app/journal'
       path: '/journal'
@@ -554,17 +690,17 @@ declare module '@tanstack/react-router' {
     }
     '/app/community/': {
       id: '/app/community/'
-      path: '/community'
+      path: '/'
       fullPath: '/app/community/'
       preLoaderRoute: typeof AppCommunityIndexRouteImport
-      parentRoute: typeof AppRoute
+      parentRoute: typeof AppCommunityRoute
     }
     '/app/community/new': {
       id: '/app/community/new'
-      path: '/community/new'
+      path: '/new'
       fullPath: '/app/community/new'
       preLoaderRoute: typeof AppCommunityNewRouteImport
-      parentRoute: typeof AppRoute
+      parentRoute: typeof AppCommunityRoute
     }
     '/app/journal/': {
       id: '/app/journal/'
@@ -596,17 +732,17 @@ declare module '@tanstack/react-router' {
     }
     '/app/community/$groupId/': {
       id: '/app/community/$groupId/'
-      path: '/community/$groupId'
+      path: '/$groupId'
       fullPath: '/app/community/$groupId/'
       preLoaderRoute: typeof AppCommunityGroupIdIndexRouteImport
-      parentRoute: typeof AppRoute
+      parentRoute: typeof AppCommunityRoute
     }
     '/app/community/$groupId/live': {
       id: '/app/community/$groupId/live'
-      path: '/community/$groupId/live'
+      path: '/$groupId/live'
       fullPath: '/app/community/$groupId/live'
       preLoaderRoute: typeof AppCommunityGroupIdLiveRouteImport
-      parentRoute: typeof AppRoute
+      parentRoute: typeof AppCommunityRoute
     }
     '/app/journal/memory/': {
       id: '/app/journal/memory/'
@@ -653,6 +789,24 @@ const AdminRouteChildren: AdminRouteChildren = {
 
 const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)
 
+interface AppCommunityRouteChildren {
+  AppCommunityNewRoute: typeof AppCommunityNewRoute
+  AppCommunityIndexRoute: typeof AppCommunityIndexRoute
+  AppCommunityGroupIdLiveRoute: typeof AppCommunityGroupIdLiveRoute
+  AppCommunityGroupIdIndexRoute: typeof AppCommunityGroupIdIndexRoute
+}
+
+const AppCommunityRouteChildren: AppCommunityRouteChildren = {
+  AppCommunityNewRoute: AppCommunityNewRoute,
+  AppCommunityIndexRoute: AppCommunityIndexRoute,
+  AppCommunityGroupIdLiveRoute: AppCommunityGroupIdLiveRoute,
+  AppCommunityGroupIdIndexRoute: AppCommunityGroupIdIndexRoute,
+}
+
+const AppCommunityRouteWithChildren = AppCommunityRoute._addFileChildren(
+  AppCommunityRouteChildren,
+)
+
 interface AppJournalRouteChildren {
   AppJournalPrayerRoute: typeof AppJournalPrayerRoute
   AppJournalIndexRoute: typeof AppJournalIndexRoute
@@ -672,31 +826,27 @@ const AppJournalRouteWithChildren = AppJournalRoute._addFileChildren(
 )
 
 interface AppRouteChildren {
+  AppCommunityRoute: typeof AppCommunityRouteWithChildren
+  AppCommunityAccessRoute: typeof AppCommunityAccessRoute
   AppJournalRoute: typeof AppJournalRouteWithChildren
   AppProfileRoute: typeof AppProfileRoute
   AppTrainRoute: typeof AppTrainRoute
   AppIndexRoute: typeof AppIndexRoute
-  AppCommunityNewRoute: typeof AppCommunityNewRoute
   AppWorkoutSlugRoute: typeof AppWorkoutSlugRoute
   AppBibleIndexRoute: typeof AppBibleIndexRoute
-  AppCommunityIndexRoute: typeof AppCommunityIndexRoute
   AppBibleBookChapterRoute: typeof AppBibleBookChapterRoute
-  AppCommunityGroupIdLiveRoute: typeof AppCommunityGroupIdLiveRoute
-  AppCommunityGroupIdIndexRoute: typeof AppCommunityGroupIdIndexRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
+  AppCommunityRoute: AppCommunityRouteWithChildren,
+  AppCommunityAccessRoute: AppCommunityAccessRoute,
   AppJournalRoute: AppJournalRouteWithChildren,
   AppProfileRoute: AppProfileRoute,
   AppTrainRoute: AppTrainRoute,
   AppIndexRoute: AppIndexRoute,
-  AppCommunityNewRoute: AppCommunityNewRoute,
   AppWorkoutSlugRoute: AppWorkoutSlugRoute,
   AppBibleIndexRoute: AppBibleIndexRoute,
-  AppCommunityIndexRoute: AppCommunityIndexRoute,
   AppBibleBookChapterRoute: AppBibleBookChapterRoute,
-  AppCommunityGroupIdLiveRoute: AppCommunityGroupIdLiveRoute,
-  AppCommunityGroupIdIndexRoute: AppCommunityGroupIdIndexRoute,
 }
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
@@ -705,9 +855,14 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRoute: AdminRouteWithChildren,
   AppRoute: AppRouteWithChildren,
+  ForgotPasswordRoute: ForgotPasswordRoute,
+  GuidelinesRoute: GuidelinesRoute,
   LoginRoute: LoginRoute,
   OnboardingRoute: OnboardingRoute,
+  PrivacyRoute: PrivacyRoute,
+  ResetPasswordRoute: ResetPasswordRoute,
   SignupRoute: SignupRoute,
+  TermsRoute: TermsRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

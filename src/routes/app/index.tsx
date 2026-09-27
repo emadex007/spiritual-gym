@@ -6,6 +6,7 @@ import { MOODS, STEP_LABELS } from '~/lib/content'
 import { firstName, greeting } from '~/lib/util'
 import { CheckIcon, PlayIcon } from '~/components/Icons'
 import { Avatar } from '~/components/Avatar'
+import { InstallApp } from '~/components/InstallApp'
 import { BibleIcon, DoveIcon, HandsIcon, HeartIcon, JourneyCover, LampIcon, MOOD_STYLE, STEP_STYLE, SunriseScene, stepStyle } from '~/components/Art'
 
 export const Route = createFileRoute('/app/')({
@@ -58,6 +59,7 @@ function Home() {
       )}
 
       <CheckIn current={h.checkin} />
+      <InstallApp variant="banner" />
 
       {h.workout && (
         <section className="relative mt-5 overflow-hidden rounded-[1.75rem] p-6 text-white shadow-lg shadow-[#2e2573]/20" style={{ background: 'linear-gradient(140deg,#1b2750 0%,#3a2f86 55%,#6f5ce6 100%)' }}>

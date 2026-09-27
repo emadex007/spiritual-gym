@@ -139,3 +139,9 @@ export const POST_KINDS = [
 export const REPORT_REASONS = ['Inappropriate or offensive', 'Harassment or bullying', 'Spam or selling', 'Asking for money', 'Someone may be in danger', 'Other'] as const
 
 export const LIVE_ROOM_LIMIT = 12
+
+// ---------- Age ----------
+export const MIN_AGE = 13
+export const COMMUNITY_MIN_AGE = 18
+/** Age this year (from year of birth only, so it may be one year high before the birthday) */
+export const ageFromYear = (birthYear: number, now = new Date()) => now.getFullYear() - birthYear

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { createFileRoute, useRouter } from '@tanstack/react-router'
+import { Link, createFileRoute, useRouter } from '@tanstack/react-router'
 import { deleteAccount, getProfile, updateProfile } from '~/fns/profile'
 import { signOut } from '~/fns/auth'
 import { getSiteSettings } from '~/fns/site'
@@ -7,6 +7,7 @@ import { GOALS, LEVELS, MINUTES } from '~/lib/content'
 import { FormError, errorText } from '~/components/AuthShell'
 import { ThemeSwitch } from '~/components/ThemeSwitch'
 import { AvatarUpload } from '~/components/AvatarUpload'
+import { InstallApp } from '~/components/InstallApp'
 
 export const Route = createFileRoute('/app/profile')({
   loader: async () => {
@@ -123,6 +124,8 @@ function Profile() {
         </button>
       </section>
 
+      <div className="mt-5"><InstallApp /></div>
+
       <section className="card mt-5">
         <p className="eyebrow">Appearance</p>
         <p className="mt-2 mb-3 text-sm text-muted">Auto matches your phone’s light or dark mode.</p>
@@ -133,6 +136,11 @@ function Profile() {
         <p className="eyebrow">Privacy</p>
         <p className="mt-2 text-sm text-muted">
           Your check-ins, reflections and journal are private by default. Nobody else can see them, including church leaders or support companions.
+        </p>
+        <p className="mt-3 flex flex-wrap gap-4 text-sm font-semibold text-accent">
+          <Link to="/privacy">Privacy policy</Link>
+          <Link to="/terms">Terms</Link>
+          <Link to="/guidelines">Community guidelines</Link>
         </p>
         <button type="button" className="btn-ghost mt-4" onClick={logout}>
           Sign out

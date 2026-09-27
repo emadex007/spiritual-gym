@@ -13,6 +13,10 @@ export const DEFAULT_SETTINGS: SiteSettings = {
   home_message: '',
   support_text: '',
   footer_text: 'One prayer. One Scripture. One day at a time.',
+  contact_email: '',
+  privacy_text: '',
+  terms_text: '',
+  guidelines_text: '',
 }
 
 /** Public, editable site content (from the admin portal) */

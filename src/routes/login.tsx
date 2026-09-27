@@ -52,6 +52,7 @@ function Login() {
         <div>
           <label className="label" htmlFor="password">Password</label>
           <input id="password" type="password" className="input" autoComplete="current-password" required value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />
+          <Link to="/forgot-password" className="mt-2 inline-block text-sm font-semibold text-accent">Forgot password?</Link>
         </div>
         <FormError message={error} />
         <button className="btn-primary w-full" disabled={busy}>

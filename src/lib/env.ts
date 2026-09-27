@@ -9,6 +9,12 @@ export type AppEnv = {
   /** Optional: Cloudflare Realtime TURN key, improves live prayer on strict mobile networks */
   TURN_KEY_ID?: string
   TURN_KEY_API_TOKEN?: string
+  /** Optional: Resend API key for password-reset emails (resend.com, free tier) */
+  RESEND_API_KEY?: string
+  /** Sender, e.g. "SpiritualGym <hello@yourdomain.com>" (the domain must be verified in Resend) */
+  EMAIL_FROM?: string
+  /** Optional: public site address used in email links, e.g. https://spiritualgym.com */
+  APP_URL?: string
 }
 
 export const env = () => cfEnv as unknown as AppEnv

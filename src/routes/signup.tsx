@@ -13,7 +13,8 @@ export const Route = createFileRoute('/signup')({
 
 function SignUp() {
   const router = useRouter()
-  const [form, setForm] = useState({ name: '', email: '', password: '' })
+  const [form, setForm] = useState({ name: '', email: '', password: '', birthYear: '' })
+  const thisYear = new Date().getFullYear()
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
 
@@ -22,7 +23,7 @@ function SignUp() {
     setBusy(true)
     setError(null)
     try {
-      await signUp({ data: form })
+      await signUp({ data: { ...form, birthYear: Number(form.birthYear) } })
       await router.invalidate()
       await router.navigate({ to: '/onboarding' })
     } catch (err) {
@@ -58,10 +59,24 @@ function SignUp() {
           <input id="password" type="password" className="input" autoComplete="new-password" minLength={8} required value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />
           <p className="mt-1.5 text-xs text-muted">At least 8 characters.</p>
         </div>
+        <div>
+          <label className="label" htmlFor="by">Year of birth</label>
+          <select id="by" className="input" required value={form.birthYear} onChange={(e) => setForm({ ...form, birthYear: e.target.value })}>
+            <option value="">Choose…</option>
+            {Array.from({ length: 100 }, (_, i) => thisYear - 10 - i).map((y) => (
+              <option key={y} value={y}>{y}</option>
+            ))}
+          </select>
+          <p className="mt-1.5 text-xs text-muted">You must be 13 or older. Prayer groups are for adults (18+).</p>
+        </div>
         <FormError message={error} />
         <button className="btn-primary w-full" disabled={busy}>
           {busy ? 'Creating your account…' : 'Create account'}
         </button>
+        <p className="text-center text-xs text-muted">
+          By creating an account you agree to our <Link to="/terms" className="underline">Terms</Link>,{' '}
+          <Link to="/privacy" className="underline">Privacy policy</Link> and <Link to="/guidelines" className="underline">Community guidelines</Link>.
+        </p>
       </form>
     </AuthShell>
   )

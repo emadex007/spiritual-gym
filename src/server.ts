@@ -83,6 +83,7 @@ export default {
       if (request.headers.get('Upgrade') !== 'websocket') return new Response('Expected WebSocket', { status: 426 })
       const user = await userFromCookie(request, env)
       if (!user) return new Response('Please sign in.', { status: 401 })
+      if (!user.birth_year || new Date().getFullYear() - user.birth_year < 18) return new Response('Live prayer is for adults (18+).', { status: 403 })
       const groupId = room[1]
       const member = await env.DB.prepare(
         `SELECT 1 AS ok FROM prayer_group_members m JOIN prayer_groups g ON g.id = m.group_id
@@ -142,9 +143,9 @@ async function userFromCookie(request: Request, env: AppEnv) {
     .map((b) => b.toString(16).padStart(2, '0'))
     .join('')
   return env.DB.prepare(
-    `SELECT u.id, u.name, u.role, u.avatar_key FROM sessions s JOIN users u ON u.id = s.user_id
+    `SELECT u.id, u.name, u.role, u.avatar_key, u.birth_year FROM sessions s JOIN users u ON u.id = s.user_id
      WHERE s.id = ? AND s.expires_at > ?`,
   )
     .bind(hash, new Date().toISOString())
-    .first<{ id: string; name: string; role: string; avatar_key: string | null }>()
+    .first<{ id: string; name: string; role: string; avatar_key: string | null; birth_year: number | null }>()
 }
