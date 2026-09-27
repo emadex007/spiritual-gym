@@ -15,6 +15,9 @@ export const Route = createFileRoute('/app/bible/$book/$chapter')({
 
 const SIZES = ['text-base', 'text-lg', 'text-xl', 'text-2xl']
 
+/** Downloaded translation books, kept for this visit */
+const bookCache = new Map<string, Record<string, [number, string][]>>()
+
 function Reader() {
   const { book, chapter, verses: kjv, prev, next } = Route.useLoaderData()
   const [selected, setSelected] = useState<number[]>([])
@@ -23,6 +26,7 @@ function Reader() {
   const [tr, setTr] = useState<TranslationCode>('KJV')
   const [other, setOther] = useState<{ key: string; verses: { verse: number; text: string }[] } | null>(null)
   const [loadingTr, setLoadingTr] = useState(false)
+  const [retry, setRetry] = useState(0)
 
   // Remember the chosen translation on this device
   useEffect(() => {
@@ -32,28 +36,41 @@ function Reader() {
     } catch {}
   }, [])
 
-  // Non-KJV translations are small static files: /bible/<code>/<bookId>/<chapter>.json
+  // Non-KJV translations are static files, one per book: /bible/<code>/<bookId>.json → { "<chapter>": [[verse, text], …] }
+  // A book downloads once, then every chapter in it opens instantly.
   useEffect(() => {
     if (tr === 'KJV') return
     const key = `${tr}/${book.id}/${chapter}`
     if (other?.key === key) return
+    const cacheKey = `${tr}/${book.id}`
+    const show = (bookData: Record<string, [number, string][]>) =>
+      setOther({ key, verses: (bookData[String(chapter)] ?? []).map(([verse, text]) => ({ verse, text })) })
+    const cached = bookCache.get(cacheKey)
+    if (cached) {
+      show(cached)
+      return
+    }
     let cancelled = false
     setLoadingTr(true)
-    fetch(`/bible/${tr.toLowerCase()}/${book.id}/${chapter}.json`)
-      .then((r) => (r.ok ? r.json() : Promise.reject()))
-      .then((rows: [number, string][]) => !cancelled && setOther({ key, verses: rows.map(([verse, text]) => ({ verse, text })) }))
-      .catch(() => !cancelled && setMsg(`Couldn’t load ${tr}. Showing KJV.`))
+    fetch(`/bible/${tr.toLowerCase()}/${book.id}.json`)
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
+      .then((data: Record<string, [number, string][]>) => {
+        bookCache.set(cacheKey, data)
+        if (!cancelled) show(data)
+      })
+      .catch(() => {})
       .finally(() => !cancelled && setLoadingTr(false))
     return () => {
       cancelled = true
     }
-  }, [tr, book.id, chapter])
+  }, [tr, book.id, chapter, retry])
 
   const showingOther = tr !== 'KJV' && other?.key === `${tr}/${book.id}/${chapter}`
   const verses = showingOther ? other!.verses : kjv
   const trLabel = showingOther ? tr : 'KJV'
 
   function pickTranslation(code: TranslationCode) {
+    if (code === tr && code !== 'KJV') setRetry((r) => r + 1) // tapping again retries
     setTr(code)
     setMsg(null)
     try { localStorage.setItem('sg-bible-tr', code) } catch {}
@@ -142,6 +159,11 @@ function Reader() {
       <p className="mt-1 text-center text-xs text-muted">
         {loadingTr ? 'Loading…' : TRANSLATIONS.find((t) => t.code === trLabel)?.name}
       </p>
+      {tr !== 'KJV' && !showingOther && !loadingTr && (
+        <p className="mx-auto mt-3 max-w-sm rounded-2xl bg-accent-soft px-4 py-2 text-center text-xs text-accent">
+          Couldn’t load {tr} right now, so you’re seeing the KJV. Check your connection and tap {tr} again.
+        </p>
+      )}
 
       <article className={`mt-8 font-display leading-[1.85] ${SIZES[size]}`}>
         {verses.map((v) => {
