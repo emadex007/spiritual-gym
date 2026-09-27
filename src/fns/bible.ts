@@ -1,7 +1,8 @@
 import { createServerFn } from '@tanstack/react-start'
 import { db } from '~/lib/env'
 import { requireUser } from '~/lib/auth'
-import { formatReference, parseReference } from '~/lib/bible'
+import { parseReference } from '~/lib/bible'
+import { lookupText } from '~/lib/bible-db'
 
 export type Verse = { verse: number; text: string }
 
@@ -63,18 +64,6 @@ export const searchBible = createServerFn({ method: 'GET' })
       return { results: [], ref: null }
     }
   })
-
-/** Look up the text of a reference, e.g. "Psalm 91:1-2" → KJV text */
-export async function lookupText(reference: string) {
-  const p = parseReference(reference)
-  if (!p || !p.verseStart) return null
-  const { results } = await db()
-    .prepare('SELECT verse, text FROM bible_verses WHERE book_id = ? AND chapter = ? AND verse BETWEEN ? AND ? ORDER BY verse')
-    .bind(p.bookId, p.chapter, p.verseStart, p.verseEnd ?? p.verseStart)
-    .all<Verse>()
-  if (!results.length) return null
-  return { reference: formatReference(p.bookId, p.chapter, p.verseStart, p.verseEnd), text: results.map((r) => r.text).join(' '), translation: 'KJV' }
-}
 
 export const lookupVerse = createServerFn({ method: 'GET' })
   .validator((ref: string) => String(ref ?? '').slice(0, 60))
