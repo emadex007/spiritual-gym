@@ -65,9 +65,9 @@ function LivePrayer() {
             </p>
 
             <div className="mt-8 grid grid-cols-3 gap-5 sm:grid-cols-4">
-              <Person name="You" speaking={live.meSpeaking} muted={live.muted} connected />
+              <Person name="You" avatar={d.meAvatar} speaking={live.meSpeaking} muted={live.muted} connected />
               {live.peers.map((peer) => (
-                <Person key={peer.id} name={peer.name} speaking={peer.speaking} muted={peer.muted} connected={peer.connected} />
+                <Person key={peer.id} name={peer.name} avatar={peer.avatar} speaking={peer.speaking} muted={peer.muted} connected={peer.connected} />
               ))}
             </div>
             {live.peers.length === 0 && live.status === 'live' && (
@@ -112,14 +112,12 @@ function LivePrayer() {
   )
 }
 
-function Person({ name, speaking, muted, connected }: { name: string; speaking: boolean; muted: boolean; connected: boolean }) {
+function Person({ name, avatar, speaking, muted, connected }: { name: string; avatar?: string | null; speaking: boolean; muted: boolean; connected: boolean }) {
   return (
     <div className="flex flex-col items-center gap-2">
       <div className={`relative rounded-full p-1 transition ${speaking ? 'bg-gold shadow-[0_0_24px_rgba(212,169,74,0.7)]' : 'bg-white/10'}`}>
         <div className={connected ? '' : 'opacity-50'}>
-          <div className="[&>span]:h-16 [&>span]:w-16 [&>span]:text-2xl">
-            <Avatar name={name} />
-          </div>
+          <Avatar name={name === 'You' ? 'Y' : name} src={avatar || null} size="lg" />
         </div>
         {muted && <span className="absolute -right-1 -bottom-1 flex h-6 w-6 items-center justify-center rounded-full bg-white text-xs">🔇</span>}
       </div>

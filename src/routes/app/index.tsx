@@ -5,6 +5,7 @@ import { getSiteSettings } from '~/fns/site'
 import { MOODS, STEP_LABELS } from '~/lib/content'
 import { firstName, greeting } from '~/lib/util'
 import { CheckIcon, PlayIcon } from '~/components/Icons'
+import { Avatar } from '~/components/Avatar'
 import { BibleIcon, DoveIcon, HandsIcon, HeartIcon, JourneyCover, LampIcon, MOOD_STYLE, STEP_STYLE, SunriseScene, stepStyle } from '~/components/Art'
 
 export const Route = createFileRoute('/app/')({
@@ -34,6 +35,9 @@ function Home() {
       {/* Greeting banner */}
       <section className="relative isolate overflow-hidden rounded-[1.75rem] px-6 pt-6 pb-20 text-white shadow-lg shadow-navy/10">
         <SunriseScene className="absolute inset-0 -z-10 h-full w-full" />
+        <Link to="/app/profile" className="absolute top-5 right-5 rounded-full ring-2 ring-white/60" aria-label="Your profile">
+          <Avatar name={h.name} src={h.avatar} />
+        </Link>
         <p className="text-sm text-white/75">{new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'Africa/Lagos' })}</p>
         <h1 className="mt-1 font-display text-3xl font-semibold tracking-tight drop-shadow-sm">
           {greeting()}, {firstName(h.name)}.

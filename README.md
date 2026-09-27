@@ -50,6 +50,11 @@ node node_modules\wrangler\bin\wrangler.js d1 execute spiritual_gym_db --remote 
 Optional, for live prayer on strict mobile networks: create a TURN key in Cloudflare (Realtime → TURN) and
 `wrangler secret put TURN_KEY_ID` / `wrangler secret put TURN_KEY_API_TOKEN`.
 
+## Translations + profile photos
+- Bible reader: KJV (in D1, searchable) plus BSB (CC0), ASV and BBE (public domain) as static files in `public/bible/<code>/<bookId>/<chapter>.json`
+- Profile photos: resized in the browser to 400×400, stored in R2 under `avatars/`, shown in community, live prayer, home and admin
+- Migration `0007_avatars.sql`
+
 ## Setup (Windows, PowerShell)
 ```powershell
 nvm use 22

@@ -53,3 +53,12 @@ export function formatReference(bookIdN: number, chapter: number, vStart?: numbe
 
 export const bookSlug = (id: number) => BOOKS[id - 1].toLowerCase().replace(/\s+/g, '-')
 export const bookFromSlug = (slug: string) => BOOKS.findIndex((b) => b.toLowerCase().replace(/\s+/g, '-') === slug) + 1
+
+/** Translations available in the reader. KJV lives in D1 (searchable); the others are static files in /public/bible. */
+export const TRANSLATIONS = [
+  { code: 'KJV', name: 'King James Version', note: 'Classic' },
+  { code: 'BSB', name: 'Berean Standard Bible', note: 'Modern English' },
+  { code: 'ASV', name: 'American Standard Version', note: 'Classic, 1901' },
+  { code: 'BBE', name: 'Bible in Basic English', note: 'Simple English' },
+] as const
+export type TranslationCode = (typeof TRANSLATIONS)[number]['code']

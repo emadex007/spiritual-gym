@@ -4,7 +4,7 @@ import { createSession, currentUser, destroySession, hashPassword, verifyPasswor
 import { newId } from '~/lib/util'
 
 export type Me = {
-  user: { id: string; email: string; name: string; role: string }
+  user: { id: string; email: string; name: string; role: string; avatar_key: string | null }
   onboarded: boolean
 }
 

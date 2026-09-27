@@ -3,7 +3,7 @@
 // people already in the room answer, so two people never offer to each other at the same time.
 import { useCallback, useEffect, useRef, useState } from 'react'
 
-export type LivePeer = { id: string; name: string; muted: boolean; speaking: boolean; connected: boolean }
+export type LivePeer = { id: string; name: string; avatar: string; muted: boolean; speaking: boolean; connected: boolean }
 export type LiveStatus = 'idle' | 'connecting' | 'live' | 'full' | 'error'
 
 type Signal = { sdp?: RTCSessionDescriptionInit; candidate?: RTCIceCandidateInit }
@@ -173,7 +173,7 @@ export function useLivePrayer(groupId: string) {
       switch (m.t) {
         case 'welcome':
           setStatus('live')
-          setPeers(Object.fromEntries(m.peers.map((p: { id: string; name: string; muted: boolean }) => [p.id, { ...p, speaking: false, connected: false }])))
+          setPeers(Object.fromEntries(m.peers.map((p: { id: string; name: string; avatar: string; muted: boolean }) => [p.id, { ...p, speaking: false, connected: false }])))
           for (const p of m.peers) await createPc(p.id, true)
           break
         case 'peer-joined':

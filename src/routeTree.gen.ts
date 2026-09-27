@@ -26,7 +26,6 @@ import { Route as AdminUsersRouteImport } from './routes/admin/users'
 import { Route as AdminVersesRouteImport } from './routes/admin/verses'
 import { Route as AdminWorkoutsRouteImport } from './routes/admin/workouts'
 import { Route as AppIndexRouteImport } from './routes/app/index'
-import { Route as AppCommunityRouteImport } from './routes/app/community'
 import { Route as AppJournalRouteImport } from './routes/app/journal'
 import { Route as AppProfileRouteImport } from './routes/app/profile'
 import { Route as AppTrainRouteImport } from './routes/app/train'
@@ -127,11 +126,6 @@ const AppIndexRoute = AppIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AppRoute,
 } as any)
-const AppCommunityRoute = AppCommunityRouteImport.update({
-  id: '/community',
-  path: '/community',
-  getParentRoute: () => AppRoute,
-} as any)
 const AppJournalRoute = AppJournalRouteImport.update({
   id: '/journal',
   path: '/journal',
@@ -153,14 +147,14 @@ const AppBibleIndexRoute = AppBibleIndexRouteImport.update({
   getParentRoute: () => AppRoute,
 } as any)
 const AppCommunityIndexRoute = AppCommunityIndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => AppCommunityRoute,
+  id: '/community/',
+  path: '/community/',
+  getParentRoute: () => AppRoute,
 } as any)
 const AppCommunityNewRoute = AppCommunityNewRouteImport.update({
-  id: '/new',
-  path: '/new',
-  getParentRoute: () => AppCommunityRoute,
+  id: '/community/new',
+  path: '/community/new',
+  getParentRoute: () => AppRoute,
 } as any)
 const AppJournalIndexRoute = AppJournalIndexRouteImport.update({
   id: '/',
@@ -184,14 +178,14 @@ const AppBibleBookChapterRoute = AppBibleBookChapterRouteImport.update({
 } as any)
 const AppCommunityGroupIdIndexRoute =
   AppCommunityGroupIdIndexRouteImport.update({
-    id: '/$groupId/',
-    path: '/$groupId/',
-    getParentRoute: () => AppCommunityRoute,
+    id: '/community/$groupId/',
+    path: '/community/$groupId/',
+    getParentRoute: () => AppRoute,
   } as any)
 const AppCommunityGroupIdLiveRoute = AppCommunityGroupIdLiveRouteImport.update({
-  id: '/$groupId/live',
-  path: '/$groupId/live',
-  getParentRoute: () => AppCommunityRoute,
+  id: '/community/$groupId/live',
+  path: '/community/$groupId/live',
+  getParentRoute: () => AppRoute,
 } as any)
 const AppJournalMemoryIndexRoute = AppJournalMemoryIndexRouteImport.update({
   id: '/memory/',
@@ -220,7 +214,6 @@ export interface FileRoutesByFullPath {
   '/admin/users': typeof AdminUsersRoute
   '/admin/verses': typeof AdminVersesRoute
   '/admin/workouts': typeof AdminWorkoutsRoute
-  '/app/community': typeof AppCommunityRouteWithChildren
   '/app/journal': typeof AppJournalRouteWithChildren
   '/app/profile': typeof AppProfileRoute
   '/app/train': typeof AppTrainRoute
@@ -285,7 +278,6 @@ export interface FileRoutesById {
   '/admin/users': typeof AdminUsersRoute
   '/admin/verses': typeof AdminVersesRoute
   '/admin/workouts': typeof AdminWorkoutsRoute
-  '/app/community': typeof AppCommunityRouteWithChildren
   '/app/journal': typeof AppJournalRouteWithChildren
   '/app/profile': typeof AppProfileRoute
   '/app/train': typeof AppTrainRoute
@@ -321,7 +313,6 @@ export interface FileRouteTypes {
     | '/admin/users'
     | '/admin/verses'
     | '/admin/workouts'
-    | '/app/community'
     | '/app/journal'
     | '/app/profile'
     | '/app/train'
@@ -385,7 +376,6 @@ export interface FileRouteTypes {
     | '/admin/users'
     | '/admin/verses'
     | '/admin/workouts'
-    | '/app/community'
     | '/app/journal'
     | '/app/profile'
     | '/app/train'
@@ -534,13 +524,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppIndexRouteImport
       parentRoute: typeof AppRoute
     }
-    '/app/community': {
-      id: '/app/community'
-      path: '/community'
-      fullPath: '/app/community'
-      preLoaderRoute: typeof AppCommunityRouteImport
-      parentRoute: typeof AppRoute
-    }
     '/app/journal': {
       id: '/app/journal'
       path: '/journal'
@@ -571,17 +554,17 @@ declare module '@tanstack/react-router' {
     }
     '/app/community/': {
       id: '/app/community/'
-      path: '/'
+      path: '/community'
       fullPath: '/app/community/'
       preLoaderRoute: typeof AppCommunityIndexRouteImport
-      parentRoute: typeof AppCommunityRoute
+      parentRoute: typeof AppRoute
     }
     '/app/community/new': {
       id: '/app/community/new'
-      path: '/new'
+      path: '/community/new'
       fullPath: '/app/community/new'
       preLoaderRoute: typeof AppCommunityNewRouteImport
-      parentRoute: typeof AppCommunityRoute
+      parentRoute: typeof AppRoute
     }
     '/app/journal/': {
       id: '/app/journal/'
@@ -613,17 +596,17 @@ declare module '@tanstack/react-router' {
     }
     '/app/community/$groupId/': {
       id: '/app/community/$groupId/'
-      path: '/$groupId'
+      path: '/community/$groupId'
       fullPath: '/app/community/$groupId/'
       preLoaderRoute: typeof AppCommunityGroupIdIndexRouteImport
-      parentRoute: typeof AppCommunityRoute
+      parentRoute: typeof AppRoute
     }
     '/app/community/$groupId/live': {
       id: '/app/community/$groupId/live'
-      path: '/$groupId/live'
+      path: '/community/$groupId/live'
       fullPath: '/app/community/$groupId/live'
       preLoaderRoute: typeof AppCommunityGroupIdLiveRouteImport
-      parentRoute: typeof AppCommunityRoute
+      parentRoute: typeof AppRoute
     }
     '/app/journal/memory/': {
       id: '/app/journal/memory/'
@@ -670,24 +653,6 @@ const AdminRouteChildren: AdminRouteChildren = {
 
 const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)
 
-interface AppCommunityRouteChildren {
-  AppCommunityNewRoute: typeof AppCommunityNewRoute
-  AppCommunityIndexRoute: typeof AppCommunityIndexRoute
-  AppCommunityGroupIdLiveRoute: typeof AppCommunityGroupIdLiveRoute
-  AppCommunityGroupIdIndexRoute: typeof AppCommunityGroupIdIndexRoute
-}
-
-const AppCommunityRouteChildren: AppCommunityRouteChildren = {
-  AppCommunityNewRoute: AppCommunityNewRoute,
-  AppCommunityIndexRoute: AppCommunityIndexRoute,
-  AppCommunityGroupIdLiveRoute: AppCommunityGroupIdLiveRoute,
-  AppCommunityGroupIdIndexRoute: AppCommunityGroupIdIndexRoute,
-}
-
-const AppCommunityRouteWithChildren = AppCommunityRoute._addFileChildren(
-  AppCommunityRouteChildren,
-)
-
 interface AppJournalRouteChildren {
   AppJournalPrayerRoute: typeof AppJournalPrayerRoute
   AppJournalIndexRoute: typeof AppJournalIndexRoute
@@ -707,25 +672,31 @@ const AppJournalRouteWithChildren = AppJournalRoute._addFileChildren(
 )
 
 interface AppRouteChildren {
-  AppCommunityRoute: typeof AppCommunityRouteWithChildren
   AppJournalRoute: typeof AppJournalRouteWithChildren
   AppProfileRoute: typeof AppProfileRoute
   AppTrainRoute: typeof AppTrainRoute
   AppIndexRoute: typeof AppIndexRoute
+  AppCommunityNewRoute: typeof AppCommunityNewRoute
   AppWorkoutSlugRoute: typeof AppWorkoutSlugRoute
   AppBibleIndexRoute: typeof AppBibleIndexRoute
+  AppCommunityIndexRoute: typeof AppCommunityIndexRoute
   AppBibleBookChapterRoute: typeof AppBibleBookChapterRoute
+  AppCommunityGroupIdLiveRoute: typeof AppCommunityGroupIdLiveRoute
+  AppCommunityGroupIdIndexRoute: typeof AppCommunityGroupIdIndexRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
-  AppCommunityRoute: AppCommunityRouteWithChildren,
   AppJournalRoute: AppJournalRouteWithChildren,
   AppProfileRoute: AppProfileRoute,
   AppTrainRoute: AppTrainRoute,
   AppIndexRoute: AppIndexRoute,
+  AppCommunityNewRoute: AppCommunityNewRoute,
   AppWorkoutSlugRoute: AppWorkoutSlugRoute,
   AppBibleIndexRoute: AppBibleIndexRoute,
+  AppCommunityIndexRoute: AppCommunityIndexRoute,
   AppBibleBookChapterRoute: AppBibleBookChapterRoute,
+  AppCommunityGroupIdLiveRoute: AppCommunityGroupIdLiveRoute,
+  AppCommunityGroupIdIndexRoute: AppCommunityGroupIdIndexRoute,
 }
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)

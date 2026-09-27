@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, createFileRoute, notFound } from '@tanstack/react-router'
 import { getChapter } from '~/fns/bible'
 import { addMemory } from '~/fns/memory'
-import { bookFromSlug, bookSlug, formatReference } from '~/lib/bible'
+import { TRANSLATIONS, bookFromSlug, bookSlug, formatReference, type TranslationCode } from '~/lib/bible'
 
 export const Route = createFileRoute('/app/bible/$book/$chapter')({
   loader: ({ params }) => {
@@ -16,10 +16,48 @@ export const Route = createFileRoute('/app/bible/$book/$chapter')({
 const SIZES = ['text-base', 'text-lg', 'text-xl', 'text-2xl']
 
 function Reader() {
-  const { book, chapter, verses, prev, next } = Route.useLoaderData()
+  const { book, chapter, verses: kjv, prev, next } = Route.useLoaderData()
   const [selected, setSelected] = useState<number[]>([])
   const [size, setSize] = useState(1)
   const [msg, setMsg] = useState<string | null>(null)
+  const [tr, setTr] = useState<TranslationCode>('KJV')
+  const [other, setOther] = useState<{ key: string; verses: { verse: number; text: string }[] } | null>(null)
+  const [loadingTr, setLoadingTr] = useState(false)
+
+  // Remember the chosen translation on this device
+  useEffect(() => {
+    try {
+      const t = localStorage.getItem('sg-bible-tr') as TranslationCode | null
+      if (t && TRANSLATIONS.some((x) => x.code === t)) setTr(t)
+    } catch {}
+  }, [])
+
+  // Non-KJV translations are small static files: /bible/<code>/<bookId>/<chapter>.json
+  useEffect(() => {
+    if (tr === 'KJV') return
+    const key = `${tr}/${book.id}/${chapter}`
+    if (other?.key === key) return
+    let cancelled = false
+    setLoadingTr(true)
+    fetch(`/bible/${tr.toLowerCase()}/${book.id}/${chapter}.json`)
+      .then((r) => (r.ok ? r.json() : Promise.reject()))
+      .then((rows: [number, string][]) => !cancelled && setOther({ key, verses: rows.map(([verse, text]) => ({ verse, text })) }))
+      .catch(() => !cancelled && setMsg(`Couldn’t load ${tr}. Showing KJV.`))
+      .finally(() => !cancelled && setLoadingTr(false))
+    return () => {
+      cancelled = true
+    }
+  }, [tr, book.id, chapter])
+
+  const showingOther = tr !== 'KJV' && other?.key === `${tr}/${book.id}/${chapter}`
+  const verses = showingOther ? other!.verses : kjv
+  const trLabel = showingOther ? tr : 'KJV'
+
+  function pickTranslation(code: TranslationCode) {
+    setTr(code)
+    setMsg(null)
+    try { localStorage.setItem('sg-bible-tr', code) } catch {}
+  }
 
   useEffect(() => {
     setSelected([])
@@ -56,7 +94,7 @@ function Reader() {
   }
   async function copy() {
     try {
-      await navigator.clipboard.writeText(`“${text}” (${contiguous ? ref : formatReference(book.id, chapter)} KJV)`)
+      await navigator.clipboard.writeText(`“${text}” (${contiguous ? ref : formatReference(book.id, chapter)} ${trLabel})`)
       setMsg('Copied')
     } catch {
       setMsg('Couldn’t copy on this device')
@@ -65,7 +103,7 @@ function Reader() {
   async function memorize() {
     if (!contiguous) return setMsg('Choose verses next to each other to memorise')
     try {
-      await addMemory({ data: { reference: ref, text, translation: 'KJV' } })
+      await addMemory({ data: { reference: ref, text, translation: trLabel } })
       setMsg('Added to Scripture memory ✓')
     } catch {
       setMsg('Couldn’t add. Try again.')
@@ -83,8 +121,27 @@ function Reader() {
         </div>
       </div>
 
+      <div className="-mx-5 mt-3 flex gap-2 overflow-x-auto px-5 pb-1" role="radiogroup" aria-label="Bible translation">
+        {TRANSLATIONS.map((t) => (
+          <button
+            key={t.code}
+            type="button"
+            role="radio"
+            aria-checked={tr === t.code}
+            title={t.name}
+            onClick={() => pickTranslation(t.code)}
+            className={`chip shrink-0 !px-3 !py-1.5 text-xs ${tr === t.code ? 'chip-on' : ''}`}
+          >
+            {t.code} <span className="font-normal opacity-70">· {t.note}</span>
+          </button>
+        ))}
+      </div>
+
       <h1 className="mt-8 text-center font-display text-4xl font-semibold">{book.name}</h1>
       <p className="mt-1 text-center text-sm tracking-[0.2em] text-accent uppercase">Chapter {chapter}</p>
+      <p className="mt-1 text-center text-xs text-muted">
+        {loadingTr ? 'Loading…' : TRANSLATIONS.find((t) => t.code === trLabel)?.name}
+      </p>
 
       <article className={`mt-8 font-display leading-[1.85] ${SIZES[size]}`}>
         {verses.map((v) => {

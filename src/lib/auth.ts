@@ -53,20 +53,20 @@ export async function createSession(userId: string) {
   })
 }
 
-export type SessionUser = { id: string; email: string; name: string; role: string }
+export type SessionUser = { id: string; email: string; name: string; role: string; avatar_key: string | null }
 
 export async function currentUser(): Promise<SessionUser | null> {
   const token = getCookie(COOKIE)
   if (!token) return null
   const row = await db()
     .prepare(
-      `SELECT u.id, u.email, u.name, u.role, s.expires_at
+      `SELECT u.id, u.email, u.name, u.role, u.avatar_key, s.expires_at
        FROM sessions s JOIN users u ON u.id = s.user_id WHERE s.id = ?`,
     )
     .bind(await sha256(token))
     .first<SessionUser & { expires_at: string }>()
   if (!row || Date.parse(row.expires_at) < Date.now()) return null
-  return { id: row.id, email: row.email, name: row.name, role: row.role }
+  return { id: row.id, email: row.email, name: row.name, role: row.role, avatar_key: row.avatar_key }
 }
 
 /** Use inside every private server function */

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { createFileRoute, useRouter } from '@tanstack/react-router'
-import { adminDeleteUser, listUsers, setUserRole } from '~/fns/admin'
+import { adminDeleteUser, adminRemoveAvatar, listUsers, setUserRole } from '~/fns/admin'
+import { Avatar } from '~/components/Avatar'
 import { PageHead } from '~/components/AdminUI'
 import { errorText } from '~/components/AuthShell'
 
@@ -23,6 +24,11 @@ function Users() {
     } catch (e) {
       alert(errorText(e))
     }
+  }
+  async function removePhoto(id: string) {
+    if (!confirm('Remove this person’s profile photo?')) return
+    await adminRemoveAvatar({ data: { id } })
+    await router.invalidate()
   }
   async function remove(id: string, email: string) {
     if (!confirm(`Permanently delete ${email} and all their data?`)) return
@@ -54,8 +60,18 @@ function Users() {
             {shown.map((u) => (
               <tr key={u.id}>
                 <td className="px-4 py-3">
-                  <p className="font-medium">{u.name}</p>
-                  <p className="text-xs text-muted">{u.email}</p>
+                  <div className="flex items-center gap-3">
+                    <Avatar name={u.name} src={u.avatar_key} />
+                    <div>
+                      <p className="font-medium">{u.name}</p>
+                      <p className="text-xs text-muted">{u.email}</p>
+                      {u.avatar_key && (
+                        <button type="button" className="text-[11px] font-semibold text-muted hover:text-red-600" onClick={() => removePhoto(u.id)}>
+                          Remove photo
+                        </button>
+                      )}
+                    </div>
+                  </div>
                 </td>
                 <td className="px-4 py-3 text-muted">{u.created_at.slice(0, 10)}</td>
                 <td className="px-4 py-3 text-muted">{u.last_active_date ?? '-'}</td>

@@ -1,5 +1,5 @@
 import { createServerFn } from '@tanstack/react-start'
-import { db } from '~/lib/env'
+import { db, env } from '~/lib/env'
 import { audit, requireAdmin } from '~/lib/admin'
 import { currentUser } from '~/lib/auth'
 import { dayString, newId } from '~/lib/util'
@@ -65,11 +65,11 @@ export const listUsers = createServerFn({ method: 'GET' }).handler(async () => {
   // Deliberately NO journal, check-in, prayer or reflection content here.
   const { results } = await db()
     .prepare(
-      `SELECT u.id, u.name, u.email, u.role, u.created_at, p.last_active_date, p.daily_minutes,
+      `SELECT u.id, u.name, u.email, u.role, u.avatar_key, u.created_at, p.last_active_date, p.daily_minutes,
               (SELECT COUNT(*) FROM workout_sessions ws WHERE ws.user_id = u.id) AS sessions
        FROM users u LEFT JOIN profiles p ON p.user_id = u.id ORDER BY u.created_at DESC LIMIT 500`,
     )
-    .all<{ id: string; name: string; email: string; role: string; created_at: string; last_active_date: string | null; daily_minutes: number | null; sessions: number }>()
+    .all<{ id: string; name: string; email: string; role: string; avatar_key: string | null; created_at: string; last_active_date: string | null; daily_minutes: number | null; sessions: number }>()
   return results
 })
 
@@ -86,12 +86,26 @@ export const setUserRole = createServerFn({ method: 'POST' })
     return { ok: true }
   })
 
+export const adminRemoveAvatar = createServerFn({ method: 'POST' })
+  .validator((d: { id: string }) => ({ id: String(d?.id ?? '') }))
+  .handler(async ({ data }) => {
+    const admin = await requireAdmin()
+    const u = await db().prepare('SELECT avatar_key, email FROM users WHERE id = ?').bind(data.id).first<{ avatar_key: string | null; email: string }>()
+    if (u?.avatar_key) {
+      await db().prepare('UPDATE users SET avatar_key = NULL WHERE id = ?').bind(data.id).run()
+      await env().MEDIA.delete(u.avatar_key)
+    }
+    await audit(admin, 'user.remove_photo', data.id, u?.email)
+    return { ok: true }
+  })
+
 export const adminDeleteUser = createServerFn({ method: 'POST' })
   .validator((d: { id: string }) => ({ id: String(d?.id ?? '') }))
   .handler(async ({ data }) => {
     const admin = await requireAdmin()
     if (data.id === admin.id) throw new Error('You can’t delete your own account here.')
-    const u = await db().prepare('SELECT email FROM users WHERE id = ?').bind(data.id).first<{ email: string }>()
+    const u = await db().prepare('SELECT email, avatar_key FROM users WHERE id = ?').bind(data.id).first<{ email: string; avatar_key: string | null }>()
+    if (u?.avatar_key) await env().MEDIA.delete(u.avatar_key).catch(() => {})
     const tables = ['user_journeys', 'workout_sessions', 'checkins', 'journal_entries', 'prayer_items', 'scripture_memory', 'profiles', 'sessions']
     await db().batch([
       db().prepare('UPDATE prayer_groups SET member_count = MAX(0, member_count - 1) WHERE id IN (SELECT group_id FROM prayer_group_members WHERE user_id = ?)').bind(data.id),

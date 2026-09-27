@@ -75,6 +75,7 @@ export const getHome = createServerFn({ method: 'GET' }).handler(async () => {
 
   return {
     name: user.name,
+    avatar: user.avatar_key,
     dailyMinutes,
     level: profile?.level ?? 'build',
     checkin: checkin ?? null,

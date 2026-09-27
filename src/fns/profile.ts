@@ -1,5 +1,5 @@
 import { createServerFn } from '@tanstack/react-start'
-import { db } from '~/lib/env'
+import { db, env } from '~/lib/env'
 import { destroySession, requireUser, verifyPassword } from '~/lib/auth'
 
 export const getProfile = createServerFn({ method: 'GET' }).handler(async () => {
@@ -28,6 +28,7 @@ export const getProfile = createServerFn({ method: 'GET' }).handler(async () => 
   return {
     name: user.name,
     email: user.email,
+    avatarKey: user.avatar_key,
     dailyMinutes: p?.daily_minutes ?? 10,
     level: p?.level ?? 'build',
     favoriteVerse: p?.favorite_verse ?? '',
@@ -66,6 +67,7 @@ export const deleteAccount = createServerFn({ method: 'POST' })
     const row = await db().prepare('SELECT password_hash FROM users WHERE id = ?').bind(user.id).first<{ password_hash: string }>()
     if (!row || !(await verifyPassword(data.password, row.password_hash))) throw new Error('Password is incorrect.')
     await destroySession()
+    if (user.avatar_key) await env().MEDIA.delete(user.avatar_key).catch(() => {})
     // D1 enforces foreign keys, but delete children explicitly to be safe.
     const tables = ['journey_progress', 'user_journeys', 'workout_sessions', 'checkins', 'journal_entries', 'prayer_items', 'scripture_memory', 'profiles', 'sessions']
     await db().batch([

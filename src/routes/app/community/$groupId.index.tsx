@@ -129,7 +129,7 @@ function GroupPage() {
           <ul className="card mt-4 divide-y divide-line !p-0">
             {d.members.map((m) => (
               <li key={m.id} className="flex items-center gap-3 px-4 py-3">
-                <Avatar name={m.name} />
+                <Avatar name={m.name} src={m.avatar} />
                 <span className="flex-1 font-medium">{m.name}{m.id === d.me ? ' (you)' : ''}</span>
                 {m.role === 'owner' && <span className="rounded-full bg-accent-soft px-2.5 py-0.5 text-xs font-semibold text-accent">Leader</span>}
               </li>
@@ -227,7 +227,7 @@ function PostCard({ post, me, canModerate, isMember, onReport }: { post: Post; m
   return (
     <article className="card">
       <div className="flex items-start gap-3">
-        <Avatar name={post.author} />
+        <Avatar name={post.author} src={post.avatar} />
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
             <p className="font-semibold">{post.author.split(' ')[0]}</p>
@@ -264,7 +264,7 @@ function PostCard({ post, me, canModerate, isMember, onReport }: { post: Post; m
         <div className="mt-3 space-y-2 border-t border-line pt-3">
           {post.replies.map((r) => (
             <div key={r.id} className="flex gap-2">
-              <Avatar name={r.author} small />
+              <Avatar name={r.author} src={r.avatar} small />
               <div className="min-w-0 flex-1 rounded-2xl bg-surface-2 px-3 py-2">
                 <p className="text-xs font-semibold">{r.author.split(' ')[0]} <span className="font-normal text-muted">· {timeAgo(r.created_at)}</span></p>
                 <p className="text-sm whitespace-pre-wrap">{r.body}</p>

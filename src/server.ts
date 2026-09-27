@@ -47,6 +47,29 @@ export default {
       return json({ key, url: `/media/${key}` })
     }
 
+    // Profile photo:  POST /api/avatar (multipart "file", already resized in the browser)  ·  DELETE /api/avatar
+    if (url.pathname === '/api/avatar' && (request.method === 'POST' || request.method === 'DELETE')) {
+      const user = await userFromCookie(request, env)
+      if (!user) return json({ error: 'Please sign in.' }, 401)
+      const old = await env.DB.prepare('SELECT avatar_key FROM users WHERE id = ?').bind(user.id).first<{ avatar_key: string | null }>()
+      if (request.method === 'DELETE') {
+        await env.DB.prepare('UPDATE users SET avatar_key = NULL WHERE id = ?').bind(user.id).run()
+        if (old?.avatar_key) await env.MEDIA.delete(old.avatar_key)
+        return json({ ok: true })
+      }
+      const form = await request.formData()
+      const file = form.get('file')
+      if (!(file instanceof File)) return json({ error: 'No photo received.' }, 400)
+      const ext = IMAGE_TYPES[file.type]
+      if (!ext || ext === 'gif') return json({ error: 'Please choose a JPG, PNG or WEBP photo.' }, 400)
+      if (file.size > 2 * 1024 * 1024) return json({ error: 'Photo is too large.' }, 400)
+      const key = `avatars/${user.id}-${crypto.randomUUID().slice(0, 8)}.${ext}`
+      await env.MEDIA.put(key, file.stream(), { httpMetadata: { contentType: file.type } })
+      await env.DB.prepare('UPDATE users SET avatar_key = ? WHERE id = ?').bind(key, user.id).run()
+      if (old?.avatar_key) await env.MEDIA.delete(old.avatar_key)
+      return json({ key, url: `/media/${key}` })
+    }
+
     // Live prayer: ICE servers for WebRTC (STUN, plus TURN if configured)
     if (url.pathname === '/api/rooms/ice' && request.method === 'GET') {
       const user = await userFromCookie(request, env)
@@ -70,8 +93,9 @@ export default {
       if (!member) return new Response('Join the group first.', { status: 403 })
       const headers = new Headers(request.headers)
       headers.set('x-user-id', user.id)
-      headers.set('x-user-name', user.name.split(' ')[0].slice(0, 30))
+      headers.set('x-user-name', encodeURIComponent(user.name.split(' ')[0].slice(0, 30)))
       headers.set('x-group-id', groupId)
+      headers.set('x-user-avatar', encodeURIComponent(user.avatar_key ?? ''))
       const stub = env.PRAYER_ROOMS.get(env.PRAYER_ROOMS.idFromName(groupId))
       return stub.fetch(new Request(request.url, { headers }))
     }
@@ -118,9 +142,9 @@ async function userFromCookie(request: Request, env: AppEnv) {
     .map((b) => b.toString(16).padStart(2, '0'))
     .join('')
   return env.DB.prepare(
-    `SELECT u.id, u.name, u.role FROM sessions s JOIN users u ON u.id = s.user_id
+    `SELECT u.id, u.name, u.role, u.avatar_key FROM sessions s JOIN users u ON u.id = s.user_id
      WHERE s.id = ? AND s.expires_at > ?`,
   )
     .bind(hash, new Date().toISOString())
-    .first<{ id: string; name: string; role: string }>()
+    .first<{ id: string; name: string; role: string; avatar_key: string | null }>()
 }

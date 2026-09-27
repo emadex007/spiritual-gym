@@ -6,6 +6,7 @@ import { getSiteSettings } from '~/fns/site'
 import { GOALS, LEVELS, MINUTES } from '~/lib/content'
 import { FormError, errorText } from '~/components/AuthShell'
 import { ThemeSwitch } from '~/components/ThemeSwitch'
+import { AvatarUpload } from '~/components/AvatarUpload'
 
 export const Route = createFileRoute('/app/profile')({
   loader: async () => {
@@ -45,7 +46,8 @@ function Profile() {
 
   return (
     <main className="fade-in mx-auto max-w-2xl px-5 pt-6 md:pt-10">
-      <h1 className="font-display text-3xl font-semibold tracking-tight">{p.name}</h1>
+      <AvatarUpload name={p.name} current={p.avatarKey} />
+      <h1 className="mt-5 font-display text-3xl font-semibold tracking-tight">{p.name}</h1>
       <p className="mt-1 text-muted">{p.email}</p>
 
       <div className="mt-6 grid grid-cols-3 gap-3">

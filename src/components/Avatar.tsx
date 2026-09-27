@@ -1,8 +1,17 @@
+import { mediaUrl } from '~/lib/util'
+
 const COLORS = ['#6f5ce6', '#e05a7a', '#1f9a8f', '#c9971f', '#4f8fe0', '#e98a2b', '#3f8f5a']
-export function Avatar({ name, small = false }: { name: string; small?: boolean }) {
+const SIZES = { xs: 'h-7 w-7 text-xs', sm: 'h-10 w-10 text-sm', md: 'h-14 w-14 text-lg', lg: 'h-16 w-16 text-2xl', xl: 'h-24 w-24 text-3xl' }
+
+/** Profile photo if the person has one, otherwise a coloured circle with their initial */
+export function Avatar({ name, src, size = 'sm', small = false }: { name: string; src?: string | null; size?: keyof typeof SIZES; small?: boolean }) {
+  const cls = SIZES[small ? 'xs' : size]
+  if (src) {
+    return <img src={mediaUrl(src)} alt={name} loading="lazy" className={`shrink-0 rounded-full object-cover ${cls}`} />
+  }
   const c = COLORS[[...name].reduce((a, ch) => a + ch.charCodeAt(0), 0) % COLORS.length]
   return (
-    <span className={`flex shrink-0 items-center justify-center rounded-full font-semibold text-white ${small ? 'h-7 w-7 text-xs' : 'h-10 w-10'}`} style={{ background: c }}>
+    <span className={`flex shrink-0 items-center justify-center rounded-full font-semibold text-white ${cls}`} style={{ background: c }} aria-label={name}>
       {name.trim()[0]?.toUpperCase() ?? '?'}
     </span>
   )

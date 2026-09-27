@@ -109,7 +109,7 @@ export const getGroup = createServerFn({ method: 'GET' })
       isMember || !g.is_private
         ? db()
             .prepare(
-              `SELECT p.id, p.kind, p.body, p.prayed_count, p.created_at, p.user_id, u.name AS author,
+              `SELECT p.id, p.kind, p.body, p.prayed_count, p.created_at, p.user_id, u.name AS author, u.avatar_key AS avatar,
                       EXISTS(SELECT 1 FROM prayer_post_prayed x WHERE x.post_id = p.id AND x.user_id = ?1) AS i_prayed
                FROM prayer_posts p JOIN users u ON u.id = p.user_id
                WHERE p.group_id = ?2 AND p.is_hidden = 0
@@ -117,33 +117,35 @@ export const getGroup = createServerFn({ method: 'GET' })
                ORDER BY p.created_at DESC LIMIT 100`,
             )
             .bind(user.id, id)
-            .all<{ id: string; kind: string; body: string; prayed_count: number; created_at: string; user_id: string; author: string; i_prayed: number }>()
+            .all<{ id: string; kind: string; body: string; prayed_count: number; created_at: string; user_id: string; author: string; avatar: string | null; i_prayed: number }>()
         : Promise.resolve({ results: [] }),
       db()
         .prepare(
-          `SELECT r.id, r.post_id, r.body, r.created_at, r.user_id, u.name AS author FROM prayer_replies r
+          `SELECT r.id, r.post_id, r.body, r.created_at, r.user_id, u.name AS author, u.avatar_key AS avatar FROM prayer_replies r
            JOIN users u ON u.id = r.user_id JOIN prayer_posts p ON p.id = r.post_id
            WHERE p.group_id = ?2 AND r.is_hidden = 0 AND r.user_id NOT IN (SELECT blocked_id FROM user_blocks WHERE user_id = ?1)
            ORDER BY r.created_at ASC LIMIT 500`,
         )
         .bind(user.id, id)
-        .all<{ id: string; post_id: string; body: string; created_at: string; user_id: string; author: string }>(),
+        .all<{ id: string; post_id: string; body: string; created_at: string; user_id: string; author: string; avatar: string | null }>(),
       db()
         .prepare(
-          `SELECT u.id, u.name, m.role FROM prayer_group_members m JOIN users u ON u.id = m.user_id
+          `SELECT u.id, u.name, u.avatar_key, m.role FROM prayer_group_members m JOIN users u ON u.id = m.user_id
            WHERE m.group_id = ? ORDER BY m.role = 'owner' DESC, m.joined_at ASC LIMIT 200`,
         )
         .bind(id)
-        .all<{ id: string; name: string; role: string }>(),
+        .all<{ id: string; name: string; avatar_key: string | null; role: string }>(),
     ])
     const isOwner = g.my_role === 'owner'
     return {
       group: { ...g, invite_code: isMember ? g.invite_code : null },
       me: user.id,
+      meName: user.name.split(' ')[0],
+      meAvatar: user.avatar_key,
       isMember,
       isOwner,
       posts: posts.results.map((p) => ({ ...p, replies: replies.results.filter((r) => r.post_id === p.id) })),
-      members: members.results.map((m) => ({ id: m.id, name: m.name.split(' ')[0], role: m.role })),
+      members: members.results.map((m) => ({ id: m.id, name: m.name.split(' ')[0], avatar: m.avatar_key, role: m.role })),
     }
   })
 

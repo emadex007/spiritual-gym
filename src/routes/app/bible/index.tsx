@@ -64,7 +64,7 @@ function BibleHome() {
     <main className="fade-in mx-auto max-w-2xl px-5 pt-6 md:pt-10">
       <section className="relative overflow-hidden rounded-[1.75rem] p-6 text-[#12203a]" style={{ background: 'linear-gradient(135deg,#f8ecd0,#fdebd8)' }}>
         <BibleIcon className="absolute -right-5 -bottom-6 h-36 w-36 text-[#c9971f]/20" />
-        <p className="text-xs font-semibold tracking-[0.14em] text-[#8a6310] uppercase">Holy Bible · King James Version</p>
+        <p className="text-xs font-semibold tracking-[0.14em] text-[#8a6310] uppercase">Holy Bible · KJV, BSB, ASV, BBE</p>
         <h1 className="mt-1 font-display text-3xl font-semibold">Read the Word</h1>
         {last && (
           <Link to="/app/bible/$book/$chapter" params={{ book: bookSlug(last.book), chapter: String(last.chapter) }} className="mt-4 inline-flex items-center gap-2 rounded-full bg-navy px-4 py-2 text-sm font-semibold text-white">
@@ -74,7 +74,7 @@ function BibleHome() {
         <form onSubmit={search} className="relative mt-5">
           <input
             className="w-full rounded-2xl border border-[#e4dccb] bg-white px-4 py-3.5 pr-24 text-base text-[#12203a] outline-none placeholder:text-[#8a8f9c] focus:border-[#c9971f]"
-            placeholder="Search words or go to “John 3:16”"
+            placeholder="Search the KJV or go to “John 3:16”"
             value={q}
             onChange={(e) => { setQ(e.target.value); if (!e.target.value) setHits(null) }}
             aria-label="Search the Bible"

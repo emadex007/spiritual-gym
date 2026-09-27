@@ -5,7 +5,7 @@ import type { AppEnv } from '~/lib/env'
 
 export const LIVE_ROOM_LIMIT = 12
 
-type Peer = { id: string; userId: string; name: string; muted: boolean; groupId: string }
+type Peer = { id: string; userId: string; name: string; avatar: string; muted: boolean; groupId: string }
 
 export class PrayerRoom extends DurableObject<AppEnv> {
   async fetch(request: Request): Promise<Response> {
@@ -13,8 +13,9 @@ export class PrayerRoom extends DurableObject<AppEnv> {
       return Response.json({ count: this.peers().length })
     }
     const userId = request.headers.get('x-user-id') ?? ''
-    const name = request.headers.get('x-user-name') ?? 'Friend'
+    const name = safeDecode(request.headers.get('x-user-name')) || 'Friend'
     const groupId = request.headers.get('x-group-id') ?? ''
+    const avatar = safeDecode(request.headers.get('x-user-avatar')).slice(0, 200)
 
     const pair = new WebSocketPair()
     const [client, server] = Object.values(pair) as [WebSocket, WebSocket]
@@ -27,7 +28,7 @@ export class PrayerRoom extends DurableObject<AppEnv> {
       return new Response(null, { status: 101, webSocket: client })
     }
 
-    const me: Peer = { id: crypto.randomUUID(), userId, name, muted: false, groupId }
+    const me: Peer = { id: crypto.randomUUID(), userId, name, avatar, muted: false, groupId }
     server.serializeAttachment(me)
     server.send(JSON.stringify({ t: 'welcome', you: me.id, peers: existing.map(publicPeer) }))
     this.broadcast({ t: 'peer-joined', peer: publicPeer(me) }, me.id)
@@ -108,4 +109,12 @@ export class PrayerRoom extends DurableObject<AppEnv> {
   }
 }
 
-const publicPeer = (p: Peer) => ({ id: p.id, name: p.name, muted: p.muted })
+const publicPeer = (p: Peer) => ({ id: p.id, name: p.name, avatar: p.avatar ?? '', muted: p.muted })
+
+function safeDecode(v: string | null) {
+  try {
+    return decodeURIComponent(v ?? '')
+  } catch {
+    return ''
+  }
+}
