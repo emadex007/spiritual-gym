@@ -13,8 +13,10 @@
   --sage: #4f7a63;        /* gentle green */
   --sage-soft: #e1ece4;
 }
+/* Dark mode: follows the phone automatically (data-theme is set by the script in __root.tsx),
+   and people can override it in Profile → Appearance. The @media block is a no-JavaScript fallback. */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme='light']) {
     --bg: #0c1424;
     --surface: #131d31;
     --surface-2: #1a2640;
@@ -25,8 +27,27 @@
     --accent-soft: #2e2a1f;
     --sage: #86b89b;
     --sage-soft: #1b2d27;
+    color-scheme: dark;
   }
 }
+:root[data-theme='dark'] {
+  --bg: #0c1424;
+  --surface: #131d31;
+  --surface-2: #1a2640;
+  --ink: #eef0f5;
+  --muted: #a3acbf;
+  --line: #26324b;
+  --accent: #e0b85e;
+  --accent-soft: #2e2a1f;
+  --sage: #86b89b;
+  --sage-soft: #1b2d27;
+  color-scheme: dark;
+}
+:root[data-theme='light'] {
+  color-scheme: light;
+}
+
+@custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *));
 
 @theme inline {
   --color-bg: var(--bg);

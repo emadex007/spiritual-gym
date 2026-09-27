@@ -18,9 +18,19 @@ migrations_dir = "migrations"
 binding = "MEDIA"
 bucket_name = "spiritual-gym-media"
 
+# --- Durable Object: live group prayer rooms (free plan uses SQLite-backed classes) ---
+[[durable_objects.bindings]]
+name = "PRAYER_ROOMS"
+class_name = "PrayerRoom"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["PrayerRoom"]
+
 # --- Secrets: set with `npx wrangler secret put <NAME>`, never commit them ---
 # RESEND_API_KEY        password reset + reminder emails   (Phase 2)
 # AI_API_KEY            Spiritual Coach                    (Phase 5)
+# TURN_KEY_ID / TURN_KEY_API_TOKEN   optional Cloudflare Realtime TURN key, helps live prayer on strict mobile networks
 
 [vars]
 SITE_ENV = "production"

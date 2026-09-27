@@ -37,10 +37,14 @@ export const Route = createRootRoute({
   ),
 })
 
+/** Applies light/dark before the page paints, follows the phone's setting live, and exposes window.__sgSetTheme */
+const THEME_SCRIPT = `(function(){try{var k='sg-theme',p=localStorage.getItem(k)||'system',m=window.matchMedia('(prefers-color-scheme: dark)');function a(){var d=p==='dark'||(p==='system'&&m.matches);document.documentElement.setAttribute('data-theme',d?'dark':'light');var t=document.querySelector('meta[name=theme-color]');if(t)t.setAttribute('content',d?'#0c1424':'#12203a')}a();m.addEventListener('change',a);window.__sgSetTheme=function(v){p=v;try{localStorage.setItem(k,v)}catch(e){}a()};window.__sgGetTheme=function(){return p}}catch(e){}})()`
+
 function RootDocument({ children }: { children: ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <head>
+        <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
         <HeadContent />
       </head>
       <body>

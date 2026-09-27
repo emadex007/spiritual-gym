@@ -33,6 +33,23 @@ node node_modules\wrangler\bin\wrangler.js d1 execute spiritual_gym_db --local  
 node node_modules\wrangler\bin\wrangler.js d1 execute spiritual_gym_db --remote --command "UPDATE users SET role='admin' WHERE email='YOUR_EMAIL'"
 ```
 
+## Bible, community, light/dark mode
+- Full King James Bible (public domain, 31,102 verses) with reader, search and "Memorise" — `/app/bible`
+- Verse of the day rotates through 150+ verses automatically; admins add more by reference ("Fetch text")
+- Prayer groups by purpose, prayer wall (requests, testimonies, replies, "I prayed"), report/block
+- Live voice prayer (up to 12 people) — WebRTC, signalling through the `PrayerRoom` Durable Object
+- Light/dark mode follows the phone; override in Profile → Appearance
+- Admin: Community (feature/hide/delete groups, moderate posts), Reports, Bible status on dashboard
+- Migrations `0005_bible.sql`, `0006_community.sql`; Bible text in `seed/kjv.sql`
+
+Load the Bible once per database:
+```powershell
+node node_modules\wrangler\bin\wrangler.js d1 execute spiritual_gym_db --local  --file seed\kjv.sql
+node node_modules\wrangler\bin\wrangler.js d1 execute spiritual_gym_db --remote --file seed\kjv.sql
+```
+Optional, for live prayer on strict mobile networks: create a TURN key in Cloudflare (Realtime → TURN) and
+`wrangler secret put TURN_KEY_ID` / `wrangler secret put TURN_KEY_API_TOKEN`.
+
 ## Setup (Windows, PowerShell)
 ```powershell
 nvm use 22

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { createFileRoute, useRouter } from '@tanstack/react-router'
 import { adminDeleteVerse, adminListVerses, adminSaveVerse } from '~/fns/admin'
+import { lookupVerse } from '~/fns/bible'
 import { PageHead } from '~/components/AdminUI'
 import { FormError, errorText } from '~/components/AuthShell'
 
@@ -18,7 +19,7 @@ function Verses() {
     <>
       <PageHead
         title="Verses"
-        sub="Verse of the day rotates through this list, and members can add these to Scripture memory. Use public-domain translations (KJV, WEB) unless you have a licence."
+        sub="Verse of the day rotates through this list automatically, and members can add these to Scripture memory. Type a reference and click Fetch text to pull it from the KJV Bible."
         action={<button className="btn-primary" onClick={() => setEditing({ reference: '', text: '', translation: 'KJV' })}>+ Add verse</button>}
       />
       {editing && <VerseForm v={editing} onDone={() => setEditing(null)} />}
@@ -54,6 +55,15 @@ function VerseForm({ v, onDone }: { v: V; onDone: () => void }) {
       setBusy(false)
     }
   }
+  async function fetchText() {
+    setError(null)
+    try {
+      const r = await lookupVerse({ data: f.reference })
+      setF({ ...f, reference: r.reference, text: r.text, translation: r.translation })
+    } catch (e) {
+      setError(errorText(e))
+    }
+  }
   async function remove() {
     if (!v.id || !confirm('Delete this verse?')) return
     await adminDeleteVerse({ data: { id: v.id } })
@@ -62,9 +72,10 @@ function VerseForm({ v, onDone }: { v: V; onDone: () => void }) {
   }
   return (
     <section key={v.id ?? 'new'} className="card fade-in space-y-3">
-      <div className="grid grid-cols-[1fr_6rem] gap-3">
+      <div className="grid grid-cols-[1fr_6rem_auto] gap-3">
         <input className="input" placeholder="Reference, e.g. Psalm 23:1" value={f.reference} onChange={(e) => setF({ ...f, reference: e.target.value })} />
         <input className="input" placeholder="KJV" value={f.translation} onChange={(e) => setF({ ...f, translation: e.target.value })} />
+        <button type="button" className="btn-ghost" disabled={!f.reference.trim()} onClick={fetchText}>Fetch text</button>
       </div>
       <textarea rows={3} className="input" placeholder="Verse text" value={f.text} onChange={(e) => setF({ ...f, text: e.target.value })} />
       <FormError message={error} />

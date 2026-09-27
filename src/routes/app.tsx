@@ -2,6 +2,8 @@ import { Link, Outlet, createFileRoute, redirect, useRouterState } from '@tansta
 import { getMe } from '~/fns/auth'
 import { CommunityIcon, HomeIcon, JournalIcon, ProfileIcon, TrainIcon } from '~/components/Icons'
 import { Logo } from '~/components/Logo'
+import { BibleIcon } from '~/components/Art'
+import { ThemeSwitch } from '~/components/ThemeSwitch'
 
 export const Route = createFileRoute('/app')({
   beforeLoad: async () => {
@@ -16,6 +18,7 @@ export const Route = createFileRoute('/app')({
 const NAV = [
   { to: '/app', label: 'Home', Icon: HomeIcon, exact: true },
   { to: '/app/train', label: 'Train', Icon: TrainIcon },
+  { to: '/app/bible', label: 'Bible', Icon: BibleIcon },
   { to: '/app/community', label: 'Community', Icon: CommunityIcon },
   { to: '/app/journal', label: 'Journal', Icon: JournalIcon },
   { to: '/app/profile', label: 'Profile', Icon: ProfileIcon },
@@ -24,7 +27,7 @@ const NAV = [
 function AppLayout() {
   const pathname = useRouterState({ select: (s) => s.location.pathname })
   // The workout player is full-screen, without navigation
-  const immersive = pathname.startsWith('/app/workout/')
+  const immersive = pathname.startsWith('/app/workout/') || pathname.endsWith('/live')
 
   if (immersive) return <Outlet />
 
@@ -49,7 +52,10 @@ function AppLayout() {
             </Link>
           ))}
         </nav>
-        <p className="mt-auto px-3 text-xs leading-relaxed text-muted">You don’t have to be perfect to begin again.</p>
+        <div className="mt-auto space-y-4 px-1">
+          <ThemeSwitch compact />
+          <p className="px-2 text-xs leading-relaxed text-muted">You don’t have to be perfect to begin again.</p>
+        </div>
       </aside>
 
       <div className="min-w-0 flex-1 pb-24 md:pb-10">
@@ -58,18 +64,18 @@ function AppLayout() {
 
       {/* Mobile bottom navigation */}
       <nav className="fixed inset-x-0 bottom-0 z-20 border-t border-line bg-bg/92 backdrop-blur md:hidden safe-bottom" aria-label="Main">
-        <div className="mx-auto grid max-w-lg grid-cols-5 px-2 pt-2">
+        <div className="mx-auto grid max-w-lg grid-cols-6 px-1 pt-2">
           {NAV.map(({ to, label, Icon, ...rest }) => (
             <Link
               key={to}
               to={to}
               activeOptions={{ exact: 'exact' in rest }}
-              className="flex flex-col items-center gap-1 rounded-xl py-1 text-[11px] font-medium text-muted"
+              className="flex flex-col items-center gap-1 rounded-xl py-1 text-[10px] font-medium text-muted"
               activeProps={{ className: '!text-ink' }}
             >
               {({ isActive }) => (
                 <>
-                  <span className={`flex h-8 w-14 items-center justify-center rounded-full transition ${isActive ? 'bg-accent-soft' : ''}`}>
+                  <span className={`flex h-8 w-11 items-center justify-center rounded-full transition ${isActive ? 'bg-accent-soft' : ''}`}>
                     <Icon className="h-5.5 w-5.5" />
                   </span>
                   {label}

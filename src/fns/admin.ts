@@ -94,6 +94,12 @@ export const adminDeleteUser = createServerFn({ method: 'POST' })
     const u = await db().prepare('SELECT email FROM users WHERE id = ?').bind(data.id).first<{ email: string }>()
     const tables = ['user_journeys', 'workout_sessions', 'checkins', 'journal_entries', 'prayer_items', 'scripture_memory', 'profiles', 'sessions']
     await db().batch([
+      db().prepare('UPDATE prayer_groups SET member_count = MAX(0, member_count - 1) WHERE id IN (SELECT group_id FROM prayer_group_members WHERE user_id = ?)').bind(data.id),
+      db().prepare('DELETE FROM user_blocks WHERE user_id = ?1 OR blocked_id = ?1').bind(data.id),
+      db().prepare('DELETE FROM prayer_group_members WHERE user_id = ?').bind(data.id),
+      db().prepare('DELETE FROM prayer_posts WHERE user_id = ?').bind(data.id),
+      db().prepare('DELETE FROM prayer_replies WHERE user_id = ?').bind(data.id),
+      db().prepare('DELETE FROM prayer_post_prayed WHERE user_id = ?').bind(data.id),
       db().prepare('DELETE FROM journey_progress WHERE user_journey_id IN (SELECT id FROM user_journeys WHERE user_id = ?)').bind(data.id),
       ...tables.map((t) => db().prepare(`DELETE FROM ${t} WHERE user_id = ?`).bind(data.id)),
       db().prepare('DELETE FROM users WHERE id = ?').bind(data.id),
@@ -325,4 +331,162 @@ export const listAudit = createServerFn({ method: 'GET' }).handler(async () => {
     .prepare('SELECT id, admin_name, action, target, detail, created_at FROM audit_log ORDER BY created_at DESC LIMIT 200')
     .all<{ id: string; admin_name: string; action: string; target: string | null; detail: string | null; created_at: string }>()
   return results
+})
+
+// ---------------- Community moderation ----------------
+export const adminListGroups = createServerFn({ method: 'GET' }).handler(async () => {
+  await requireAdmin()
+  const { results } = await db()
+    .prepare(
+      `SELECT g.id, g.name, g.purpose, g.description, g.is_private, g.is_featured, g.is_hidden, g.member_count, g.live_count, g.invite_code,
+              g.last_activity_at, g.created_at, u.name AS creator,
+              (SELECT COUNT(*) FROM prayer_posts p WHERE p.group_id = g.id) AS posts,
+              (SELECT COUNT(*) FROM reports r WHERE r.target_type = 'group' AND r.target_id = g.id AND r.status = 'open') AS open_reports
+       FROM prayer_groups g LEFT JOIN users u ON u.id = g.created_by ORDER BY g.live_count DESC, g.created_at DESC LIMIT 500`,
+    )
+    .all<{
+      id: string; name: string; purpose: string; description: string | null; is_private: number; is_featured: number; is_hidden: number
+      member_count: number; live_count: number; invite_code: string; last_activity_at: string; created_at: string; creator: string | null; posts: number; open_reports: number
+    }>()
+  return results
+})
+
+export const adminUpdateGroup = createServerFn({ method: 'POST' })
+  .validator((d: { id: string; is_featured?: boolean; is_hidden?: boolean }) => ({
+    id: String(d?.id ?? ''),
+    is_featured: d.is_featured === undefined ? null : d.is_featured ? 1 : 0,
+    is_hidden: d.is_hidden === undefined ? null : d.is_hidden ? 1 : 0,
+  }))
+  .handler(async ({ data }) => {
+    const admin = await requireAdmin()
+    await db()
+      .prepare('UPDATE prayer_groups SET is_featured = COALESCE(?, is_featured), is_hidden = COALESCE(?, is_hidden) WHERE id = ?')
+      .bind(data.is_featured, data.is_hidden, data.id)
+      .run()
+    await audit(admin, 'group.update', data.id, JSON.stringify({ featured: data.is_featured, hidden: data.is_hidden }))
+    return { ok: true }
+  })
+
+export const adminCreateOfficialGroup = createServerFn({ method: 'POST' })
+  .validator((d: { name: string; purpose: string; description?: string }) => {
+    const name = String(d?.name ?? '').trim()
+    if (name.length < 3) throw new Error('Give the group a name.')
+    return { name: name.slice(0, 60), purpose: String(d.purpose || 'general'), description: String(d.description ?? '').slice(0, 300) || null }
+  })
+  .handler(async ({ data }) => {
+    const admin = await requireAdmin()
+    const id = newId()
+    const code = Array.from(crypto.getRandomValues(new Uint8Array(8)), (b) => 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'[b % 32]).join('')
+    await db()
+      .prepare('INSERT INTO prayer_groups (id, name, purpose, description, invite_code, is_featured) VALUES (?, ?, ?, ?, ?, 1)')
+      .bind(id, data.name, data.purpose, data.description, code)
+      .run()
+    await audit(admin, 'group.create', id, data.name)
+    return { id }
+  })
+
+export const adminDeleteGroup = createServerFn({ method: 'POST' })
+  .validator((d: { id: string }) => ({ id: String(d?.id ?? '') }))
+  .handler(async ({ data }) => {
+    const admin = await requireAdmin()
+    const g = await db().prepare('SELECT name FROM prayer_groups WHERE id = ?').bind(data.id).first<{ name: string }>()
+    await db().batch([
+      db().prepare('DELETE FROM prayer_replies WHERE post_id IN (SELECT id FROM prayer_posts WHERE group_id = ?)').bind(data.id),
+      db().prepare('DELETE FROM prayer_post_prayed WHERE post_id IN (SELECT id FROM prayer_posts WHERE group_id = ?)').bind(data.id),
+      db().prepare('DELETE FROM prayer_posts WHERE group_id = ?').bind(data.id),
+      db().prepare('DELETE FROM prayer_group_members WHERE group_id = ?').bind(data.id),
+      db().prepare('DELETE FROM prayer_groups WHERE id = ?').bind(data.id),
+    ])
+    await audit(admin, 'group.delete', data.id, g?.name)
+    return { ok: true }
+  })
+
+/** Recent posts in a group, for moderation */
+export const adminGroupPosts = createServerFn({ method: 'GET' })
+  .validator((id: string) => String(id))
+  .handler(async ({ data: id }) => {
+    await requireAdmin()
+    const { results } = await db()
+      .prepare(
+        `SELECT p.id, p.kind, p.body, p.is_hidden, p.prayed_count, p.created_at, u.name AS author, u.email
+         FROM prayer_posts p JOIN users u ON u.id = p.user_id WHERE p.group_id = ? ORDER BY p.created_at DESC LIMIT 100`,
+      )
+      .bind(id)
+      .all<{ id: string; kind: string; body: string; is_hidden: number; prayed_count: number; created_at: string; author: string; email: string }>()
+    return results
+  })
+
+export const adminSetPostHidden = createServerFn({ method: 'POST' })
+  .validator((d: { type: 'post' | 'reply'; id: string; hidden: boolean }) => ({ type: d?.type === 'reply' ? 'reply' : 'post', id: String(d?.id ?? ''), hidden: d.hidden ? 1 : 0 }))
+  .handler(async ({ data }) => {
+    const admin = await requireAdmin()
+    const table = data.type === 'reply' ? 'prayer_replies' : 'prayer_posts'
+    await db().prepare(`UPDATE ${table} SET is_hidden = ? WHERE id = ?`).bind(data.hidden, data.id).run()
+    await audit(admin, `${data.type}.${data.hidden ? 'hide' : 'unhide'}`, data.id)
+    return { ok: true }
+  })
+
+export const adminListReports = createServerFn({ method: 'GET' }).handler(async () => {
+  await requireAdmin()
+  const { results } = await db()
+    .prepare(
+      `SELECT r.id, r.target_type, r.target_id, r.reason, r.status, r.created_at, ru.name AS reporter,
+         CASE r.target_type
+           WHEN 'post'  THEN (SELECT body FROM prayer_posts WHERE id = r.target_id)
+           WHEN 'reply' THEN (SELECT body FROM prayer_replies WHERE id = r.target_id)
+           WHEN 'group' THEN (SELECT name || ' — ' || COALESCE(description, '') FROM prayer_groups WHERE id = r.target_id)
+           ELSE NULL END AS content,
+         CASE r.target_type
+           WHEN 'post'  THEN (SELECT u.name || ' <' || u.email || '>' FROM prayer_posts x JOIN users u ON u.id = x.user_id WHERE x.id = r.target_id)
+           WHEN 'reply' THEN (SELECT u.name || ' <' || u.email || '>' FROM prayer_replies x JOIN users u ON u.id = x.user_id WHERE x.id = r.target_id)
+           WHEN 'group' THEN (SELECT COALESCE(u.name || ' <' || u.email || '>', 'Official') FROM prayer_groups x LEFT JOIN users u ON u.id = x.created_by WHERE x.id = r.target_id)
+           ELSE NULL END AS author,
+         CASE r.target_type
+           WHEN 'post'  THEN (SELECT is_hidden FROM prayer_posts WHERE id = r.target_id)
+           WHEN 'reply' THEN (SELECT is_hidden FROM prayer_replies WHERE id = r.target_id)
+           WHEN 'group' THEN (SELECT is_hidden FROM prayer_groups WHERE id = r.target_id)
+           ELSE 0 END AS is_hidden
+       FROM reports r LEFT JOIN users ru ON ru.id = r.reporter_id
+       ORDER BY r.status = 'open' DESC, r.created_at DESC LIMIT 200`,
+    )
+    .all<{ id: string; target_type: string; target_id: string; reason: string; status: string; created_at: string; reporter: string | null; content: string | null; author: string | null; is_hidden: number | null }>()
+  return results
+})
+
+export const adminResolveReport = createServerFn({ method: 'POST' })
+  .validator((d: { id: string; action: 'hide' | 'dismiss' }) => ({ id: String(d?.id ?? ''), action: d?.action === 'hide' ? 'hide' : 'dismiss' }))
+  .handler(async ({ data }) => {
+    const admin = await requireAdmin()
+    const r = await db().prepare('SELECT target_type, target_id FROM reports WHERE id = ?').bind(data.id).first<{ target_type: string; target_id: string }>()
+    if (!r) throw new Error('Report not found.')
+    const stmts = [
+      db()
+        .prepare(`UPDATE reports SET status = ?, resolved_by = ?, resolved_at = datetime('now') WHERE target_type = ? AND target_id = ? AND status = 'open'`)
+        .bind(data.action === 'hide' ? 'actioned' : 'dismissed', admin.id, r.target_type, r.target_id),
+    ]
+    if (data.action === 'hide') {
+      const table = { post: 'prayer_posts', reply: 'prayer_replies', group: 'prayer_groups' }[r.target_type]
+      if (table) stmts.push(db().prepare(`UPDATE ${table} SET is_hidden = 1 WHERE id = ?`).bind(r.target_id))
+    }
+    await db().batch(stmts)
+    await audit(admin, `report.${data.action}`, r.target_id, r.target_type)
+    return { ok: true }
+  })
+
+export const getCommunityStats = createServerFn({ method: 'GET' }).handler(async () => {
+  await requireAdmin()
+  const q = <T,>(sql: string) => db().prepare(sql).first<T>()
+  try {
+    const [groups, liveNow, postsWeek, liveWeek, openReports, bible] = await Promise.all([
+      q<{ n: number }>('SELECT COUNT(*) AS n FROM prayer_groups WHERE is_hidden = 0'),
+      q<{ n: number }>('SELECT COALESCE(SUM(live_count),0) AS n FROM prayer_groups'),
+      q<{ n: number }>(`SELECT COUNT(*) AS n FROM prayer_posts WHERE created_at > datetime('now','-7 days')`),
+      q<{ n: number }>(`SELECT COUNT(*) AS n FROM prayer_live_log WHERE joined_at > datetime('now','-7 days')`),
+      q<{ n: number }>(`SELECT COUNT(*) AS n FROM reports WHERE status = 'open'`),
+      q<{ n: number }>('SELECT COUNT(*) AS n FROM bible_verses'),
+    ])
+    return { groups: groups?.n ?? 0, liveNow: liveNow?.n ?? 0, postsWeek: postsWeek?.n ?? 0, liveWeek: liveWeek?.n ?? 0, openReports: openReports?.n ?? 0, bibleVerses: bible?.n ?? 0 }
+  } catch {
+    return { groups: 0, liveNow: 0, postsWeek: 0, liveWeek: 0, openReports: 0, bibleVerses: 0 }
+  }
 })

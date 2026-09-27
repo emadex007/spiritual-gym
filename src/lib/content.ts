@@ -111,3 +111,31 @@ export const PRAYER_CATEGORIES = [
 ] as const
 
 export const MASTERY_LABELS = ['New', 'Learning', 'Learning', 'Familiar', 'Familiar', 'Known well'] as const
+
+// ---------- Community ----------
+
+export const PRAYER_PURPOSES = [
+  { key: 'general', label: 'General prayer', emoji: '🙏', focus: 'prayer' },
+  { key: 'healing', label: 'Healing & comfort', emoji: '💚', focus: 'growth' },
+  { key: 'family', label: 'Family & marriage', emoji: '🏡', focus: 'worship' },
+  { key: 'nation', label: 'Nation & leaders', emoji: '🇳🇬', focus: 'consistency' },
+  { key: 'provision', label: 'Finances & provision', emoji: '🌾', focus: 'gratitude' },
+  { key: 'protection', label: 'Protection & deliverance', emoji: '🛡️', focus: 'fasting' },
+  { key: 'salvation', label: 'Salvation of loved ones', emoji: '✝️', focus: 'bible' },
+  { key: 'church', label: 'Church & ministry', emoji: '⛪', focus: 'bible' },
+  { key: 'students', label: 'Students & exams', emoji: '📚', focus: 'memory' },
+  { key: 'thanksgiving', label: 'Thanksgiving', emoji: '🎉', focus: 'gratitude' },
+  { key: 'nightwatch', label: 'Night watch', emoji: '🌙', focus: 'fasting' },
+] as const
+
+export const purposeOf = (key: string) => PRAYER_PURPOSES.find((p) => p.key === key) ?? PRAYER_PURPOSES[0]
+
+export const POST_KINDS = [
+  { key: 'request', label: 'Prayer request', emoji: '🙏' },
+  { key: 'testimony', label: 'Testimony', emoji: '🎉' },
+  { key: 'encouragement', label: 'Encouragement', emoji: '💬' },
+] as const
+
+export const REPORT_REASONS = ['Inappropriate or offensive', 'Harassment or bullying', 'Spam or selling', 'Asking for money', 'Someone may be in danger', 'Other'] as const
+
+export const LIVE_ROOM_LIMIT = 12

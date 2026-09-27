@@ -5,6 +5,7 @@ import { signOut } from '~/fns/auth'
 import { getSiteSettings } from '~/fns/site'
 import { GOALS, LEVELS, MINUTES } from '~/lib/content'
 import { FormError, errorText } from '~/components/AuthShell'
+import { ThemeSwitch } from '~/components/ThemeSwitch'
 
 export const Route = createFileRoute('/app/profile')({
   loader: async () => {
@@ -118,6 +119,12 @@ function Profile() {
         <button type="button" className="btn-primary" disabled={saving} onClick={save}>
           {saving ? 'Saving…' : saved ? 'Saved' : 'Save changes'}
         </button>
+      </section>
+
+      <section className="card mt-5">
+        <p className="eyebrow">Appearance</p>
+        <p className="mt-2 mb-3 text-sm text-muted">Auto matches your phone’s light or dark mode.</p>
+        <ThemeSwitch />
       </section>
 
       <section className="card mt-5">

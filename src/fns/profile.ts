@@ -69,6 +69,12 @@ export const deleteAccount = createServerFn({ method: 'POST' })
     // D1 enforces foreign keys, but delete children explicitly to be safe.
     const tables = ['journey_progress', 'user_journeys', 'workout_sessions', 'checkins', 'journal_entries', 'prayer_items', 'scripture_memory', 'profiles', 'sessions']
     await db().batch([
+      db().prepare('UPDATE prayer_groups SET member_count = MAX(0, member_count - 1) WHERE id IN (SELECT group_id FROM prayer_group_members WHERE user_id = ?)').bind(user.id),
+      db().prepare('DELETE FROM user_blocks WHERE user_id = ?1 OR blocked_id = ?1').bind(user.id),
+      db().prepare('DELETE FROM prayer_group_members WHERE user_id = ?').bind(user.id),
+      db().prepare('DELETE FROM prayer_posts WHERE user_id = ?').bind(user.id),
+      db().prepare('DELETE FROM prayer_replies WHERE user_id = ?').bind(user.id),
+      db().prepare('DELETE FROM prayer_post_prayed WHERE user_id = ?').bind(user.id),
       db().prepare('DELETE FROM journey_progress WHERE user_journey_id IN (SELECT id FROM user_journeys WHERE user_id = ?)').bind(user.id),
       ...tables.slice(1).map((t) => db().prepare(`DELETE FROM ${t} WHERE user_id = ?`).bind(user.id)),
       db().prepare('DELETE FROM users WHERE id = ?').bind(user.id),

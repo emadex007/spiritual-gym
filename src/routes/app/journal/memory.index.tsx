@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link, createFileRoute, useRouter } from '@tanstack/react-router'
 import { addMemory, listMemory } from '~/fns/memory'
+import { lookupVerse } from '~/fns/bible'
 import { MASTERY_LABELS } from '~/lib/content'
 import { FormError, errorText } from '~/components/AuthShell'
 
@@ -90,7 +91,7 @@ function MemoryList() {
           </div>
         ))}
       </div>
-      <p className="mt-4 text-xs text-muted">Suggested verses are from the King James Version (public domain).</p>
+      <p className="mt-4 text-xs text-muted">Suggested verses come automatically from the King James Version. You can also add any verse from the Bible reader.</p>
     </div>
   )
 }
@@ -100,6 +101,16 @@ function CustomVerse() {
   const [f, setF] = useState({ reference: '', text: '', translation: 'KJV' })
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  async function lookup() {
+    setError(null)
+    try {
+      const r = await lookupVerse({ data: f.reference })
+      setF({ reference: r.reference, text: r.text, translation: r.translation })
+    } catch (e) {
+      setError(errorText(e))
+    }
+  }
 
   async function save() {
     setBusy(true)
@@ -115,11 +126,12 @@ function CustomVerse() {
 
   return (
     <div className="card fade-in mt-3 space-y-3">
-      <div className="grid grid-cols-[1fr_6rem] gap-3">
+      <div className="grid grid-cols-[1fr_auto] gap-3">
         <input className="input" placeholder="Reference, e.g. Romans 8:1" value={f.reference} onChange={(e) => setF({ ...f, reference: e.target.value })} />
-        <input className="input" placeholder="KJV" value={f.translation} onChange={(e) => setF({ ...f, translation: e.target.value })} />
+        <button type="button" className="btn-ghost" disabled={!f.reference.trim()} onClick={lookup}>Look up (KJV)</button>
       </div>
-      <textarea className="input" rows={3} placeholder="Type the verse from your Bible" value={f.text} onChange={(e) => setF({ ...f, text: e.target.value })} />
+      <textarea className="input" rows={3} placeholder="The verse text appears here, or type it from your own Bible" value={f.text} onChange={(e) => setF({ ...f, text: e.target.value })} />
+      <input className="input max-w-[10rem]" placeholder="Translation" value={f.translation} onChange={(e) => setF({ ...f, translation: e.target.value })} />
       <FormError message={error} />
       <button type="button" className="btn-primary" disabled={busy || !f.reference.trim() || !f.text.trim()} onClick={save}>
         {busy ? 'Adding…' : 'Add and practise'}

@@ -2,6 +2,7 @@ import { Link, Outlet, createFileRoute, redirect, useRouter, useRouterState } fr
 import { getAdminMe } from '~/fns/admin'
 import { signOut } from '~/fns/auth'
 import { Logo } from '~/components/Logo'
+import { ThemeSwitch } from '~/components/ThemeSwitch'
 
 export const Route = createFileRoute('/admin')({
   beforeLoad: async ({ location }) => {
@@ -20,6 +21,8 @@ const NAV = [
   { to: '/admin/workouts', label: 'Workouts', icon: '⏱️', exact: false },
   { to: '/admin/journeys', label: 'Journeys', icon: '🧭', exact: false },
   { to: '/admin/verses', label: 'Verses', icon: '📖', exact: false },
+  { to: '/admin/community', label: 'Community', icon: '🙏', exact: false },
+  { to: '/admin/reports', label: 'Reports', icon: '🚩', exact: false },
   { to: '/admin/users', label: 'Users', icon: '👥', exact: false },
   { to: '/admin/audit', label: 'Activity log', icon: '🗂️', exact: false },
 ] as const
@@ -57,7 +60,8 @@ function AdminLayout() {
             </Link>
           ))}
         </nav>
-        <div className="mt-auto space-y-2 px-2 text-sm">
+        <div className="mt-auto space-y-3 px-2 text-sm">
+          <div className="[&_div]:bg-white/10 [&_button]:text-white/70"><ThemeSwitch compact /></div>
           <p className="truncate text-white/60">{admin.email}</p>
           <div className="flex gap-3">
             <a href="/app" className="font-semibold text-gold">Open app ↗</a>

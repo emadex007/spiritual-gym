@@ -1,11 +1,14 @@
 import { useState } from 'react'
 import { Link, createFileRoute } from '@tanstack/react-router'
-import { getAdminStats } from '~/fns/admin'
+import { getAdminStats, getCommunityStats } from '~/fns/admin'
 import { PageHead, Stat } from '~/components/AdminUI'
 import { dayString } from '~/lib/util'
 
 export const Route = createFileRoute('/admin/')({
-  loader: () => getAdminStats(),
+  loader: async () => {
+    const [s, c] = await Promise.all([getAdminStats(), getCommunityStats()])
+    return { ...s, community: c }
+  },
   component: Dashboard,
 })
 
@@ -30,6 +33,21 @@ function Dashboard() {
         <Stat label="Minutes with God" value={s.minutes.toLocaleString()} hint="All time, all users" color="bg-[#fde8ec] text-[#c2415b]" />
         <Stat label="Journeys started" value={s.journeys} hint={`${s.journeysDone} completed`} />
         <Stat label="Recovery sessions" value={s.recoveryWeek} hint="This week, people coming back" color="bg-sage-soft text-sage" />
+      </div>
+
+      <p className="mt-8 mb-3 font-semibold">Community & Bible</p>
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <Stat label="Prayer groups" value={s.community.groups} hint={`${s.community.postsWeek} posts this week`} color="bg-[#ebe8fd] text-[#5a4bd1]" />
+        <Stat label="Praying live now" value={s.community.liveNow} hint={`${s.community.liveWeek} live joins this week`} color="bg-red-50 text-red-600" />
+        <Link to="/admin/reports" className="block">
+          <Stat label="Open reports" value={s.community.openReports} hint={s.community.openReports ? 'Tap to review' : 'All clear'} color={s.community.openReports ? 'bg-orange-100 text-orange-700' : 'bg-sage-soft text-sage'} />
+        </Link>
+        <Stat
+          label="Bible (KJV)"
+          value={s.community.bibleVerses ? '✓ Loaded' : 'Not loaded'}
+          hint={s.community.bibleVerses ? `${s.community.bibleVerses.toLocaleString()} verses` : 'Run the Bible import (see README)'}
+          color={s.community.bibleVerses ? 'bg-accent-soft text-accent' : 'bg-red-50 text-red-600'}
+        />
       </div>
 
       <section className="card mt-6">

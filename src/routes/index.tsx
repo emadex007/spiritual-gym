@@ -80,7 +80,7 @@ function Welcome() {
           {[
             { t: 'Restore', d: 'Come back after a tired or distracted season. No guilt, no catching up. Just begin again.', Icon: DoveIcon, c: STEP_STYLE.stillness },
             { t: 'Train', d: 'Short guided workouts and journeys that grow at your pace, from 5 minutes to an hour.', Icon: HandsIcon, c: STEP_STYLE.prayer },
-            { t: 'Connect', d: 'Walk with a friend, and find encouragement and prayer support. Coming soon.', Icon: HeartIcon, c: STEP_STYLE.worship },
+            { t: 'Connect', d: 'Join prayer groups, share requests, and pray live together with your voice.', Icon: HeartIcon, c: STEP_STYLE.worship },
           ].map(({ t, d, Icon, c }) => (
             <div key={t} className="card fade-in">
               <span className="flex h-12 w-12 items-center justify-center rounded-2xl" style={{ background: c.soft, color: c.color }}>
