@@ -3,17 +3,24 @@ main = "./src/server.ts"
 compatibility_date = "2025-09-02"
 compatibility_flags = ["nodejs_compat"]
 
+# --- D1 database (users, sessions, check-ins, journeys, workouts, journal, prayer, scripture memory) ---
+# Create with:  npx wrangler d1 create spiritual_gym_db
+# then paste the returned database_id below.
 [[d1_databases]]
 binding = "DB"
 database_name = "spiritual_gym_db"
 database_id = "931dd191-fd07-46a9-992c-1e3edc9aa598"
 migrations_dir = "migrations"
 
+# --- R2 bucket (avatars, journey cover images, audio later) ---
+# Create with:  npx wrangler r2 bucket create spiritual-gym-media
 [[r2_buckets]]
 binding = "MEDIA"
 bucket_name = "spiritual-gym-media"
 
-# Secrets (later): npx wrangler secret put RESEND_API_KEY / AI_API_KEY
+# --- Secrets: set with `npx wrangler secret put <NAME>`, never commit them ---
+# RESEND_API_KEY        password reset + reminder emails   (Phase 2)
+# AI_API_KEY            Spiritual Coach                    (Phase 5)
 
 [vars]
 SITE_ENV = "production"

@@ -5,6 +5,22 @@ import { completeOnboarding, listJourneys } from '~/fns/onboarding'
 import { GOALS, MINUTES, SPIRITUAL_STATES, recommendJourney } from '~/lib/content'
 import { Logo } from '~/components/Logo'
 import { FormError, errorText } from '~/components/AuthShell'
+import { BibleIcon, HandsIcon, HeartIcon, JourneyCover, LampIcon, LeafIcon, MountainIcon, MusicIcon, OliveIcon, SunIcon, SunriseScene } from '~/components/Art'
+
+const GOAL_ICON: Record<string, { Icon: typeof BibleIcon; color: string }> = {
+  prayer: { Icon: HandsIcon, color: '#6f5ce6' },
+  bible: { Icon: BibleIcon, color: '#c9971f' },
+  worship: { Icon: MusicIcon, color: '#e05a7a' },
+  memory: { Icon: LampIcon, color: '#1f9a8f' },
+  fasting: { Icon: MountainIcon, color: '#5b6b8c' },
+  evangelism: { Icon: HeartIcon, color: '#e05a7a' },
+  gratitude: { Icon: OliveIcon, color: '#e98a2b' },
+  reflection: { Icon: LampIcon, color: '#1f9a8f' },
+  discipline: { Icon: SunIcon, color: '#1f5bb8' },
+  consistency: { Icon: SunIcon, color: '#1f5bb8' },
+  community: { Icon: HeartIcon, color: '#b8375a' },
+  other: { Icon: LeafIcon, color: '#3f8f5a' },
+}
 
 export const Route = createFileRoute('/onboarding')({
   beforeLoad: async () => {
@@ -51,15 +67,18 @@ function Onboarding() {
 
   return (
     <div className="flex min-h-dvh flex-col">
-      <header className="mx-auto flex w-full max-w-xl items-center justify-between px-5 py-5">
-        <Logo />
-        <span className="text-sm text-muted">
-          {step} of {TOTAL}
-        </span>
-      </header>
-      <div className="mx-auto w-full max-w-xl px-5">
-        <div className="h-1.5 rounded-full bg-surface-2">
-          <div className="h-1.5 rounded-full bg-gold transition-all duration-500" style={{ width: `${(step / TOTAL) * 100}%` }} />
+      <div className="relative isolate overflow-hidden text-white">
+        <SunriseScene className="absolute inset-0 -z-10 h-full w-full" />
+        <header className="mx-auto flex w-full max-w-xl items-center justify-between px-5 py-5">
+          <span className="[&_span]:text-white"><Logo /></span>
+          <span className="rounded-full bg-white/15 px-3 py-1 text-sm backdrop-blur">
+            {step} of {TOTAL}
+          </span>
+        </header>
+        <div className="mx-auto w-full max-w-xl px-5 pb-8">
+          <div className="h-1.5 rounded-full bg-white/20">
+            <div className="h-1.5 rounded-full bg-gold transition-all duration-500" style={{ width: `${(step / TOTAL) * 100}%` }} />
+          </div>
         </div>
       </div>
 
@@ -94,8 +113,12 @@ function Onboarding() {
                     type="button"
                     aria-pressed={on}
                     onClick={() => setGoals(on ? goals.filter((x) => x !== g.key) : [...goals, g.key])}
-                    className={`chip ${on ? 'chip-on' : ''}`}
+                    className={`chip inline-flex items-center gap-2 ${on ? 'chip-on' : ''}`}
                   >
+                    {(() => {
+                      const gi = GOAL_ICON[g.key]
+                      return gi ? <span style={{ color: on ? undefined : gi.color }}><gi.Icon className="h-4 w-4" /></span> : null
+                    })()}
                     {g.label}
                   </button>
                 )
@@ -130,8 +153,9 @@ function Onboarding() {
                 .map((j) => {
                   const on = journeySlug === j.slug
                   return (
-                    <button key={j.id} type="button" onClick={() => setPicked(j.slug)} className={`option block ${on ? 'option-on' : ''}`}>
-                      <div className="flex items-start justify-between gap-3">
+                    <button key={j.id} type="button" onClick={() => setPicked(j.slug)} className={`option block overflow-hidden !p-0 ${on ? 'option-on' : ''}`}>
+                      <JourneyCover focus={j.focus} className="h-20" />
+                      <div className="flex items-start justify-between gap-3 px-5 py-4">
                         <div>
                           {j.slug === recommended && <p className="eyebrow mb-1">Recommended for you</p>}
                           <p className="font-display text-lg font-semibold">{j.title}</p>

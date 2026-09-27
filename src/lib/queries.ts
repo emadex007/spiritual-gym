@@ -7,6 +7,7 @@ export type ActiveJourney = {
   journey_id: string
   slug: string
   title: string
+  focus: string
   days: number
   completed: number
   done_today: boolean
@@ -16,7 +17,7 @@ export type ActiveJourney = {
 export async function getActiveJourney(userId: string): Promise<ActiveJourney | null> {
   const uj = await db()
     .prepare(
-      `SELECT uj.id AS user_journey_id, j.id AS journey_id, j.slug, j.title, j.days,
+      `SELECT uj.id AS user_journey_id, j.id AS journey_id, j.slug, j.title, j.focus, j.days,
               (SELECT COUNT(*) FROM journey_progress p WHERE p.user_journey_id = uj.id) AS completed,
               (SELECT MAX(date(p.completed_at)) FROM journey_progress p WHERE p.user_journey_id = uj.id) AS last_done
        FROM user_journeys uj JOIN journeys j ON j.id = uj.journey_id
@@ -41,6 +42,7 @@ export async function getActiveJourney(userId: string): Promise<ActiveJourney | 
     journey_id: uj.journey_id,
     slug: uj.slug,
     title: uj.title,
+    focus: uj.focus,
     days: uj.days,
     completed: uj.completed,
     done_today: doneToday,

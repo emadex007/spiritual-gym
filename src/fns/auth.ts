@@ -19,7 +19,7 @@ export const getMe = createServerFn({ method: 'GET' }).handler(async (): Promise
 })
 
 export const signUp = createServerFn({ method: 'POST' })
-  .inputValidator((d: { name: string; email: string; password: string }) => {
+  .validator((d: { name: string; email: string; password: string }) => {
     const name = String(d?.name ?? '').trim()
     const email = String(d?.email ?? '').trim().toLowerCase()
     const password = String(d?.password ?? '')
@@ -43,7 +43,7 @@ export const signUp = createServerFn({ method: 'POST' })
   })
 
 export const signIn = createServerFn({ method: 'POST' })
-  .inputValidator((d: { email: string; password: string }) => ({
+  .validator((d: { email: string; password: string }) => ({
     email: String(d?.email ?? '').trim().toLowerCase(),
     password: String(d?.password ?? ''),
   }))

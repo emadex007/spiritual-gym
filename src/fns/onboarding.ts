@@ -26,7 +26,7 @@ export const listJourneys = createServerFn({ method: 'GET' }).handler(async () =
 })
 
 export const completeOnboarding = createServerFn({ method: 'POST' })
-  .inputValidator((d: { state: string; goals: string[]; minutes: number; journeySlug: string }) => {
+  .validator((d: { state: string; goals: string[]; minutes: number; journeySlug: string }) => {
     if (!d?.state) throw new Error('Please choose how your spiritual life feels right now.')
     if (!Array.isArray(d.goals) || d.goals.length === 0) throw new Error('Please choose at least one area to develop.')
     const minutes = Number(d.minutes)

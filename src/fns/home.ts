@@ -9,7 +9,7 @@ export const getHome = createServerFn({ method: 'GET' }).handler(async () => {
   const user = await requireUser()
   const today = dayString()
 
-  const [profile, checkin, lastDay, journey, verse, todaySessions, counts] = await Promise.all([
+  const [profile, checkin, lastDay, journey, verse, todaySessions, counts, memory] = await Promise.all([
     db()
       .prepare('SELECT daily_minutes, level, onboarded_at FROM profiles WHERE user_id = ?')
       .bind(user.id)
@@ -29,6 +29,14 @@ export const getHome = createServerFn({ method: 'GET' }).handler(async () => {
       .prepare('SELECT kinds FROM workout_sessions WHERE user_id = ?')
       .bind(user.id)
       .all<{ kinds: string }>(),
+    db()
+      .prepare(
+        `SELECT COUNT(*) AS total, SUM(CASE WHEN next_review IS NULL OR next_review <= ?2 THEN 1 ELSE 0 END) AS due,
+                SUM(CASE WHEN date(last_practiced) = ?2 THEN 1 ELSE 0 END) AS practiced_today
+         FROM scripture_memory WHERE user_id = ?1`,
+      )
+      .bind(user.id, today)
+      .first<{ total: number; due: number | null; practiced_today: number | null }>(),
   ])
 
   const dailyMinutes = profile?.daily_minutes ?? 10
@@ -78,11 +86,12 @@ export const getHome = createServerFn({ method: 'GET' }).handler(async () => {
     todayByKind,
     sessionsByKind,
     totalSessions: counts.results.length,
+    memory: { total: memory?.total ?? 0, due: memory?.due ?? 0, practicedToday: memory?.practiced_today ?? 0 },
   }
 })
 
 export const saveCheckin = createServerFn({ method: 'POST' })
-  .inputValidator((d: { mood: string; note?: string }) => {
+  .validator((d: { mood: string; note?: string }) => {
     if (!MOODS.some((m) => m.key === d?.mood)) throw new Error('Please choose how you are today.')
     return { mood: d.mood, note: d.note ? String(d.note).slice(0, 2000) : null }
   })

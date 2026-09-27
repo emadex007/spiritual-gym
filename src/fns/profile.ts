@@ -39,7 +39,7 @@ export const getProfile = createServerFn({ method: 'GET' }).handler(async () => 
 })
 
 export const updateProfile = createServerFn({ method: 'POST' })
-  .inputValidator((d: { name: string; dailyMinutes: number; level: string; favoriteVerse: string }) => {
+  .validator((d: { name: string; dailyMinutes: number; level: string; favoriteVerse: string }) => {
     const name = String(d?.name ?? '').trim()
     if (name.length < 2) throw new Error('Please enter your name.')
     const dailyMinutes = Number(d.dailyMinutes)
@@ -60,7 +60,7 @@ export const updateProfile = createServerFn({ method: 'POST' })
 
 /** Permanently deletes the account and every private record (cascade). */
 export const deleteAccount = createServerFn({ method: 'POST' })
-  .inputValidator((d: { password: string }) => ({ password: String(d?.password ?? '') }))
+  .validator((d: { password: string }) => ({ password: String(d?.password ?? '') }))
   .handler(async ({ data }) => {
     const user = await requireUser()
     const row = await db().prepare('SELECT password_hash FROM users WHERE id = ?').bind(user.id).first<{ password_hash: string }>()

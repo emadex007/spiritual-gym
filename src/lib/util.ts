@@ -30,3 +30,6 @@ export function formatClock(totalSeconds: number) {
 export function firstName(name: string) {
   return name.trim().split(/\s+/)[0] || name
 }
+
+/** Public URL for a file stored in R2 (served by src/server.ts) */
+export const mediaUrl = (key: string) => (key ? `/media/${key}` : '')

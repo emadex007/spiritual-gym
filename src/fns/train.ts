@@ -10,7 +10,7 @@ type StepRow = { position: number; kind: string; label: string; seconds: number;
 
 export const getTrain = createServerFn({ method: 'GET' }).handler(async () => {
   const user = await requireUser()
-  const [workouts, journeys, active, done] = await Promise.all([
+  const [workouts, journeys, active, done, steps] = await Promise.all([
     db().prepare('SELECT id, slug, title, description, level, minutes, is_recovery FROM workouts ORDER BY sort').all<WorkoutRow>(),
     db()
       .prepare('SELECT id, slug, title, subtitle, focus, days, start_minutes, end_minutes, is_recovery FROM journeys ORDER BY sort')
@@ -20,9 +20,10 @@ export const getTrain = createServerFn({ method: 'GET' }).handler(async () => {
       .prepare(`SELECT DISTINCT journey_id FROM user_journeys WHERE user_id = ? AND status = 'completed'`)
       .bind(user.id)
       .all<{ journey_id: string }>(),
+    db().prepare('SELECT workout_id, kind, seconds FROM workout_steps ORDER BY workout_id, position').all<{ workout_id: string; kind: string; seconds: number }>(),
   ])
   return {
-    workouts: workouts.results,
+    workouts: workouts.results.map((w) => ({ ...w, steps: steps.results.filter((st) => st.workout_id === w.id) })),
     journeys: journeys.results,
     active,
     completedJourneyIds: done.results.map((r) => r.journey_id),
@@ -30,7 +31,7 @@ export const getTrain = createServerFn({ method: 'GET' }).handler(async () => {
 })
 
 export const startJourney = createServerFn({ method: 'POST' })
-  .inputValidator((d: { slug: string }) => ({ slug: String(d?.slug ?? '') }))
+  .validator((d: { slug: string }) => ({ slug: String(d?.slug ?? '') }))
   .handler(async ({ data }) => {
     const user = await requireUser()
     const j = await db().prepare('SELECT id FROM journeys WHERE slug = ?').bind(data.slug).first<{ id: string }>()
@@ -43,7 +44,7 @@ export const startJourney = createServerFn({ method: 'POST' })
   })
 
 export const getWorkout = createServerFn({ method: 'GET' })
-  .inputValidator((slug: string) => String(slug))
+  .validator((slug: string) => String(slug))
   .handler(async ({ data: slug }) => {
     const user = await requireUser()
     const w = await db().prepare('SELECT id, slug, title, description, level, minutes, is_recovery FROM workouts WHERE slug = ?').bind(slug).first<WorkoutRow>()
@@ -57,7 +58,7 @@ export const getWorkout = createServerFn({ method: 'GET' })
   })
 
 export const completeWorkout = createServerFn({ method: 'POST' })
-  .inputValidator((d: { slug: string; secondsByKind: Record<string, number>; reflection?: string }) => {
+  .validator((d: { slug: string; secondsByKind: Record<string, number>; reflection?: string }) => {
     const secondsByKind: Record<string, number> = {}
     for (const [k, v] of Object.entries(d?.secondsByKind ?? {})) {
       const n = Math.max(0, Math.min(4 * 3600, Math.round(Number(v) || 0)))

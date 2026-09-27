@@ -89,3 +89,25 @@ export function recommendWorkout(dailyMinutes: number, mood: string | null, reco
   if (m <= 45) return 'deepen-30'
   return 'secret-60'
 }
+
+// ---------- Phase 3 ----------
+
+export const JOURNAL_PROMPTS = [
+  'What did God teach me today?',
+  'What am I grateful for?',
+  'What am I trusting God for?',
+  'What do I need to surrender?',
+  'What Scripture spoke to me today?',
+] as const
+
+export const PRAYER_CATEGORIES = [
+  { key: 'family', label: 'Family' },
+  { key: 'church', label: 'Church' },
+  { key: 'career', label: 'Career' },
+  { key: 'finances', label: 'Finances' },
+  { key: 'personal', label: 'Personal Growth' },
+  { key: 'people', label: 'People' },
+  { key: 'global', label: 'Global' },
+] as const
+
+export const MASTERY_LABELS = ['New', 'Learning', 'Learning', 'Familiar', 'Familiar', 'Known well'] as const

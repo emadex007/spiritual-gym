@@ -2,11 +2,15 @@ import { useState } from 'react'
 import { createFileRoute, useRouter } from '@tanstack/react-router'
 import { deleteAccount, getProfile, updateProfile } from '~/fns/profile'
 import { signOut } from '~/fns/auth'
+import { getSiteSettings } from '~/fns/site'
 import { GOALS, LEVELS, MINUTES } from '~/lib/content'
 import { FormError, errorText } from '~/components/AuthShell'
 
 export const Route = createFileRoute('/app/profile')({
-  loader: () => getProfile(),
+  loader: async () => {
+    const [p, site] = await Promise.all([getProfile(), getSiteSettings()])
+    return { ...p, supportText: site.support_text }
+  },
   component: Profile,
 })
 
@@ -125,6 +129,13 @@ function Profile() {
           Sign out
         </button>
       </section>
+
+      {p.supportText && (
+        <section className="mt-5 rounded-3xl p-5" style={{ background: 'linear-gradient(135deg,#e3eefc,#ebe8fd)' }}>
+          <p className="font-semibold text-[#12203a]">Need someone right now?</p>
+          <p className="mt-1 text-sm whitespace-pre-wrap text-[#5b6477]">{p.supportText}</p>
+        </section>
+      )}
 
       <DeleteAccount />
     </main>

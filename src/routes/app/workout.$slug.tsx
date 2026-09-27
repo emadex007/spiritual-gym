@@ -5,6 +5,7 @@ import { STEP_LABELS } from '~/lib/content'
 import { formatClock } from '~/lib/util'
 import { CheckIcon, CloseIcon, PauseIcon, PlayIcon } from '~/components/Icons'
 import { errorText } from '~/components/AuthShell'
+import { SunriseScene, stepStyle } from '~/components/Art'
 
 export const Route = createFileRoute('/app/workout/$slug')({
   loader: ({ params }) => getWorkout({ data: params.slug }),
@@ -98,8 +99,15 @@ function WorkoutPlayer() {
     }
   }
 
+  const st = step ? stepStyle(step.kind) : stepStyle('prayer')
+  const bg =
+    phase === 'running'
+      ? `radial-gradient(120% 70% at 50% 0%, ${st.color}66 0%, transparent 60%), linear-gradient(180deg, ${st.deep} 0%, #12203a 100%)`
+      : 'linear-gradient(180deg,#1b2750 0%,#12203a 100%)'
+
   return (
-    <div className="flex min-h-dvh flex-col bg-navy text-white">
+    <div className="relative isolate flex min-h-dvh flex-col text-white transition-[background] duration-700" style={{ background: bg }}>
+      {phase !== 'running' && <SunriseScene className="pointer-events-none absolute inset-x-0 bottom-0 -z-10 h-[45%] w-full opacity-70" />}
       <header className="mx-auto flex w-full max-w-xl items-center justify-between px-5 py-4">
         <Link to="/app" className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 hover:bg-white/15" aria-label="Close workout">
           <CloseIcon />
@@ -122,15 +130,18 @@ function WorkoutPlayer() {
             <h1 className="mt-3 font-display text-4xl font-semibold tracking-tight">{workout.title}</h1>
             {workout.description && <p className="mt-3 text-white/70">{workout.description}</p>}
             <ol className="mt-8 space-y-3">
-              {steps.map((s) => (
-                <li key={s.position} className="flex items-center justify-between rounded-2xl bg-white/5 px-4 py-3">
-                  <span>
-                    <span className="mr-3 text-white/40">{s.position}</span>
-                    {s.label}
-                  </span>
-                  <span className="text-sm text-white/60">{formatClock(s.seconds)}</span>
-                </li>
-              ))}
+              {steps.map((s) => {
+                const ss = stepStyle(s.kind)
+                return (
+                  <li key={s.position} className="flex items-center gap-3 rounded-2xl bg-white/8 px-3 py-2.5 backdrop-blur-sm">
+                    <span className="flex h-9 w-9 items-center justify-center rounded-xl" style={{ background: ss.color + '33', color: ss.color }}>
+                      <ss.Icon className="h-5 w-5" />
+                    </span>
+                    <span className="flex-1">{s.label}</span>
+                    <span className="text-sm text-white/60">{formatClock(s.seconds)}</span>
+                  </li>
+                )
+              })}
             </ol>
             <p className="mt-6 text-sm text-white/60">Find a quiet place. Put your phone down after you begin. Each step moves on by itself.</p>
             <button type="button" onClick={begin} className="btn-gold mt-8 w-full py-4 text-base">
@@ -141,12 +152,15 @@ function WorkoutPlayer() {
 
         {phase === 'running' && step && (
           <div key={index} className="fade-in flex flex-1 flex-col items-center py-8 text-center">
-            <p className="text-xs font-semibold tracking-[0.14em] text-gold uppercase">
+            <span className="flex h-14 w-14 items-center justify-center rounded-2xl" style={{ background: st.color + '40', color: '#fff' }}>
+              <st.Icon className="h-7 w-7" />
+            </span>
+            <p className="mt-4 text-xs font-semibold tracking-[0.14em] uppercase" style={{ color: st.soft }}>
               Step {index + 1} of {steps.length} · {STEP_LABELS[step.kind] ?? step.kind}
             </p>
-            <h2 className="mt-3 font-display text-3xl font-semibold">{step.label}</h2>
+            <h2 className="mt-2 font-display text-3xl font-semibold">{step.label}</h2>
 
-            <Ring pct={1 - Math.max(0, remaining) / step.seconds} paused={paused}>
+            <Ring pct={1 - Math.max(0, remaining) / step.seconds} paused={paused} color={st.color}>
               <span className="font-display text-5xl font-semibold tabular-nums" aria-live="off">
                 {formatClock(Math.ceil(Math.max(0, remaining)))}
               </span>
@@ -249,7 +263,7 @@ function WorkoutPlayer() {
   )
 }
 
-function Ring({ pct, paused, children }: { pct: number; paused: boolean; children: ReactNode }) {
+function Ring({ pct, paused, color = '#d4a94a', children }: { pct: number; paused: boolean; color?: string; children: ReactNode }) {
   const r = 110
   const c = 2 * Math.PI * r
   return (
@@ -261,12 +275,12 @@ function Ring({ pct, paused, children }: { pct: number; paused: boolean; childre
           cy="120"
           r={r}
           fill="none"
-          stroke="#d4a94a"
-          strokeWidth="6"
+          stroke={color}
+          strokeWidth="8"
           strokeLinecap="round"
           strokeDasharray={c}
           strokeDashoffset={c * (1 - Math.min(1, Math.max(0, pct)))}
-          style={{ transition: 'stroke-dashoffset 0.25s linear' }}
+          style={{ transition: 'stroke-dashoffset 0.25s linear, stroke 0.7s', filter: `drop-shadow(0 0 10px ${color}88)` }}
         />
       </svg>
       {children}
