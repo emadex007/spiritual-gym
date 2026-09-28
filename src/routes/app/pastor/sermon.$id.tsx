@@ -38,7 +38,7 @@ CLOSING / ALTAR CALL / PRAYER
 - `
 
 function SermonEditor() {
-  const { sermon, aiReady } = Route.useLoaderData()
+  const { sermon, aiReady, churchName } = Route.useLoaderData()
   const router = useRouter()
   const [f, setF] = useState({
     id: sermon?.id,
@@ -121,7 +121,7 @@ function SermonEditor() {
         <Link to="/app/pastor" className="text-sm font-semibold text-accent">← Pastor Mode</Link>
         <span className="text-xs text-muted">{saved ? '✓ Saved' : 'Private to you'}</span>
       </div>
-      <input className="mt-3 w-full bg-transparent font-display text-3xl font-semibold outline-none placeholder:text-muted/50" placeholder="Sermon title" value={f.title} onChange={set('title')} maxLength={120} />
+      <input className="mt-3 w-full bg-transparent font-display text-3xl font-semibold outline-none placeholder:text-muted/50" placeholder="Sermon title or topic" value={f.title} onChange={set('title')} maxLength={120} />
 
       <div className="mt-4 grid gap-3 sm:grid-cols-2">
         <label className="block"><span className="label">Main Scripture</span><input className="input" placeholder="e.g. John 15:1-8" value={f.scripture} onChange={set('scripture')} maxLength={120} /></label>
@@ -151,9 +151,10 @@ function SermonEditor() {
           scripture={f.scripture}
           bigIdea={f.bigIdea}
           venue={f.venue}
-          write={(o) => writeSermon({ data: { title: f.title, scripture: f.scripture, bigIdea: f.bigIdea, audience: f.venue || 'Sunday service', ...o } })}
-          onUse={(text) => {
-            setF({ ...f, outline: f.outline.trim() ? `${f.outline}\n\n${text}` : text })
+          churchName={churchName}
+          write={(o) => writeSermon({ data: { title: f.title, scripture: f.scripture, bigIdea: f.bigIdea, ...o } })}
+          onUse={(text, aiTitle) => {
+            setF({ ...f, title: f.title.trim() || (aiTitle ?? '').slice(0, 120), outline: f.outline.trim() ? `${f.outline}\n\n${text}` : text })
             setSaved(false)
           }}
         />
@@ -172,7 +173,7 @@ function SermonEditor() {
 
       <label className="mt-4 block">
         <span className="label">Notes & outline</span>
-        <textarea ref={area} className="input min-h-[50vh] font-[inherit] leading-relaxed" value={f.outline} onChange={set('outline')} maxLength={20000} placeholder="Write freely: points, stories, Scriptures, what God is showing you…" />
+        <textarea ref={area} className="input min-h-[50vh] font-[inherit] leading-relaxed" value={f.outline} onChange={set('outline')} maxLength={80000} placeholder="Write freely: points, stories, Scriptures, what God is showing you…" />
       </label>
 
       <FormError message={error} />

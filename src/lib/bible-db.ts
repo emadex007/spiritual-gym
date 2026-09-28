@@ -18,6 +18,21 @@ export async function lookupText(reference: string) {
 }
 
 
+/** Many references at once in a single D1 batch (one round trip). A bare chapter ("Psalm 23") returns the whole chapter. Unknown or invalid references are simply missing from the map. */
+export async function lookupMany(references: string[]) {
+  const parsed = references.map((r) => ({ r, p: parseReference(r) }))
+    .filter((x) => x.p) as { r: string; p: NonNullable<ReturnType<typeof parseReference>> }[]
+  const out = new Map<string, { reference: string; text: string; verses: number }>()
+  if (!parsed.length) return out
+  const sql = 'SELECT verse, text FROM bible_verses WHERE book_id = ? AND chapter = ? AND verse BETWEEN ? AND ? ORDER BY verse'
+  const res = (await db().batch(parsed.map(({ p }) => db().prepare(sql).bind(p.bookId, p.chapter, p.verseStart ?? 1, p.verseEnd ?? p.verseStart ?? 999)))) as { results?: Verse[] }[]
+  parsed.forEach(({ r, p }, i) => {
+    const rows = res[i]?.results ?? []
+    if (rows.length) out.set(r, { reference: formatReference(p.bookId, p.chapter, p.verseStart, p.verseEnd), text: rows.map((v) => v.text).join(' '), verses: rows.length })
+  })
+  return out
+}
+
 export type Passage = { reference: string; bookId: number; chapter: number; verses: Verse[]; key: [number, number] | null }
 
 /** A readable passage around a reference: 'short' = the verses themselves (plus a little context),

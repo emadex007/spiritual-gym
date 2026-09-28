@@ -204,3 +204,8 @@ export const TESTIMONY_CATEGORIES = [
   { key: 'other', label: 'Other', emoji: '✨' },
 ] as const
 export const testimonyCategory = (k: string) => TESTIMONY_CATEGORIES.find((c) => c.key === k) ?? TESTIMONY_CATEGORIES[TESTIMONY_CATEGORIES.length - 1]
+
+// ---------- Sermon writer ----------
+export const SERMON_AUDIENCES = ['General congregation', 'Youths', 'Teens', 'Children', 'Workers', 'Leaders', 'Men', 'Women', 'Couples', 'New believers'] as const
+export const SERMON_SERVICES = ['Sunday service', 'Bible study', 'Midweek service', 'Communion service', 'Thanksgiving service', 'Vigil / night of prayer', 'Revival / crusade', 'Youth meeting', 'Workers’ meeting', 'Funeral / memorial', 'Wedding'] as const
+export const SERMON_MINUTES = [30, 45, 60] as const
