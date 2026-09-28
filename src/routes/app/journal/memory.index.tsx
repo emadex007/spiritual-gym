@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Link, createFileRoute, useRouter } from '@tanstack/react-router'
 import { addMemory, listMemory } from '~/fns/memory'
 import { lookupVerse } from '~/fns/bible'
-import { MASTERY_LABELS } from '~/lib/content'
+import { MASTERY_LABELS, MEMORY_CATEGORIES } from '~/lib/content'
 import { FormError, errorText } from '~/components/AuthShell'
 
 export const Route = createFileRoute('/app/journal/memory/')({
@@ -11,16 +11,22 @@ export const Route = createFileRoute('/app/journal/memory/')({
 })
 
 function MemoryList() {
-  const { verses, suggestions, today } = Route.useLoaderData()
+  const { verses, library, today } = Route.useLoaderData()
   const router = useRouter()
   const [adding, setAdding] = useState<string | null>(null)
   const [custom, setCustom] = useState(false)
+  const [cat, setCat] = useState<string>(MEMORY_CATEGORIES[0].key)
+  const [q, setQ] = useState('')
+  const mine = new Set(verses.map((v) => v.reference))
+  const shown = q.trim()
+    ? library.filter((l) => (l.reference + ' ' + l.text).toLowerCase().includes(q.trim().toLowerCase()))
+    : library.filter((l) => l.category === cat)
   const due = verses.filter((v) => !v.next_review || v.next_review <= today)
 
   async function addSuggestion(id: string) {
     setAdding(id)
     try {
-      const res = await addMemory({ data: { verseId: id } })
+      const res = await addMemory({ data: { libraryId: id } })
       await router.navigate({ to: '/app/journal/memory/$id', params: { id: res.id } })
     } finally {
       setAdding(null)
@@ -72,26 +78,48 @@ function MemoryList() {
       )}
 
       <div className="mt-8 flex items-baseline justify-between">
-        <p className="eyebrow">Add a verse</p>
+        <p className="eyebrow">Memory verse library</p>
         <button type="button" className="text-sm font-semibold text-accent" onClick={() => setCustom(!custom)}>
           {custom ? 'Close' : '+ My own verse'}
         </button>
       </div>
       {custom && <CustomVerse />}
+      <input className="input mt-3" placeholder={`Search ${library.length} memory verses`} value={q} onChange={(e) => setQ(e.target.value)} />
+      {!q.trim() && (
+        <div className="-mx-1 mt-3 flex gap-2 overflow-x-auto px-1 pb-1">
+          {MEMORY_CATEGORIES.map((c) => {
+            const n = library.filter((l) => l.category === c.key).length
+            const learnt = library.filter((l) => l.category === c.key && mine.has(l.reference)).length
+            return (
+              <button key={c.key} type="button" onClick={() => setCat(c.key)} className={`chip shrink-0 !py-2 text-xs ${cat === c.key ? 'chip-on' : ''}`}>
+                {c.emoji} {c.label} <span className="opacity-60">{learnt ? `${learnt}/${n}` : n}</span>
+              </button>
+            )
+          })}
+        </div>
+      )}
       <div className="mt-3 space-y-2">
-        {suggestions.map((s) => (
-          <div key={s.id} className="flex items-start justify-between gap-3 rounded-2xl border border-line bg-surface p-4">
-            <div>
-              <p className="font-semibold">{s.reference}</p>
-              <p className="mt-0.5 line-clamp-2 text-sm text-muted">{s.text}</p>
+        {shown.length === 0 && <p className="py-4 text-center text-sm text-muted">No verses found.</p>}
+        {shown.map((s) => {
+          const have = mine.has(s.reference)
+          return (
+            <div key={s.id} className="flex items-start justify-between gap-3 rounded-2xl border border-line bg-surface p-4">
+              <div>
+                <p className="font-semibold">{s.reference}</p>
+                <p className="mt-0.5 text-sm text-muted">{s.text}</p>
+              </div>
+              {have ? (
+                <span className="shrink-0 rounded-full bg-sage-soft px-3 py-1.5 text-xs font-semibold text-sage">✓ Added</span>
+              ) : (
+                <button type="button" className="btn-ghost shrink-0 !px-4 !py-2" disabled={adding !== null} onClick={() => addSuggestion(s.id)}>
+                  {adding === s.id ? 'Adding…' : 'Add'}
+                </button>
+              )}
             </div>
-            <button type="button" className="btn-ghost shrink-0 !px-4 !py-2" disabled={adding !== null} onClick={() => addSuggestion(s.id)}>
-              {adding === s.id ? 'Adding…' : 'Add'}
-            </button>
-          </div>
-        ))}
+          )
+        })}
       </div>
-      <p className="mt-4 text-xs text-muted">Suggested verses come automatically from the King James Version. You can also add any verse from the Bible reader.</p>
+      <p className="mt-4 text-xs text-muted">All verses are from the King James Version, sorted by topic. You can also add any verse from the Bible reader, or your own.</p>
     </div>
   )
 }

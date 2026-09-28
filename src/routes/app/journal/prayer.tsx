@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { createFileRoute, useRouter } from '@tanstack/react-router'
-import { deletePrayer, listPrayers, markAnswered, reopenPrayer, savePrayer, type Prayer } from '~/fns/prayer'
+import { addLibraryPrayer, deletePrayer, listPrayerLibrary, listPrayers, markAnswered, reopenPrayer, savePrayer, type LibraryPrayer, type Prayer } from '~/fns/prayer'
+import { ListenButton } from '~/components/ListenButton'
 import { PRAYER_CATEGORIES } from '~/lib/content'
 import { FormError, errorText } from '~/components/AuthShell'
 import { CheckIcon } from '~/components/Icons'
@@ -8,14 +9,17 @@ import { AwardCelebration } from '~/components/AwardCelebration'
 import type { AwardDef } from '~/lib/awards'
 
 export const Route = createFileRoute('/app/journal/prayer')({
-  loader: () => listPrayers(),
+  loader: async () => {
+    const [prayers, library] = await Promise.all([listPrayers(), listPrayerLibrary()])
+    return { prayers, library }
+  },
   component: PrayerPage,
 })
 
 const catLabel = (k: string) => PRAYER_CATEGORIES.find((c) => c.key === k)?.label ?? k
 
 function PrayerPage() {
-  const prayers = Route.useLoaderData()
+  const { prayers, library } = Route.useLoaderData()
   const [filter, setFilter] = useState<string>('all')
   const [editing, setEditing] = useState<Prayer | null>(null)
   const active = prayers.filter((p) => !p.is_answered && (filter === 'all' || p.category === filter))
@@ -24,6 +28,7 @@ function PrayerPage() {
   return (
     <div className="fade-in">
       <PrayerForm key={editing?.id ?? 'new'} editing={editing} onDone={() => setEditing(null)} />
+      <PrayerLibrary library={library} />
 
       <div className="mt-8 flex items-baseline justify-between">
         <p className="eyebrow">My prayer list</p>
@@ -228,4 +233,64 @@ function AnsweredCard({ p }: { p: Prayer }) {
 
 function shortDate(s: string) {
   return new Date(s.replace(' ', 'T') + 'Z').toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'Africa/Lagos' })
+}
+
+/** Ready-made prayers for every category. Pray them straight away, or add them to your own list. */
+function PrayerLibrary({ library }: { library: LibraryPrayer[] }) {
+  const router = useRouter()
+  const [cat, setCat] = useState<string>(PRAYER_CATEGORIES[0].key)
+  const [open, setOpen] = useState<string | null>(null)
+  const [busy, setBusy] = useState<string | null>(null)
+  if (!library.length) return null
+  const list = library.filter((l) => l.category === cat)
+  async function add(id: string) {
+    setBusy(id)
+    try {
+      await addLibraryPrayer({ data: { id } })
+      await router.invalidate()
+    } finally {
+      setBusy(null)
+    }
+  }
+  return (
+    <section className="mt-8">
+      <p className="eyebrow">Prayers to pray</p>
+      <p className="mt-1 text-sm text-muted">Guided prayers for every part of life, each with a Scripture. Pray one now, or add it to your list.</p>
+      <div className="-mx-1 mt-3 flex gap-2 overflow-x-auto px-1 pb-1">
+        {PRAYER_CATEGORIES.map((c) => (
+          <button key={c.key} type="button" onClick={() => setCat(c.key)} className={`chip shrink-0 !py-2 text-xs ${cat === c.key ? 'chip-on' : ''}`}>
+            {c.label}
+          </button>
+        ))}
+      </div>
+      <div className="mt-3 space-y-2">
+        {list.map((l) => (
+          <div key={l.id} className="rounded-2xl border border-line bg-surface">
+            <button type="button" className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left" onClick={() => setOpen(open === l.id ? null : l.id)}>
+              <span>
+                <span className="block font-semibold">🙏 {l.title}</span>
+                {l.reference && <span className="text-xs text-accent">{l.reference}</span>}
+              </span>
+              <span className="text-sm text-muted" aria-hidden>{open === l.id ? '▲' : '▼'}</span>
+            </button>
+            {open === l.id && (
+              <div className="fade-in border-t border-line px-4 pt-3 pb-4">
+                <p className="leading-relaxed">{l.prayer}</p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <ListenButton lines={[l.prayer]} className="inline-flex items-center gap-1.5 rounded-full bg-surface-2 px-4 py-2 text-sm font-semibold" />
+                  {l.onList ? (
+                    <span className="inline-flex items-center rounded-full bg-sage-soft px-4 py-2 text-sm font-semibold text-sage">✓ On my list</span>
+                  ) : (
+                    <button type="button" className="btn-primary !py-2" disabled={busy === l.id} onClick={() => add(l.id)}>
+                      {busy === l.id ? 'Adding…' : '+ Add to my list'}
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    </section>
+  )
 }

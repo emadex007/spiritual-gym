@@ -1,4 +1,5 @@
 import { createServerFn } from '@tanstack/react-start'
+import { passage, type Passage } from '~/lib/bible-db'
 import { db } from '~/lib/env'
 import { requireUser } from '~/lib/auth'
 import { getActiveJourney, verseOfTheDay } from '~/lib/queries'
@@ -69,7 +70,17 @@ export const getWorkout = createServerFn({ method: 'GET' })
       .all<{ media_key: string }>()
       .then((r) => r.results.map((t) => t.media_key))
       .catch(() => [] as string[])
-    return { workout: w, steps: adaptSteps(steps.results, tongues), verse, journey, devotion, tracks, firstName: user.name.split(' ')[0] }
+    // The Scripture step gets a reading that fits its length: a few verses, a passage, or a whole chapter
+    const secs = Math.max(0, ...steps.results.filter((s) => s.kind === 'scripture').map((s) => s.seconds))
+    const size = secs >= 360 ? 'chapter' : secs >= 150 ? 'medium' : 'short'
+    let reading: Passage | null = null
+    let readingSource: 'journey' | 'word' | 'verse' | null = null
+    for (const [ref, src] of [[journey?.today?.scripture, 'journey'], [devotion?.reference, 'word'], [verse?.reference, 'verse']] as const) {
+      if (!ref || reading) continue
+      reading = await passage(ref, size).catch(() => null)
+      if (reading) readingSource = src
+    }
+    return { workout: w, steps: adaptSteps(steps.results, tongues), verse, journey, devotion, tracks, reading, readingSource, firstName: user.name.split(' ')[0] }
   })
 
 export const completeWorkout = createServerFn({ method: 'POST' })

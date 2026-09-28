@@ -96,3 +96,36 @@ export const deletePrayer = createServerFn({ method: 'POST' })
     await db().prepare('DELETE FROM prayer_items WHERE id = ? AND user_id = ?').bind(data.id, user.id).run()
     return { ok: true }
   })
+
+export type LibraryPrayer = { id: string; category: string; title: string; prayer: string; reference: string | null; onList: number }
+
+/** Ready-made prayers for every category of the prayer list */
+export const listPrayerLibrary = createServerFn({ method: 'GET' }).handler(async () => {
+  const user = await requireUser()
+  const { results } = await db()
+    .prepare(
+      `SELECT l.id, l.category, l.title, l.prayer, l.reference,
+         EXISTS (SELECT 1 FROM prayer_items p WHERE p.user_id = ? AND p.library_id = l.id AND p.is_answered = 0) AS onList
+       FROM prayer_library l ORDER BY l.category, l.sort`,
+    )
+    .bind(user.id)
+    .all<LibraryPrayer>()
+    .catch(() => ({ results: [] as LibraryPrayer[] }))
+  return results
+})
+
+export const addLibraryPrayer = createServerFn({ method: 'POST' })
+  .validator((d: { id: string }) => ({ id: String(d?.id ?? '') }))
+  .handler(async ({ data }) => {
+    const user = await requireUser()
+    const l = await db().prepare('SELECT id, category, title, prayer, reference FROM prayer_library WHERE id = ?').bind(data.id).first<{ id: string; category: string; title: string; prayer: string; reference: string | null }>()
+    if (!l) throw new Error('Prayer not found.')
+    const exists = await db().prepare('SELECT id FROM prayer_items WHERE user_id = ? AND library_id = ? AND is_answered = 0').bind(user.id, l.id).first()
+    if (!exists) {
+      await db()
+        .prepare('INSERT INTO prayer_items (id, user_id, category, title, notes, scripture, library_id) VALUES (?, ?, ?, ?, ?, ?, ?)')
+        .bind(newId(), user.id, l.category, l.title, l.prayer, l.reference, l.id)
+        .run()
+    }
+    return { ok: true }
+  })

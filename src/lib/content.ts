@@ -170,3 +170,23 @@ export const PROGRAM_KINDS = [
 
 export const CHURCH_COLORS = ['#4f7a63', '#2f5fa8', '#7c4dbd', '#b8375a', '#c9971f', '#d9622b', '#12203a', '#0f766e']
 export const programKind = (k: string | null | undefined) => PROGRAM_KINDS.find((p) => p.key === k) ?? PROGRAM_KINDS[2]
+
+// ---------- Scripture memory library ----------
+export const MEMORY_CATEGORIES = [
+  { key: 'salvation', label: 'Salvation & grace', emoji: '✝️' },
+  { key: 'faith', label: 'Faith', emoji: '🌱' },
+  { key: 'peace', label: 'Trust & peace', emoji: '🕊️' },
+  { key: 'courage', label: 'Fear & courage', emoji: '🦁' },
+  { key: 'strength', label: 'Strength', emoji: '💪' },
+  { key: 'love', label: 'Love', emoji: '❤️' },
+  { key: 'prayer', label: 'Prayer', emoji: '🙏' },
+  { key: 'word', label: 'God’s Word', emoji: '📖' },
+  { key: 'spirit', label: 'The Holy Spirit', emoji: '🔥' },
+  { key: 'guidance', label: 'Guidance & wisdom', emoji: '🧭' },
+  { key: 'hope', label: 'Hope & comfort', emoji: '🌅' },
+  { key: 'provision', label: 'Provision & care', emoji: '🍞' },
+  { key: 'forgiveness', label: 'Forgiveness', emoji: '🤍' },
+  { key: 'identity', label: 'Who I am in Christ', emoji: '👑' },
+  { key: 'praise', label: 'Praise & thanksgiving', emoji: '🎶' },
+  { key: 'holiness', label: 'Holy living', emoji: '✨' },
+] as const

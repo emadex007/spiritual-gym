@@ -15,7 +15,8 @@ const ALIASES: Record<string, string> = {
 /** Resolve a typed book name ("psalm", "1 cor", "Rev") to its id (1–66), or 0 if unknown */
 export function bookId(input: string): number {
   const raw = input.trim().toLowerCase().replace(/\.$/, '').replace(/\s+/g, ' ')
-  const numMatch = raw.match(/^([123]|i{1,3})\s*(.+)$/)
+  // "1 John", "1John" or Roman "I John" (a Roman numeral must be followed by a space, so "Isaiah" stays Isaiah)
+  const numMatch = raw.match(/^([123])\s*(.+)$/) ?? raw.match(/^(i{1,3})\s+(.+)$/)
   let prefix = ''
   let rest = raw
   if (numMatch) {

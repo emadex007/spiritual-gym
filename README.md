@@ -104,6 +104,13 @@ Optional, for live prayer on strict mobile networks: create a TURN key in Cloudf
 - Animations: drifting clouds, a glowing sun, twinkling stars, card fade-ins, a medal pop and confetti. All of it respects the phone's "reduce motion" setting.
 - Migration `0012_year.sql`.
 
+## Readings, prayer library, memory-verse library
+- The workout Scripture step shows a real reading that fits its length: a few verses (5-minute workouts), a passage (15 minutes) or the whole chapter (30 and 60 minutes). It uses the journey's reading, or today's word in context, with verse numbers and the key verses highlighted. Other Scriptures for today can be tapped to open in place (the timer keeps running), and there's a "Keep reading" link at the end.
+- Prayer list: 84 guided prayers, 12 for each category (Family, Church, Career, Finances, Personal Growth, People, Global), each with a Scripture. People can pray them, hear them read aloud, and add them to their list. They can still add their own.
+- Scripture memory: 224 KJV verses in 16 categories (Salvation, Faith, Peace, Courage, Strength, Love, Prayer, God's Word, Holy Spirit, Guidance, Hope, Provision, Forgiveness, Identity, Praise, Holy living), with search and "✓ Added" marks.
+- Fix: Bible references to Isaiah failed to look up ("I" was read as a Roman numeral).
+- Migration `0013_libraries.sql`.
+
 ## Setup (Windows, PowerShell)
 ```powershell
 nvm use 22

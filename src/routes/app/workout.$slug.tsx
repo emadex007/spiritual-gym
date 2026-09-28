@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { bookSlug } from '~/lib/bible'
 import { Link, createFileRoute, useRouter } from '@tanstack/react-router'
 import { completeWorkout, getWorkout } from '~/fns/train'
 import { STEP_LABELS } from '~/lib/content'
@@ -18,7 +19,7 @@ type Phase = 'intro' | 'running' | 'complete' | 'saved'
 type Result = Awaited<ReturnType<typeof completeWorkout>>
 
 function WorkoutPlayer() {
-  const { workout, steps, verse, journey, devotion, tracks } = Route.useLoaderData()
+  const { workout, steps, verse, journey, devotion, tracks, reading, readingSource } = Route.useLoaderData()
   const router = useRouter()
   const [phase, setPhase] = useState<Phase>('intro')
   const [index, setIndex] = useState(0)
@@ -233,19 +234,14 @@ function WorkoutPlayer() {
             {step.guidance && <p className="max-w-sm text-white/75">{step.guidance}</p>}
 
             {step.kind === 'scripture' && (
-              <div className="mt-6 w-full rounded-3xl bg-white/5 p-5 text-left">
-                {verse && (
-                  <>
-                    <p className="font-display text-xl leading-snug">“{verse.text}”</p>
-                    <p className="mt-2 text-sm text-white/60">{verse.reference} · {verse.translation}</p>
-                  </>
-                )}
-                {journey?.today?.scripture && (
-                  <p className="mt-4 border-t border-white/10 pt-4 text-sm text-white/70">
-                    Journey reading: <span className="font-semibold text-gold">{journey.today.scripture}</span>
-                  </p>
-                )}
-              </div>
+              <ScriptureReading
+                reading={reading}
+                label={readingSource === 'journey' ? `${journey?.title ?? 'Journey'} · Day ${journey?.today?.day_number ?? ''}` : readingSource === 'word' ? 'Today’s word, in context' : 'Today’s reading'}
+                extra={[
+                  ...(verse && reading && !reading.reference.startsWith(verse.reference.split(':')[0]) ? [{ title: 'Verse of the day', reference: `${verse.reference} · ${verse.translation}`, text: verse.text }] : []),
+                  ...(devotion && readingSource === 'journey' ? [{ title: 'Today’s word', reference: devotion.reference, text: devotion.text }] : []),
+                ]}
+              />
             )}
             {step.kind === 'devotion' && devotion && (
               <div className="mt-6 w-full rounded-3xl bg-white/5 p-5 text-left">
@@ -339,6 +335,15 @@ function WorkoutPlayer() {
             <Link to="/app" className="btn-gold mx-auto mt-10 w-full max-w-xs py-4 text-base">
               Back to home
             </Link>
+            {reading && (
+              <Link
+                to="/app/bible/$book/$chapter"
+                params={{ book: bookSlug(reading.bookId), chapter: String(reading.chapter) }}
+                className="mx-auto mt-3 w-full max-w-xs rounded-full bg-white/10 py-3 text-sm font-semibold text-white/85"
+              >
+                📖 Keep reading {reading.reference.split(':')[0]}
+              </Link>
+            )}
           </div>
         )}
       </main>
@@ -388,4 +393,43 @@ function chime() {
     o.stop(ctx.currentTime + 1.5)
     setTimeout(() => ctx.close(), 1800)
   } catch {}
+}
+
+type ReadingT = { reference: string; bookId: number; chapter: number; verses: { verse: number; text: string }[]; key: [number, number] | null } | null
+
+/** The Scripture step: a passage sized to the step (verses, a passage, or a whole chapter), with verse numbers.
+ *  Other Scriptures for today are tappable and open right here, so the timer keeps running. */
+function ScriptureReading({ reading, label, extra }: { reading: ReadingT; label: string; extra: { title: string; reference: string; text: string }[] }) {
+  const [open, setOpen] = useState<number | null>(null)
+  return (
+    <div className="mt-6 w-full space-y-3 text-left">
+      {reading && (
+        <div className="rounded-3xl bg-white/5 p-5">
+          <p className="text-xs font-semibold tracking-[0.14em] text-gold uppercase">{label}</p>
+          <p className="mt-1 font-display text-lg font-semibold">{reading.reference} <span className="text-sm font-normal text-white/50">KJV · {reading.verses.length} verse{reading.verses.length === 1 ? '' : 's'}</span></p>
+          <div className="mt-3 max-h-[46vh] overflow-y-auto pr-1 font-display text-[17px] leading-relaxed text-white/90">
+            {reading.verses.map((v) => {
+              const key = reading.key && v.verse >= reading.key[0] && v.verse <= reading.key[1]
+              return (
+                <span key={v.verse} className={key ? 'rounded bg-gold/15 text-white' : ''}>
+                  <sup className="mr-1 font-sans text-[11px] font-semibold text-gold/80">{v.verse}</sup>
+                  {v.text}{' '}
+                </span>
+              )
+            })}
+          </div>
+          <p className="mt-3 text-xs text-white/45">Scroll to keep reading. Read slowly; pause where a word speaks to you.</p>
+        </div>
+      )}
+      {extra.map((x, i) => (
+        <button key={i} type="button" onClick={() => setOpen(open === i ? null : i)} className="block w-full rounded-3xl bg-white/5 p-4 text-left transition hover:bg-white/10">
+          <span className="flex items-center justify-between gap-3 text-sm">
+            <span><span className="text-white/60">{x.title}: </span><span className="font-semibold text-gold">{x.reference}</span></span>
+            <span className="text-white/50" aria-hidden>{open === i ? '▲' : '▼'}</span>
+          </span>
+          {open === i && <span className="mt-2 block font-display text-lg leading-snug text-white/90">“{x.text}”</span>}
+        </button>
+      ))}
+    </div>
+  )
 }

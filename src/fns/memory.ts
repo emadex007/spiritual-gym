@@ -29,14 +29,11 @@ export const listMemory = createServerFn({ method: 'GET' }).handler(async () => 
       .bind(user.id)
       .all<MemoryVerse>(),
     db()
-      .prepare(
-        `SELECT id, reference, text, translation FROM verses
-         WHERE reference NOT IN (SELECT reference FROM scripture_memory WHERE user_id = ?) ORDER BY id`,
-      )
-      .bind(user.id)
-      .all<{ id: string; reference: string; text: string; translation: string }>(),
+      .prepare('SELECT id, category, reference, text FROM memory_library ORDER BY category, sort')
+      .all<{ id: string; category: string; reference: string; text: string }>()
+      .catch(() => ({ results: [] as { id: string; category: string; reference: string; text: string }[] })),
   ])
-  return { verses: mine.results, suggestions: suggestions.results, today: dayString() }
+  return { verses: mine.results, library: suggestions.results, today: dayString() }
 })
 
 export const getMemoryVerse = createServerFn({ method: 'GET' })
@@ -54,8 +51,9 @@ export const getMemoryVerse = createServerFn({ method: 'GET' })
   })
 
 export const addMemory = createServerFn({ method: 'POST' })
-  .validator((d: { verseId?: string; reference?: string; text?: string; translation?: string }) => ({
+  .validator((d: { verseId?: string; libraryId?: string; reference?: string; text?: string; translation?: string }) => ({
     verseId: d?.verseId ? String(d.verseId) : null,
+    libraryId: d?.libraryId ? String(d.libraryId) : null,
     reference: String(d?.reference ?? '').trim().slice(0, 80),
     text: String(d?.text ?? '').trim().slice(0, 1500),
     translation: String(d?.translation ?? 'KJV').trim().slice(0, 20) || 'KJV',
@@ -68,7 +66,15 @@ export const addMemory = createServerFn({ method: 'POST' })
       if (!v) throw new Error('Verse not found.')
       ;({ reference, text, translation } = v)
     }
+    if (data.libraryId) {
+      const v = await db().prepare('SELECT reference, text FROM memory_library WHERE id = ?').bind(data.libraryId).first<{ reference: string; text: string }>()
+      if (!v) throw new Error('Verse not found.')
+      ;({ reference, text } = v)
+      translation = 'KJV'
+    }
     if (!reference || !text) throw new Error('Add the reference and the verse text.')
+    const already = await db().prepare('SELECT id FROM scripture_memory WHERE user_id = ? AND reference = ?').bind(user.id, reference).first<{ id: string }>()
+    if (already) return { id: already.id }
     const id = newId()
     await db()
       .prepare('INSERT INTO scripture_memory (id, user_id, reference, text, translation, next_review) VALUES (?, ?, ?, ?, ?, ?)')
