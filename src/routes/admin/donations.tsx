@@ -23,12 +23,12 @@ function Donations() {
       <PageHead title="Donations" sub="Voluntary gifts supporting SpiritualGym. Public page: /give. Gifts are only marked received after the payment provider confirms them." />
 
       <section className={`card ${ready ? '' : 'border-gold'}`}>
-        <p className="font-semibold">Payment setup</p>
+        <div className="flex items-center justify-between"><p className="font-semibold">Payment setup · {d.setup.mode === 'test' ? '🧪 Test mode' : '✅ Live'}</p><a href="/admin/payments" className="text-sm font-semibold text-accent">Manage keys →</a></div>
         <ul className="mt-2 space-y-1 text-sm">
           <li>{d.setup.paystack ? '✅' : '⬜'} Paystack {d.setup.paystack && <span className="text-muted">— currencies: {d.setup.paystackCurrencies}</span>}</li>
-          <li>{d.setup.flutterwave ? '✅' : '⬜'} Flutterwave {d.setup.flutterwave && !d.setup.flutterwaveWebhook && <span className="text-[#8a6310]">— add FLUTTERWAVE_WEBHOOK_HASH for instant confirmation</span>}</li>
+          <li>{d.setup.flutterwave ? '✅' : '⬜'} Flutterwave {d.setup.flutterwave && !d.setup.flutterwaveWebhook && <span className="text-[#8a6310]">— add the webhook secret hash for instant confirmation</span>}</li>
         </ul>
-        {!ready && <p className="mt-2 text-sm text-muted">Add PAYSTACK_SECRET_KEY and/or FLUTTERWAVE_SECRET_KEY as secrets (see the README), then redeploy. Until then /give shows “coming soon”.</p>}
+        {!ready && <p className="mt-2 text-sm text-muted">Add your keys in Admin → Payments. Until then /give shows “coming soon”.</p>}
       </section>
 
       <div className="mt-5 grid gap-3 sm:grid-cols-2">
@@ -54,7 +54,7 @@ function Donations() {
         {rows.map((r) => (
           <div key={r.id} className="card flex flex-wrap items-start justify-between gap-3 !p-4">
             <div className="min-w-0">
-              <p className="font-semibold">{formatMoney(r.amount_minor / 100, r.currency)} <span className={`ml-1 text-xs capitalize ${STATUS[r.status] ?? ''}`}>{r.status}</span></p>
+              <p className="font-semibold">{formatMoney(r.amount_minor / 100, r.currency)} <span className={`ml-1 text-xs capitalize ${STATUS[r.status] ?? ''}`}>{r.status}</span>{r.mode === 'test' && <span className="ml-1 rounded-full bg-gold/20 px-2 text-xs text-[#8a6310]">TEST</span>}</p>
               <p className="text-sm text-muted">{r.is_anonymous ? '🙈 Anonymous · ' : ''}{r.name || 'No name'} · {r.email}</p>
               {r.message && <p className="mt-1 text-sm italic">“{r.message}”</p>}
               <p className="mt-1 text-xs text-muted">{r.provider} · {r.reference} · {timeAgo(r.paid_at ?? r.created_at)}</p>

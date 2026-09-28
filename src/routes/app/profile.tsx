@@ -49,7 +49,7 @@ function Profile() {
   }
 
   return (
-    <main className="fade-in mx-auto max-w-2xl px-5 pt-6 md:pt-10">
+    <main className="stagger mx-auto max-w-2xl px-5 pt-6 md:pt-10">
       <AvatarUpload name={p.name} current={p.avatarKey} />
       <h1 className="mt-5 font-display text-3xl font-semibold tracking-tight">{p.name}</h1>
       <p className="mt-1 text-muted">{p.email}</p>

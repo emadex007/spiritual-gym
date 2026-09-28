@@ -1,6 +1,8 @@
 // Runs every 5 minutes (Cron Trigger). Kept small to fit the free plan's per-run limits.
 import { db } from '~/lib/env'
-import { kickDispatcher, notify, pushConfigured } from '~/lib/notify'
+import { kickDispatcher, notify, notifyMany, pushConfigured } from '~/lib/notify'
+import { dayLabel, planByKey, planDays, type PlanDay } from '~/lib/plans'
+import { dayOfYear, daysBetween } from '~/lib/util'
 import { nextStart, type Schedule } from '~/lib/schedule'
 
 const REMINDERS = [
@@ -12,7 +14,11 @@ const REMINDERS = [
 
 export async function runCron(now = Date.now()) {
   await scheduleReminders(now)
-  if (pushConfigured()) await dailyReminders(now)
+  if (pushConfigured()) {
+    await dailyReminders(now)
+    await dailyWord(now)
+    await planReminders(now)
+  }
   const d = new Date(now)
   if (d.getUTCHours() === 3 && d.getUTCMinutes() < 5) {
     await db().batch([
@@ -87,10 +93,7 @@ async function dailyReminders(now: number) {
   }
   for (const g of groups.values()) {
     await notify({ userIds: g.ids }, { kind: 'reminder', title: '⏰ Rise and shine', body: `${g.msg} Tap to hear today’s word.`, url: '/app/wake', tag: 'daily' }, { inApp: false })
-    for (let i = 0; i < g.ids.length; i += 90) {
-      const chunk = g.ids.slice(i, i + 90)
-      await db().prepare(`UPDATE profiles SET last_reminded_day = ? WHERE user_id IN (${chunk.map(() => '?').join(',')})`).bind(g.localDay, ...chunk).run()
-    }
+    await markDay('last_reminded_day', g.localDay, g.ids)
   }
 }
 
@@ -99,4 +102,103 @@ function localNow(now: number, tz: string) {
   const o: Record<string, string> = {}
   for (const p of f.formatToParts(new Date(now))) o[p.type] = p.value
   return { day: `${o.year}-${o.month}-${o.day}`, minutes: +o.hour * 60 + +o.minute }
+}
+
+/** Every morning at the time each person chose: today's Scripture and declaration */
+async function dailyWord(now: number) {
+  const { results } = await db()
+    .prepare(
+      `SELECT p.user_id, p.word_time, p.timezone, p.last_word_day FROM profiles p
+       WHERE p.word_time IS NOT NULL AND EXISTS (SELECT 1 FROM push_subscriptions s WHERE s.user_id = p.user_id)
+       LIMIT 5000`,
+    )
+    .all<{ user_id: string; word_time: string; timezone: string; last_word_day: string | null }>()
+  const byDay = new Map<string, string[]>()
+  for (const r of results) {
+    const local = safeLocal(now, r.timezone)
+    if (r.last_word_day === local.day || !inWindow(local.minutes, r.word_time)) continue
+    byDay.set(local.day, [...(byDay.get(local.day) ?? []), r.user_id])
+  }
+  for (const [day, ids] of byDay) {
+    const d = await db()
+      .prepare('SELECT reference, declaration FROM devotions WHERE sort = ? ORDER BY created_at DESC LIMIT 1')
+      .bind(dayOfYear(day))
+      .first<{ reference: string; declaration: string }>()
+    if (d) await notify({ userIds: ids }, { kind: 'word', title: `🌅 Today’s word · ${d.reference}`, body: `I declare: ${d.declaration}`, url: '/app', tag: 'word' }, { inApp: false })
+    await markDay('last_word_day', day, ids)
+  }
+}
+
+/** A nudge to keep reading: today's chapters for the first reading plan that isn't read yet */
+async function planReminders(now: number) {
+  const { results } = await db()
+    .prepare(
+      `SELECT up.id, up.user_id, up.plan_key, up.start_date, p.plan_time, p.timezone, p.last_plan_day,
+              (SELECT COUNT(*) FROM plan_days_done d WHERE d.user_plan_id = up.id) AS done
+       FROM user_plans up JOIN profiles p ON p.user_id = up.user_id
+       WHERE up.status = 'active' AND p.plan_time IS NOT NULL
+         AND EXISTS (SELECT 1 FROM push_subscriptions s WHERE s.user_id = up.user_id)
+       ORDER BY up.created_at LIMIT 3000`,
+    )
+    .all<{ id: string; user_id: string; plan_key: string; start_date: string; plan_time: string; timezone: string; last_plan_day: string | null; done: number }>()
+  const cache = new Map<string, PlanDay[]>()
+  const chosen = new Map<string, { day: string; notice: { kind: string; title: string; body: string; url: string; tag: string } }>()
+  const seen = new Set<string>()
+  for (const r of results) {
+    const local = safeLocal(now, r.timezone)
+    if (r.last_plan_day === local.day || !inWindow(local.minutes, r.plan_time)) continue
+    seen.add(`${r.user_id}|${local.day}`)
+    if (chosen.has(r.user_id)) continue
+    const plan = planByKey(r.plan_key)
+    if (!plan) continue
+    if (!cache.has(plan.key)) cache.set(plan.key, planDays(plan))
+    const days = cache.get(plan.key)!
+    const todayIdx = Math.min(days.length, daysBetween(r.start_date, local.day) + 1)
+    if (todayIdx < 1 || r.done >= todayIdx || r.done >= days.length) continue // not started yet, or caught up
+    const next = days[r.done]
+    const behind = todayIdx - r.done - 1
+    chosen.set(r.user_id, {
+      day: local.day,
+      notice: {
+        kind: 'plan',
+        title: `📅 Day ${next.day} · ${plan.title}`,
+        body: `${behind > 0 ? `Continue where you stopped: ` : 'Today: '}${dayLabel(next)}. Tap to read.`,
+        url: `/app/plans/${r.id}`,
+        tag: 'plan',
+      },
+    })
+  }
+  if (chosen.size) await notifyMany([...chosen].map(([userId, c]) => ({ userId, notice: c.notice })))
+  // Remember everyone we looked at today (reminded or already caught up), so they're not checked again today
+  const byDay = new Map<string, string[]>()
+  for (const k of seen) {
+    const [uid, day] = k.split('|')
+    byDay.set(day, [...(byDay.get(day) ?? []), uid])
+  }
+  for (const [day, ids] of byDay) await markDay('last_plan_day', day, ids)
+}
+
+function safeLocal(now: number, tz: string) {
+  try {
+    return localNow(now, tz)
+  } catch {
+    return localNow(now, 'Africa/Lagos')
+  }
+}
+
+/** True during the 30 minutes from the chosen time (the cron runs every 5 minutes) */
+function inWindow(minutes: number, hhmm: string) {
+  const [hh, mm] = hhmm.split(':').map(Number)
+  const target = hh * 60 + mm
+  return minutes >= target && minutes < target + 30
+}
+
+/** One database batch however many people (the free plan allows few requests per run) */
+async function markDay(column: 'last_reminded_day' | 'last_word_day' | 'last_plan_day', day: string, ids: string[]) {
+  const stmts: D1PreparedStatement[] = []
+  for (let i = 0; i < ids.length; i += 90) {
+    const chunk = ids.slice(i, i + 90)
+    stmts.push(db().prepare(`UPDATE profiles SET ${column} = ? WHERE user_id IN (${chunk.map(() => '?').join(',')})`).bind(day, ...chunk))
+  }
+  if (stmts.length) await db().batch(stmts)
 }

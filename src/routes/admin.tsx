@@ -18,6 +18,7 @@ export const Route = createFileRoute('/admin')({
 const NAV = [
   { to: '/admin', label: 'Dashboard', icon: '📊', exact: true },
   { to: '/admin/settings', label: 'Site content', icon: '🎨', exact: false },
+  { to: '/admin/headers', label: 'Header pictures', icon: '🖼️', exact: false },
   { to: '/admin/workouts', label: 'Workouts', icon: '⏱️', exact: false },
   { to: '/admin/journeys', label: 'Journeys', icon: '🧭', exact: false },
   { to: '/admin/verses', label: 'Verses', icon: '📖', exact: false },
@@ -29,6 +30,7 @@ const NAV = [
   { to: '/admin/reports', label: 'Reports', icon: '🚩', exact: false },
   { to: '/admin/notifications', label: 'Notifications', icon: '🔔', exact: false },
   { to: '/admin/donations', label: 'Donations', icon: '💛', exact: false },
+  { to: '/admin/payments', label: 'Payments', icon: '🔑', exact: false },
   { to: '/admin/users', label: 'Users', icon: '👥', exact: false },
   { to: '/admin/audit', label: 'Activity log', icon: '🗂️', exact: false },
 ] as const

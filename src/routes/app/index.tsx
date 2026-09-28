@@ -3,16 +3,19 @@ import { Link, createFileRoute, useRouter } from '@tanstack/react-router'
 import { getHome, saveCheckin } from '~/fns/home'
 import { getSiteSettings } from '~/fns/site'
 import { MOODS, STEP_LABELS } from '~/lib/content'
-import { firstName, greeting } from '~/lib/util'
+import { firstName, greeting, mediaUrl } from '~/lib/util'
+import { bookSlug } from '~/lib/bible'
 import { CheckIcon, PlayIcon } from '~/components/Icons'
 import { Avatar } from '~/components/Avatar'
 import { InstallApp } from '~/components/InstallApp'
 import { NotificationBell } from '~/components/NotificationBell'
 import { ShareButton } from '~/components/ShareButton'
+import { ListenButton } from '~/components/ListenButton'
 import { DevotionIcon } from '~/components/Art'
 import { AwardCelebration } from '~/components/AwardCelebration'
 import { awardByKey } from '~/lib/awards'
-import { BibleIcon, DoveIcon, HandsIcon, HeartIcon, JourneyCover, LampIcon, MOOD_STYLE, STEP_STYLE, SunriseScene, stepStyle } from '~/components/Art'
+import { BibleIcon, DoveIcon, HandsIcon, HeartIcon, JourneyCover, LampIcon, MOOD_STYLE, STEP_STYLE, stepStyle } from '~/components/Art'
+import { WeeklyScene } from '~/components/WeeklyScene'
 
 export const Route = createFileRoute('/app/')({
   loader: async () => {
@@ -31,7 +34,7 @@ function Home() {
   const dayNo = h.journey ? Math.min(h.journey.days, h.journey.done_today ? h.journey.completed : h.journey.completed + 1) : 0
 
   return (
-    <main className="fade-in mx-auto max-w-2xl px-5 pt-5 md:pt-10">
+    <main className="stagger mx-auto max-w-2xl px-5 pt-5 md:pt-10">
       <AwardCelebration awards={h.unseenAwards.map(awardByKey).filter((a) => !!a)} name={firstName(h.name)} />
       {site.announcement && (
         <div className="mb-4 flex items-center gap-3 rounded-2xl bg-gold/20 px-4 py-3 text-sm font-medium">
@@ -41,7 +44,14 @@ function Home() {
 
       {/* Greeting banner */}
       <section className="relative isolate overflow-hidden rounded-[1.75rem] px-6 pt-6 pb-20 text-white shadow-lg shadow-navy/10">
-        <SunriseScene className="absolute inset-0 -z-10 h-full w-full" />
+        {h.header.photo ? (
+          <>
+            <img src={mediaUrl(h.header.photo)} alt="" data-header-photo="" className="kenburns absolute inset-0 -z-10 h-full w-full object-cover" />
+            <div className="absolute inset-0 -z-10" style={{ background: 'linear-gradient(180deg,rgba(10,16,32,.5),rgba(10,16,32,.15) 50%,rgba(10,16,32,.6))' }} />
+          </>
+        ) : (
+          <WeeklyScene week={h.header.week} className="absolute inset-0 -z-10 h-full w-full" />
+        )}
         <div className="absolute top-5 right-5 flex items-center gap-2">
           <NotificationBell />
           <Link to="/app/profile" className="rounded-full ring-2 ring-white/60" aria-label="Your profile">
@@ -80,11 +90,18 @@ function Home() {
             <p className="text-xs font-bold tracking-[0.14em] text-[#fde7b0] uppercase">🗣️ I declare</p>
             <p className="mt-1 font-semibold">{h.devotion.declaration}</p>
           </div>
-          <div className="relative mt-4">
+          {h.devotion.prayer && (
+            <div className="relative mt-3 rounded-2xl bg-black/15 p-4">
+              <p className="text-xs font-bold tracking-[0.14em] text-[#fde7b0] uppercase">🙏 Today’s prayer</p>
+              <p className="mt-1 text-sm leading-relaxed text-white/95 italic">{h.devotion.prayer}</p>
+            </div>
+          )}
+          <div className="relative mt-4 flex flex-wrap gap-2">
+            <ListenButton lines={[`${h.devotion.reference}. ${h.devotion.text}`, `I declare: ${h.devotion.declaration}`, ...(h.devotion.prayer ? [`Let us pray. ${h.devotion.prayer}`] : [])]} />
             <ShareButton
               className="inline-flex items-center gap-1.5 rounded-full bg-white px-4 py-2 text-sm font-semibold text-[#5a2a04]"
               card={{ kind: 'word', heading: 'Today’s word', text: h.devotion.text, reference: h.devotion.reference, declaration: h.devotion.declaration }}
-              text={`“${h.devotion.text}” (${h.devotion.reference})\n\nI declare: ${h.devotion.declaration}`}
+              text={`“${h.devotion.text}” (${h.devotion.reference})\n\nI declare: ${h.devotion.declaration}${h.devotion.prayer ? `\n\nPrayer: ${h.devotion.prayer}` : ''}`}
             />
           </div>
         </section>
@@ -134,7 +151,7 @@ function Home() {
               </p>
             </div>
             <div className="mt-4 h-2.5 rounded-full bg-surface-2" role="progressbar" aria-valuenow={journeyPct} aria-valuemin={0} aria-valuemax={100} aria-label="Journey completion">
-              <div className="h-2.5 rounded-full transition-all" style={{ width: `${journeyPct}%`, background: 'linear-gradient(90deg,#c9971f,#e98a2b)' }} />
+              <div className="bar-grow h-2.5 rounded-full transition-all" style={{ width: `${journeyPct}%`, background: 'linear-gradient(90deg,#c9971f,#e98a2b)' }} />
             </div>
             <p className="mt-2 text-xs text-muted">{journeyPct}% of this journey completed</p>
             {h.journey.today && (
@@ -218,6 +235,31 @@ function Home() {
           <div className="relative mt-4">
             <ShareButton card={{ kind: 'verse', text: h.verse.text, reference: h.verse.reference, translation: h.verse.translation }} text={`“${h.verse.text}” (${h.verse.reference} ${h.verse.translation})`} />
           </div>
+        </section>
+      )}
+
+      {h.activePlan && (
+        <section className="card mt-5 !p-4">
+          <div className="flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <p className="eyebrow">📅 {h.activePlan.caughtUp ? 'You’re up to date' : 'Continue your Bible plan'}</p>
+              <p className="mt-1 truncate font-semibold">Day {h.activePlan.day} · {h.activePlan.label}</p>
+              <p className="text-xs text-muted">{h.activePlan.title} · {h.activePlan.pct}% read</p>
+            </div>
+            {h.activePlan.caughtUp ? (
+              <Link to="/app/plans/$id" params={{ id: h.activePlan.id }} className="btn-ghost shrink-0 !py-2">Open</Link>
+            ) : (
+              <Link
+                to="/app/bible/$book/$chapter"
+                params={{ book: bookSlug(h.activePlan.book), chapter: String(h.activePlan.chapter) }}
+                search={{ plan: h.activePlan.id, day: h.activePlan.day, pk: h.activePlan.planKey }}
+                className="btn-primary shrink-0 !py-2.5"
+              >
+                Read →
+              </Link>
+            )}
+          </div>
+          <div className="mt-3 h-1.5 rounded-full bg-surface-2"><div className="bar-grow h-1.5 rounded-full" style={{ width: `${h.activePlan.pct}%`, background: 'linear-gradient(90deg,#c9971f,#e98a2b)' }} /></div>
         </section>
       )}
 

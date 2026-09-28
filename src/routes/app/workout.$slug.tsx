@@ -253,6 +253,7 @@ function WorkoutPlayer() {
                 <p className="mt-2 font-display text-xl leading-snug">“{devotion.text}”</p>
                 <p className="mt-3 text-white/80">{devotion.reflection}</p>
                 <p className="mt-4 rounded-2xl bg-gold/15 p-3 font-semibold text-gold">🗣️ Declare aloud: {devotion.declaration}</p>
+                {devotion.prayer && <p className="mt-3 text-sm text-white/85 italic">🙏 {devotion.prayer}</p>}
               </div>
             )}
             {step.kind === 'tongues' && (

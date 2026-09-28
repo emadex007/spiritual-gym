@@ -59,3 +59,17 @@ export async function kickDispatcher() {
     await ns.get(ns.idFromName('main')).fetch('https://push.internal/kick')
   } catch {}
 }
+
+/** Different messages for different people in one go (a single database batch per 50 people), then one dispatcher kick. */
+export async function notifyMany(items: { userId: string; notice: Notice }[], opts: { inApp?: boolean } = {}) {
+  if (!items.length) return
+  const wantPush = pushConfigured()
+  const stmts: D1PreparedStatement[] = []
+  for (const { userId, notice: n } of items) {
+    const payload = JSON.stringify({ title: n.title, body: n.body ?? '', url: n.url ?? '/app', tag: n.tag })
+    if (opts.inApp) stmts.push(db().prepare(`INSERT INTO notifications (id, user_id, kind, title, body, url) VALUES (${RAND_ID}, ?, ?, ?, ?, ?)`).bind(userId, n.kind, n.title, n.body ?? null, n.url ?? null))
+    if (wantPush) stmts.push(db().prepare(`INSERT INTO push_outbox (id, sub_id, payload) SELECT ${RAND_ID}, id, ? FROM push_subscriptions WHERE user_id = ?`).bind(payload, userId))
+  }
+  for (let i = 0; i < stmts.length; i += 100) await db().batch(stmts.slice(i, i + 100))
+  if (wantPush) await kickDispatcher()
+}

@@ -95,6 +95,64 @@ function footer(ctx: CanvasRenderingContext2D) {
   ctx.fillText('SpiritualGym · Train your walk', W / 2, H - 36)
 }
 
+/** Uses the picture at the top of the page (this week's painted scene or header photo) as the card's background */
+async function pageBackground(ctx: CanvasRenderingContext2D) {
+  try {
+    const photo = document.querySelector<HTMLImageElement>('img[data-header-photo]')
+    const svg = document.querySelector<SVGSVGElement>('svg[data-weekly-scene]')
+    let img: HTMLImageElement | null = null
+    if (photo?.complete && photo.naturalWidth) img = photo
+    else if (svg) {
+      const clone = svg.cloneNode(true) as SVGSVGElement
+      clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg')
+      clone.setAttribute('width', '1600')
+      clone.setAttribute('height', '800')
+      clone.removeAttribute('class')
+      const url = URL.createObjectURL(new Blob([new XMLSerializer().serializeToString(clone)], { type: 'image/svg+xml' }))
+      img = await new Promise<HTMLImageElement>((resolve, reject) => {
+        const i = new Image()
+        i.onload = () => resolve(i)
+        i.onerror = reject
+        i.src = url
+      }).finally(() => setTimeout(() => URL.revokeObjectURL(url), 1000))
+    }
+    if (!img) return false
+    const iw = img.naturalWidth || 1600
+    const ih = img.naturalHeight || 800
+    // 1) the picture, softened, filling the whole card
+    const cover = Math.max(W / iw, H / ih)
+    ctx.save()
+    ctx.filter = 'blur(18px) saturate(1.1)'
+    ctx.drawImage(img, (W - iw * cover) / 2, H - ih * cover, iw * cover, ih * cover)
+    ctx.restore()
+    // 2) the whole landscape, sharp, across the bottom
+    const band = W / iw
+    const bh = ih * band
+    const off = document.createElement('canvas')
+    off.width = W
+    off.height = Math.round(bh)
+    const o = off.getContext('2d')!
+    o.drawImage(img, 0, 0, W, bh)
+    o.globalCompositeOperation = 'destination-in' // fade the top of the band into the soft background
+    const mask = o.createLinearGradient(0, 0, 0, bh * 0.5)
+    mask.addColorStop(0, 'rgba(0,0,0,0)')
+    mask.addColorStop(1, 'rgba(0,0,0,1)')
+    o.fillStyle = mask
+    o.fillRect(0, 0, W, bh)
+    ctx.drawImage(off, 0, H - bh)
+    const shade = ctx.createLinearGradient(0, 0, 0, H)
+    shade.addColorStop(0, 'rgba(8,14,30,0.62)')
+    shade.addColorStop(0.5, 'rgba(8,14,30,0.42)')
+    shade.addColorStop(0.72, 'rgba(8,14,30,0.12)')
+    shade.addColorStop(1, 'rgba(8,14,30,0.4)')
+    ctx.fillStyle = shade
+    ctx.fillRect(0, 0, W, H)
+    return true
+  } catch {
+    return false
+  }
+}
+
 export async function drawCard(input: CardInput): Promise<Blob> {
   try {
     await Promise.all([document.fonts.load('600 60px Fraunces'), document.fonts.load('600 30px Inter')])
@@ -103,7 +161,7 @@ export async function drawCard(input: CardInput): Promise<Blob> {
   canvas.width = W
   canvas.height = H
   const ctx = canvas.getContext('2d')!
-  background(ctx)
+  if (input.kind === 'medal' || !(await pageBackground(ctx))) background(ctx)
   ctx.textAlign = 'center'
   const serif = (px: number) => `600 ${px}px Fraunces, Georgia, serif`
 

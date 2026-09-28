@@ -7,7 +7,7 @@ import { formatMoney } from '~/lib/give'
 type Search = { ref?: string; reference?: string; tx_ref?: string }
 
 export const Route = createFileRoute('/give/thanks')({
-  validateSearch: (s: Record<string, unknown>): Search => ({
+  validateSearch: (s: { ref?: unknown; reference?: unknown; tx_ref?: unknown }): Search => ({
     ref: typeof s.ref === 'string' ? s.ref : undefined,
     reference: typeof s.reference === 'string' ? s.reference : undefined,
     tx_ref: typeof s.tx_ref === 'string' ? s.tx_ref : undefined,

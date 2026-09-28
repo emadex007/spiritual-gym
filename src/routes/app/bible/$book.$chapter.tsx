@@ -4,8 +4,14 @@ import { getChapter } from '~/fns/bible'
 import { addMemory } from '~/fns/memory'
 import { TRANSLATIONS, bookFromSlug, bookSlug, formatReference, type TranslationCode } from '~/lib/bible'
 import { ShareButton } from '~/components/ShareButton'
+import { PlanReadingBar, dayChapters, type PlanSearch } from '~/components/PlanReadingBar'
 
 export const Route = createFileRoute('/app/bible/$book/$chapter')({
+  validateSearch: (s: { plan?: unknown; day?: unknown; pk?: unknown }): PlanSearch => ({
+    plan: typeof s.plan === 'string' ? s.plan : undefined,
+    day: Number(s.day) > 0 ? Number(s.day) : undefined,
+    pk: typeof s.pk === 'string' ? s.pk : undefined,
+  }),
   loader: ({ params }) => {
     const book = bookFromSlug(params.book)
     if (!book) throw notFound()
@@ -21,6 +27,9 @@ const bookCache = new Map<string, Record<string, [number, string][]>>()
 
 function Reader() {
   const { book, chapter, verses: kjv, prev, next } = Route.useLoaderData()
+  const search = Route.useSearch()
+  const inPlan = !!search.plan && dayChapters(search.pk, search.day).some((c) => c.book === book.id && c.chapter === chapter)
+  const keep = (b: number, c: number) => (inPlan && dayChapters(search.pk, search.day).some((x) => x.book === b && x.chapter === c) ? search : {})
   const [selected, setSelected] = useState<number[]>([])
   const [size, setSize] = useState(1)
   const [msg, setMsg] = useState<string | null>(null)
@@ -188,12 +197,13 @@ function Reader() {
 
       <nav className="mt-12 flex justify-between gap-3">
         {prev ? (
-          <Link to="/app/bible/$book/$chapter" params={{ book: bookSlug(prev.book), chapter: String(prev.chapter) }} className="btn-ghost">← Previous</Link>
+          <Link to="/app/bible/$book/$chapter" params={{ book: bookSlug(prev.book), chapter: String(prev.chapter) }} search={keep(prev.book, prev.chapter)} className="btn-ghost">← Previous</Link>
         ) : <span />}
-        {next && (
+        {next && !inPlan && (
           <Link to="/app/bible/$book/$chapter" params={{ book: bookSlug(next.book), chapter: String(next.chapter) }} className="btn-primary">Next chapter →</Link>
         )}
       </nav>
+      {inPlan && selected.length === 0 && <PlanReadingBar search={search} bookId={book.id} chapter={chapter} />}
 
       {selected.length > 0 && (
         <div className="fixed inset-x-0 bottom-20 z-30 px-4 md:bottom-6">

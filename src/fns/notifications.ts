@@ -58,28 +58,36 @@ export const markAllRead = createServerFn({ method: 'POST' }).handler(async () =
 export const getNotifySettings = createServerFn({ method: 'GET' }).handler(async () => {
   const user = await requireUser()
   const p = await db()
-    .prepare('SELECT reminder_time, timezone, notify_prayed, notify_replies FROM profiles WHERE user_id = ?')
+    .prepare('SELECT reminder_time, word_time, plan_time, timezone, notify_prayed, notify_replies FROM profiles WHERE user_id = ?')
     .bind(user.id)
-    .first<{ reminder_time: string | null; timezone: string; notify_prayed: number; notify_replies: number }>()
-  return { reminderTime: p?.reminder_time ?? null, timezone: p?.timezone ?? 'Africa/Lagos', notifyPrayed: !!(p?.notify_prayed ?? 1), notifyReplies: !!(p?.notify_replies ?? 1) }
+    .first<{ reminder_time: string | null; word_time: string | null; plan_time: string | null; timezone: string; notify_prayed: number; notify_replies: number }>()
+  return {
+    reminderTime: p?.reminder_time ?? null,
+    wordTime: p ? p.word_time : '06:00',
+    planTime: p ? p.plan_time : '07:00',
+    timezone: p?.timezone ?? 'Africa/Lagos',
+    notifyPrayed: !!(p?.notify_prayed ?? 1),
+    notifyReplies: !!(p?.notify_replies ?? 1),
+  }
 })
 
 export const updateNotifySettings = createServerFn({ method: 'POST' })
-  .validator((d: { reminderTime: string | null; timezone: string; notifyPrayed: boolean; notifyReplies: boolean }) => {
-    const rt = d?.reminderTime && /^([01]\d|2[0-3]):[0-5]\d$/.test(d.reminderTime) ? d.reminderTime : null
+  .validator((d: { reminderTime: string | null; wordTime: string | null; planTime: string | null; timezone: string; notifyPrayed: boolean; notifyReplies: boolean }) => {
+    const time = (v: string | null | undefined) => (v && /^([01]\d|2[0-3]):[0-5]\d$/.test(v) ? v : null)
+    const rt = time(d?.reminderTime)
     let tz = String(d?.timezone || 'Africa/Lagos').slice(0, 60)
     try {
       new Intl.DateTimeFormat('en', { timeZone: tz })
     } catch {
       tz = 'Africa/Lagos'
     }
-    return { reminderTime: rt, timezone: tz, notifyPrayed: d.notifyPrayed ? 1 : 0, notifyReplies: d.notifyReplies ? 1 : 0 }
+    return { reminderTime: rt, wordTime: time(d?.wordTime), planTime: time(d?.planTime), timezone: tz, notifyPrayed: d.notifyPrayed ? 1 : 0, notifyReplies: d.notifyReplies ? 1 : 0 }
   })
   .handler(async ({ data }) => {
     const user = await requireUser()
     await db()
-      .prepare('UPDATE profiles SET reminder_time = ?, timezone = ?, notify_prayed = ?, notify_replies = ? WHERE user_id = ?')
-      .bind(data.reminderTime, data.timezone, data.notifyPrayed, data.notifyReplies, user.id)
+      .prepare('UPDATE profiles SET reminder_time = ?, word_time = ?, plan_time = ?, timezone = ?, notify_prayed = ?, notify_replies = ? WHERE user_id = ?')
+      .bind(data.reminderTime, data.wordTime, data.planTime, data.timezone, data.notifyPrayed, data.notifyReplies, user.id)
       .run()
     return { ok: true }
   })

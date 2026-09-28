@@ -1,18 +1,20 @@
 // Server-only: today's daily word (verse + reflection + declaration), rotating through the devotions table
 import { db } from '~/lib/env'
-import { dayString } from '~/lib/util'
+import { dayOfYear, dayString } from '~/lib/util'
 
-export type Devotion = { id: string; reference: string; text: string; reflection: string; declaration: string }
+export type Devotion = { id: string; reference: string; text: string; reflection: string; declaration: string; prayer: string | null }
 
-export async function devotionOfTheDay(): Promise<Devotion | null> {
+/** The word for a calendar day ('YYYY-MM-DD', default today): the entry whose sort is that day of the year (29 Feb uses 28 Feb's).
+ *  If two share a date the newest wins; if a date has none, the list rotates so there is always a word. */
+export async function devotionOfTheDay(day = dayString()): Promise<Devotion | null> {
   try {
+    const cols = 'id, reference, text, reflection, declaration, prayer'
+    const exact = await db().prepare(`SELECT ${cols} FROM devotions WHERE sort = ? ORDER BY created_at DESC LIMIT 1`).bind(dayOfYear(day)).first<Devotion>()
+    if (exact) return exact
     const n = await db().prepare('SELECT COUNT(*) AS n FROM devotions').first<{ n: number }>()
     if (!n?.n) return null
-    const idx = Math.floor(Date.parse(dayString() + 'T00:00:00Z') / 86_400_000) % n.n
-    return await db()
-      .prepare('SELECT id, reference, text, reflection, declaration FROM devotions ORDER BY sort, created_at LIMIT 1 OFFSET ?')
-      .bind(idx)
-      .first<Devotion>()
+    const idx = Math.floor(Date.parse(day + 'T00:00:00Z') / 86_400_000) % n.n
+    return await db().prepare(`SELECT ${cols} FROM devotions ORDER BY sort, created_at LIMIT 1 OFFSET ?`).bind(idx).first<Devotion>()
   } catch {
     return null
   }

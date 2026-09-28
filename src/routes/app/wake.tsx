@@ -3,7 +3,7 @@ import { Link, createFileRoute } from '@tanstack/react-router'
 import { getWake } from '~/fns/wake'
 import { firstName } from '~/lib/util'
 import { ringWakeBells, speakAll, speechSupported, unlockSpeech } from '~/lib/audio'
-import { SunriseScene } from '~/components/Art'
+import { WeeklyScene } from '~/components/WeeklyScene'
 import { ShareButton } from '~/components/ShareButton'
 
 export const Route = createFileRoute('/app/wake')({
@@ -33,7 +33,7 @@ const hhmm = (d = new Date()) => `${String(d.getHours()).padStart(2, '0')}:${Str
 type WakeLock = { release: () => Promise<void> }
 
 function Wake() {
-  const { name, devotion, verse } = Route.useLoaderData()
+  const { name, devotion, verse, week } = Route.useLoaderData()
   const first = firstName(name)
   const [now, setNow] = useState(() => new Date())
   const [time, setTime] = useState('06:00')
@@ -45,12 +45,12 @@ function Wake() {
   const bellsRef = useRef<{ stop: () => void } | null>(null)
   const lockRef = useRef<WakeLock | null>(null)
 
-  const word = devotion ?? (verse ? { reference: verse.reference, text: verse.text, declaration: 'I am a child of God, and His mercies are new over me this morning.' } : null)
+  const word = devotion ?? (verse ? { reference: verse.reference, text: verse.text, declaration: 'I am a child of God, and His mercies are new over me this morning.', prayer: null as string | null } : null)
   const lines = [
     `Wake up, ${first}. Wake up.`,
     'Arise, shine; for thy light is come, and the glory of the Lord is risen upon thee.',
     'This is the day which the Lord hath made; we will rejoice and be glad in it.',
-    ...(word ? [`${word.reference}. ${word.text}`, `Today I declare: ${word.declaration}`] : []),
+    ...(word ? [`${word.reference}. ${word.text}`, `Today I declare: ${word.declaration}`, ...(word.prayer ? [`Let us pray. ${word.prayer}`] : [])] : []),
     `Rise up, ${first}. Your time with God is waiting.`,
   ]
 
@@ -158,7 +158,7 @@ function Wake() {
 
   return (
     <main className="fixed inset-0 z-40 flex flex-col overflow-y-auto text-white" style={{ background: dark ? '#0b1426' : undefined }}>
-      {!dark && <SunriseScene className="absolute inset-0 -z-10 h-full w-full" />}
+      {!dark && <WeeklyScene week={week} className="absolute inset-0 -z-10 h-full w-full" />}
       <div className="absolute inset-0 -z-10" style={{ background: dark ? 'transparent' : 'linear-gradient(180deg,rgba(11,20,38,.55),rgba(11,20,38,.2) 45%,rgba(11,20,38,.75))' }} />
 
       <div className="mx-auto flex w-full max-w-md flex-1 flex-col px-6 pt-6 pb-10">
@@ -206,6 +206,7 @@ function Wake() {
                 <p className="mt-2 font-display text-lg leading-snug">“{word.text}”</p>
                 <p className="mt-1 text-sm text-white/70">— {word.reference}</p>
                 <p className="mt-3 rounded-2xl bg-white/10 px-4 py-3 text-sm"><b className="text-gold">I declare:</b> {word.declaration}</p>
+                {word.prayer && <p className="mt-2 rounded-2xl bg-white/5 px-4 py-3 text-sm italic"><b className="not-italic text-gold">🙏 Prayer:</b> {word.prayer}</p>}
                 <div className="mt-3">
                   <ShareButton
                     card={{ kind: 'word', heading: 'Today’s word', text: word.text, reference: word.reference, declaration: word.declaration }}

@@ -1,6 +1,6 @@
 // Server-only query helpers shared by several server functions
 import { db } from '~/lib/env'
-import { dayString, daysBetween } from '~/lib/util'
+import { dayString, daysBetween, weekOfYear } from '~/lib/util'
 
 export type ActiveJourney = {
   user_journey_id: string
@@ -82,4 +82,16 @@ export async function verseOfTheDay() {
   if (!results.length) return null
   const idx = Math.floor(Date.parse(dayString() + 'T00:00:00Z') / 86400000) % results.length
   return results[idx]
+}
+
+/** This week's header: an uploaded photo if the admin added any (rotating weekly), otherwise the week's painted scene */
+export async function weeklyHeader() {
+  const week = weekOfYear(dayString())
+  try {
+    const { results } = await db().prepare('SELECT media_key, caption FROM header_images ORDER BY sort, created_at').all<{ media_key: string; caption: string | null }>()
+    const photo = results.length ? results[week % results.length] : null
+    return { week, photo: photo?.media_key ?? null, caption: photo?.caption ?? null }
+  } catch {
+    return { week, photo: null, caption: null }
+  }
 }

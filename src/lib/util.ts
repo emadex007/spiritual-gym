@@ -33,3 +33,13 @@ export function firstName(name: string) {
 
 /** Public URL for a file stored in R2 (served by src/server.ts) */
 export const mediaUrl = (key: string) => (key ? `/media/${key}` : '')
+
+/** Day of the year 1–365 for a YYYY-MM-DD date, counted as in a non-leap year (29 February shares 28 February's number) */
+export function dayOfYear(day: string) {
+  const [, m, d] = day.split('-').map(Number)
+  const n = (Date.UTC(2025, m - 1, Math.min(d, m === 2 ? 28 : d)) - Date.UTC(2025, 0, 1)) / 86_400_000 + 1
+  return Math.round(n)
+}
+
+/** Week of the year 0–52, used to rotate the header picture */
+export const weekOfYear = (day: string) => Math.floor((dayOfYear(day) - 1) / 7)

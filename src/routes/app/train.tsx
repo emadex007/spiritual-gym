@@ -34,7 +34,7 @@ function Train() {
   }
 
   return (
-    <main className="fade-in mx-auto max-w-2xl px-5 pt-6 md:pt-10">
+    <main className="stagger mx-auto max-w-2xl px-5 pt-6 md:pt-10">
       <h1 className="font-display text-3xl font-semibold tracking-tight">Train</h1>
       <p className="mt-1 text-muted">Choose a workout for today, or a journey for the weeks ahead.</p>
 

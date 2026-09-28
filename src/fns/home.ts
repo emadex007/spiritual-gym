@@ -2,9 +2,11 @@ import { createServerFn } from '@tanstack/react-start'
 import { db } from '~/lib/env'
 import { requireUser } from '~/lib/auth'
 import { MOODS, recommendWorkout } from '~/lib/content'
-import { getActiveJourney, isRecovery, lastSessionDay, verseOfTheDay } from '~/lib/queries'
+import { getActiveJourney, isRecovery, lastSessionDay, verseOfTheDay, weeklyHeader } from '~/lib/queries'
 import { dayString, newId } from '~/lib/util'
 import { adaptSteps, devotionOfTheDay, includeTongues } from '~/lib/devotion'
+import { dayLabel, planByKey, planDays } from '~/lib/plans'
+import { daysBetween } from '~/lib/util'
 
 export const getHome = createServerFn({ method: 'GET' }).handler(async () => {
   const user = await requireUser()
@@ -47,11 +49,38 @@ export const getHome = createServerFn({ method: 'GET' }).handler(async () => {
     .prepare('SELECT id, slug, title, description, minutes, is_recovery FROM workouts WHERE slug = ?')
     .bind(slug)
     .first<{ id: string; slug: string; title: string; description: string | null; minutes: number; is_recovery: number }>()
-  const [devotion, tongues, unseen] = await Promise.all([
+  const [devotion, tongues, unseen, header, planRow] = await Promise.all([
     devotionOfTheDay(),
     includeTongues(user.id),
     db().prepare('SELECT award_key FROM user_awards WHERE user_id = ? AND seen_at IS NULL').bind(user.id).all<{ award_key: string }>().then((r) => r.results.map((x) => x.award_key)).catch(() => [] as string[]),
+    weeklyHeader(),
+    db()
+      .prepare(
+        `SELECT up.id, up.plan_key, up.start_date, (SELECT COUNT(*) FROM plan_days_done d WHERE d.user_plan_id = up.id) AS done
+         FROM user_plans up WHERE up.user_id = ? AND up.status = 'active' ORDER BY up.created_at DESC LIMIT 1`,
+      )
+      .bind(user.id)
+      .first<{ id: string; plan_key: string; start_date: string; done: number }>()
+      .catch(() => null),
   ])
+  let activePlan: { id: string; planKey: string; title: string; day: number; label: string; book: number; chapter: number; caughtUp: boolean; pct: number } | null = null
+  const planDef = planRow ? planByKey(planRow.plan_key) : undefined
+  if (planRow && planDef) {
+    const days = planDays(planDef)
+    const todayIdx = Math.min(days.length, Math.max(1, daysBetween(planRow.start_date, today) + 1))
+    const nextDay = days[Math.min(planRow.done, days.length - 1)]
+    activePlan = {
+      id: planRow.id,
+      planKey: planDef.key,
+      title: planDef.title,
+      day: nextDay.day,
+      label: dayLabel(nextDay),
+      book: nextDay.readings[0].book,
+      chapter: nextDay.readings[0].from,
+      caughtUp: planRow.done >= todayIdx,
+      pct: Math.round((planRow.done / days.length) * 100),
+    }
+  }
   const steps = workout
     ? (
         await db()
@@ -88,6 +117,8 @@ export const getHome = createServerFn({ method: 'GET' }).handler(async () => {
     recovery,
     workout: workout ? { ...workout, steps: adaptSteps(steps, tongues) } : null,
     devotion,
+    header,
+    activePlan,
     unseenAwards: unseen,
     journey,
     verse,

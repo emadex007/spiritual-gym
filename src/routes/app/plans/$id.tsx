@@ -3,7 +3,7 @@ import { Link, createFileRoute, useRouter } from '@tanstack/react-router'
 import { addPlanNote, getMyPlan, markPlanDay, stopPlan } from '~/fns/plans'
 import { bookSlug } from '~/lib/bible'
 import { dayLabel, dayMinutes, readingLabel } from '~/lib/plans'
-import type { AwardDef } from '~/lib/awards'
+import { awardByKey, type AwardDef } from '~/lib/awards'
 import { JourneyCover } from '~/components/Art'
 import { Avatar, timeAgo } from '~/components/Avatar'
 import { AwardCelebration } from '~/components/AwardCelebration'
@@ -12,6 +12,10 @@ import { CheckIcon } from '~/components/Icons'
 import { errorText } from '~/components/AuthShell'
 
 export const Route = createFileRoute('/app/plans/$id')({
+  validateSearch: (s: { done?: unknown; won?: unknown }): { done?: number; won?: string } => ({
+    done: Number(s.done) > 0 ? Number(s.done) : undefined,
+    won: typeof s.won === 'string' ? s.won : undefined,
+  }),
   loader: ({ params }) => getMyPlan({ data: params.id }),
   component: MyPlan,
 })
@@ -22,7 +26,9 @@ function MyPlan() {
   const done = new Set(d.done)
   const firstUnread = d.days.find((x) => !done.has(x.day))?.day ?? d.days.length
   const [sel, setSel] = useState(Math.min(d.today, firstUnread))
-  const [won, setWon] = useState<AwardDef[]>([])
+  const search = Route.useSearch()
+  const [won, setWon] = useState<AwardDef[]>(() => (search.won ?? '').split(',').map((k) => awardByKey(k)).filter((a): a is AwardDef => !!a))
+  const [justRead] = useState(search.done)
   const [note, setNote] = useState('')
   const [share, setShare] = useState(!!d.circle)
   const [msg, setMsg] = useState<string | null>(null)
@@ -68,8 +74,12 @@ function MyPlan() {
       </div>
 
       <div className="px-5">
-        <div className="mt-4 h-2.5 rounded-full bg-surface-2"><div className="h-2.5 rounded-full" style={{ width: `${pct}%`, background: 'linear-gradient(90deg,#c9971f,#e98a2b)' }} /></div>
+        {justRead && (
+          <p className="fade-in mt-4 rounded-2xl bg-sage-soft px-4 py-3 text-sm font-semibold text-sage">🎉 Day {justRead} read — well done! {d.plan.status === 'completed' ? 'You finished the whole plan!' : 'Your next reading is ready below.'}</p>
+        )}
+        <div className="mt-4 h-2.5 rounded-full bg-surface-2"><div className="bar-grow h-2.5 rounded-full" style={{ width: `${pct}%`, background: 'linear-gradient(90deg,#c9971f,#e98a2b)' }} /></div>
         <p className="mt-1 text-xs text-muted">{d.done.length} of {d.days.length} days read · {pct}%{d.plan.status === 'completed' ? ' · 🏅 Complete!' : ''}</p>
+        {d.plan.status === 'active' && <p className="mt-1 text-xs text-muted">🔔 You’ll get a reminder each day to keep reading. Change the time in <Link to="/app/profile" className="font-semibold text-accent">Profile</Link>.</p>}
 
         {/* Selected day */}
         <section className="card mt-5">
@@ -78,16 +88,26 @@ function MyPlan() {
             <span className="text-xs text-muted">≈ {dayMinutes(day)} min</span>
           </div>
           <p className="mt-2 font-display text-2xl font-semibold">{dayLabel(day)}</p>
+          {!done.has(sel) && (
+            <Link
+              to="/app/bible/$book/$chapter"
+              params={{ book: bookSlug(day.readings[0].book), chapter: String(day.readings[0].from) }}
+              search={{ plan: d.plan.id, day: sel, pk: d.plan.plan_key }}
+              className="btn-primary mt-4 w-full"
+            >
+              📖 Start reading
+            </Link>
+          )}
           <div className="mt-4 flex flex-wrap gap-2">
             {day.readings.flatMap((r) =>
               Array.from({ length: r.to - r.from + 1 }, (_, k) => (
-                <Link key={`${r.book}-${r.from + k}`} to="/app/bible/$book/$chapter" params={{ book: bookSlug(r.book), chapter: String(r.from + k) }} className="chip !px-3 !py-1.5 text-xs">
+                <Link key={`${r.book}-${r.from + k}`} to="/app/bible/$book/$chapter" params={{ book: bookSlug(r.book), chapter: String(r.from + k) }} search={{ plan: d.plan.id, day: sel, pk: d.plan.plan_key }} className="chip !px-3 !py-1.5 text-xs">
                   {readingLabel({ book: r.book, from: r.from + k, to: r.from + k })}
                 </Link>
               )),
             )}
           </div>
-          <button type="button" onClick={() => toggle(sel)} className={`mt-5 w-full ${done.has(sel) ? 'btn-ghost' : 'btn-primary'}`}>
+          <button type="button" onClick={() => toggle(sel)} className="btn-ghost mt-3 w-full">
             {done.has(sel) ? <><CheckIcon className="h-4 w-4" /> Read. Tap to undo</> : 'I’ve read this ✓'}
           </button>
 

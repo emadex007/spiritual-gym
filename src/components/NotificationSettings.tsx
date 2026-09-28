@@ -12,7 +12,7 @@ const TIMES = Array.from({ length: 36 }, (_, i) => {
 export function NotificationSettings() {
   const [state, setState] = useState<PushState | 'loading'>('loading')
   const [config, setConfig] = useState<{ publicKey: string; enabled: boolean } | null>(null)
-  const [prefs, setPrefs] = useState<{ reminderTime: string | null; timezone: string; notifyPrayed: boolean; notifyReplies: boolean } | null>(null)
+  const [prefs, setPrefs] = useState<{ reminderTime: string | null; wordTime: string | null; planTime: string | null; timezone: string; notifyPrayed: boolean; notifyReplies: boolean } | null>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [saved, setSaved] = useState(false)
@@ -88,6 +88,28 @@ export function NotificationSettings() {
         )}
       </div>
       {error && <p className="text-sm text-red-600">{error}</p>}
+
+      <label className="block">
+        <span className="label">🌅 Daily word &amp; declaration</span>
+        <select className="input" value={prefs.wordTime ?? ''} onChange={(e) => savePrefs({ ...prefs, wordTime: e.target.value || null })}>
+          <option value="">Off</option>
+          {TIMES.map((t) => (
+            <option key={t.value} value={t.value}>{t.label}</option>
+          ))}
+        </select>
+        <span className="mt-1 block text-xs text-muted">Today’s Scripture and declaration, sent every morning.</span>
+      </label>
+
+      <label className="block">
+        <span className="label">📅 Bible plan reminder</span>
+        <select className="input" value={prefs.planTime ?? ''} onChange={(e) => savePrefs({ ...prefs, planTime: e.target.value || null })}>
+          <option value="">Off</option>
+          {TIMES.map((t) => (
+            <option key={t.value} value={t.value}>{t.label}</option>
+          ))}
+        </select>
+        <span className="mt-1 block text-xs text-muted">If you’re on a reading plan: today’s chapters, only if you haven’t read them yet.</span>
+      </label>
 
       <label className="block">
         <span className="label">Daily reminder</span>

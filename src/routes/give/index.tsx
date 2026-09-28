@@ -23,7 +23,7 @@ function guessCurrency(codes: string[]) {
 }
 
 function Give() {
-  const { currencies, prefill } = Route.useLoaderData()
+  const { currencies, prefill, testMode } = Route.useLoaderData()
   const codes = currencies.map((c) => c.code)
   const [currency, setCurrency] = useState(() => guessCurrency(codes) ?? '')
   const info = useMemo(() => currencies.find((c) => c.code === currency), [currencies, currency])
@@ -65,6 +65,9 @@ function Give() {
           <p className="mt-2 max-w-md text-white/90">Your gift helps people everywhere build a steady walk with God — prayer, the Word, worship and community, at no cost. No amount is too small.</p>
         </section>
 
+        {testMode && currencies.length > 0 && (
+          <p className="mt-6 rounded-2xl bg-gold/20 px-4 py-3 text-sm font-semibold text-[#8a6310]">🧪 Test mode — no real money is taken. Use the provider’s test cards.</p>
+        )}
         {currencies.length === 0 ? (
           <section className="card mt-6 text-center">
             <p className="text-3xl" aria-hidden>🙏</p>

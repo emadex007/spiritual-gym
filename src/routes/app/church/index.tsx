@@ -20,7 +20,7 @@ function Churches() {
   }
 
   return (
-    <main className="fade-in mx-auto max-w-2xl px-5 pt-6 pb-10 md:pt-10">
+    <main className="stagger mx-auto max-w-2xl px-5 pt-6 pb-10 md:pt-10">
       <section className="relative overflow-hidden rounded-[1.75rem] p-6 text-[#12203a]" style={{ background: 'linear-gradient(135deg,#e1f1e6,#e3eefc)' }}>
         <span className="absolute -right-2 -bottom-4 text-8xl opacity-15" aria-hidden>⛪</span>
         <p className="text-xs font-semibold tracking-[0.14em] text-[#3f7a5a] uppercase">Church</p>

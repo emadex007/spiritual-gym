@@ -1,15 +1,16 @@
 import { createServerFn } from '@tanstack/react-start'
 import { db } from '~/lib/env'
 import { currentUser } from '~/lib/auth'
-import { confirmDonation, createCheckout, offeredCurrencies, providerFor, type DonationRow } from '~/lib/donations'
+import { confirmDonation, createCheckout, offeredCurrencies, payConfig, providerFor, type DonationRow } from '~/lib/donations'
 import { currencyInfo } from '~/lib/give'
 import { siteOrigin } from '~/lib/origin'
 import { newId } from '~/lib/util'
 
 export const getGiveConfig = createServerFn({ method: 'GET' }).handler(async () => {
-  const user = await currentUser()
+  const [user, cfg] = await Promise.all([currentUser(), payConfig()])
   return {
-    currencies: offeredCurrencies(),
+    testMode: cfg.mode === 'test',
+    currencies: offeredCurrencies(cfg),
     prefill: user ? { name: user.name, email: user.email } : null,
   }
 })
@@ -34,7 +35,8 @@ export const startDonation = createServerFn({ method: 'POST' })
     }
   })
   .handler(async ({ data }) => {
-    const provider = providerFor(data.currency)
+    const cfg = await payConfig()
+    const provider = providerFor(cfg, data.currency)
     if (!provider) throw new Error('Giving in this currency isn’t available yet.')
     const user = await currentUser()
     // Gentle limit against misuse: at most 10 unfinished checkouts per email per hour
@@ -42,13 +44,13 @@ export const startDonation = createServerFn({ method: 'POST' })
     if ((recent?.n ?? 0) >= 10) throw new Error('Too many attempts. Please wait a little and try again.')
     const id = newId()
     const reference = `SG-${Date.now().toString(36).toUpperCase()}-${id.slice(0, 6).toUpperCase()}`
-    const row: DonationRow = { id, reference, provider, currency: data.currency, amount_minor: data.amountMinor, name: data.name || null, email: data.email, user_id: user?.id ?? null, status: 'pending' }
+    const row: DonationRow = { id, mode: cfg.mode, reference, provider, currency: data.currency, amount_minor: data.amountMinor, name: data.name || null, email: data.email, user_id: user?.id ?? null, status: 'pending' }
     await db()
-      .prepare('INSERT INTO donations (id, reference, provider, currency, amount_minor, name, email, user_id, message, is_anonymous) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
-      .bind(id, reference, provider, data.currency, data.amountMinor, row.name, data.email, row.user_id, data.message || null, data.anonymous)
+      .prepare('INSERT INTO donations (id, mode, reference, provider, currency, amount_minor, name, email, user_id, message, is_anonymous) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
+      .bind(id, cfg.mode, reference, provider, data.currency, data.amountMinor, row.name, data.email, row.user_id, data.message || null, data.anonymous)
       .run()
     const origin = siteOrigin()
-    const url = await createCheckout(row, `${origin}/give/thanks?ref=${encodeURIComponent(reference)}`, origin)
+    const url = await createCheckout(cfg, row, `${origin}/give/thanks?ref=${encodeURIComponent(reference)}`, origin)
     return { url }
   })
 

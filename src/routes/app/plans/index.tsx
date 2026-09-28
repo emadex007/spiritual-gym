@@ -18,7 +18,7 @@ function Plans() {
   const done = mine.filter((m) => m!.status === 'completed')
 
   return (
-    <main className="fade-in mx-auto max-w-2xl px-5 pt-6 pb-10 md:pt-10">
+    <main className="stagger mx-auto max-w-2xl px-5 pt-6 pb-10 md:pt-10">
       <section className="relative overflow-hidden rounded-[1.75rem] p-6 text-[#12203a]" style={{ background: 'linear-gradient(135deg,#f8ecd0,#e3eefc)' }}>
         <BibleIcon className="absolute -right-5 -bottom-6 h-36 w-36 text-[#c9971f]/20" />
         <p className="text-xs font-semibold tracking-[0.14em] text-[#8a6310] uppercase">Reading plans</p>
@@ -43,7 +43,7 @@ function Plans() {
                     <span className="rounded-full bg-accent-soft px-3 py-1 text-xs font-semibold text-accent">{behind > 1 ? `${behind - 1} behind` : 'Read today →'}</span>
                   </div>
                   <div className="mt-3 h-2 rounded-full bg-surface-2">
-                    <div className="h-2 rounded-full" style={{ width: `${pct}%`, background: 'linear-gradient(90deg,#c9971f,#e98a2b)' }} />
+                    <div className="bar-grow h-2 rounded-full" style={{ width: `${pct}%`, background: 'linear-gradient(90deg,#c9971f,#e98a2b)' }} />
                   </div>
                   <p className="mt-1 text-xs text-muted">{pct}% read</p>
                 </Link>

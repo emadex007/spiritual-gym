@@ -8,7 +8,7 @@ export const Route = createFileRoute('/app/notifications')({
   component: Notifications,
 })
 
-const ICON: Record<string, string> = { prayed: '🙏', reply: '💬', schedule: '⏰', reminder: '🌅', walk: '🤝', announcement: '📣', church: '⛪', admin: '🛡️', gift: '💛' }
+const ICON: Record<string, string> = { prayed: '🙏', reply: '💬', schedule: '⏰', reminder: '🌅', walk: '🤝', announcement: '📣', church: '⛪', admin: '🛡️', gift: '💛', word: '🌅', plan: '📅' }
 
 function Notifications() {
   const items = Route.useLoaderData()

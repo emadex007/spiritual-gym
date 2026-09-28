@@ -129,3 +129,65 @@ body {
 .safe-bottom {
   padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
 }
+
+/* ---------- Motion (all of it stops when the phone asks for reduced motion) ---------- */
+.sg-drift { animation: sg-drift 60s linear infinite alternate; }
+.sg-drift-slow { animation: sg-drift 95s linear infinite alternate-reverse; }
+@keyframes sg-drift { from { transform: translateX(-50px); } to { transform: translateX(70px); } }
+.sg-glow { transform-box: fill-box; transform-origin: center; animation: sg-glow 6s ease-in-out infinite; }
+@keyframes sg-glow { 0%, 100% { opacity: 0.85; transform: scale(1); } 50% { opacity: 1; transform: scale(1.07); } }
+.sg-rays { animation: sg-rays 8s ease-in-out infinite; }
+@keyframes sg-rays { 0%, 100% { opacity: 0.6; } 50% { opacity: 1; } }
+.sg-twinkle circle { animation: sg-twinkle 3.6s ease-in-out infinite; }
+@keyframes sg-twinkle { 0%, 100% { opacity: 1; } 50% { opacity: 0.2; } }
+.sg-fly { animation: sg-fly 14s ease-in-out infinite; }
+@keyframes sg-fly { 0%, 100% { transform: translate(0, 0); } 50% { transform: translate(26px, -12px); } }
+.sg-shimmer line { animation: sg-shimmer 3s ease-in-out infinite; }
+@keyframes sg-shimmer { 0%, 100% { opacity: 0.3; } 50% { opacity: 1; } }
+.sg-sway > * { transform-box: fill-box; transform-origin: bottom center; animation: sg-sway 5s ease-in-out infinite; }
+.sg-sway > *:nth-child(2n) { animation-delay: -1.7s; }
+.sg-sway > *:nth-child(3n) { animation-delay: -3.1s; }
+@keyframes sg-sway { 0%, 100% { transform: rotate(-2deg); } 50% { transform: rotate(2deg); } }
+.sg-bob { animation: sg-bob 5s ease-in-out infinite; }
+@keyframes sg-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(4px); } }
+.sg-float { animation: sg-float 7s ease-in-out infinite; }
+@keyframes sg-float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-12px); } }
+
+/* Header photos slowly zoom (Ken Burns) */
+.kenburns { animation: kenburns 30s ease-in-out infinite alternate; transform-origin: 60% 40%; }
+@keyframes kenburns { from { transform: scale(1); } to { transform: scale(1.12); } }
+
+/* Sections arrive one after another */
+.stagger > * { animation: fade-in 0.5s ease-out both; }
+.stagger > *:nth-child(2) { animation-delay: 0.05s; }
+.stagger > *:nth-child(3) { animation-delay: 0.1s; }
+.stagger > *:nth-child(4) { animation-delay: 0.15s; }
+.stagger > *:nth-child(5) { animation-delay: 0.2s; }
+.stagger > *:nth-child(6) { animation-delay: 0.25s; }
+.stagger > *:nth-child(7) { animation-delay: 0.3s; }
+.stagger > *:nth-child(8) { animation-delay: 0.35s; }
+.stagger > *:nth-child(n + 9) { animation-delay: 0.4s; }
+
+/* Cards and links lift a little when touched */
+a.card, button.card { transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease; }
+a.card:hover, button.card:hover { transform: translateY(-2px); box-shadow: 0 12px 28px -14px rgba(18, 32, 58, 0.28); }
+a.card:active, button.card:active { transform: translateY(0) scale(0.99); }
+
+/* Progress bars fill in */
+.bar-grow { transform-origin: left; animation: bar-grow 1.1s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+@keyframes bar-grow { from { transform: scaleX(0); } }
+
+/* A soft light that passes over gold buttons now and then */
+.btn-gold { position: relative; overflow: hidden; }
+.btn-gold::after { content: ''; position: absolute; inset: 0; background: linear-gradient(110deg, transparent 30%, rgba(255, 255, 255, 0.45) 50%, transparent 70%); transform: translateX(-120%); animation: shine 5s ease-in-out infinite 2s; pointer-events: none; }
+@keyframes shine { 0%, 70% { transform: translateX(-120%); } 100% { transform: translateX(120%); } }
+
+/* Gentle breathing for "now speaking" and live indicators */
+.breathe { animation: breathe 2.4s ease-in-out infinite; }
+@keyframes breathe { 0%, 100% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.06); opacity: 0.85; } }
+
+/* Medal moments */
+.medal-pop { animation: medal-pop 0.9s cubic-bezier(0.2, 1.5, 0.4, 1) both; }
+@keyframes medal-pop { from { transform: scale(0.2) rotate(-25deg); opacity: 0; } 60% { opacity: 1; } to { transform: scale(1) rotate(0); } }
+.confetti { animation: confetti 2.6s ease-in forwards; }
+@keyframes confetti { from { transform: translateY(-20px) rotate(0); opacity: 1; } to { transform: translateY(560px) rotate(540deg); opacity: 0.2; } }

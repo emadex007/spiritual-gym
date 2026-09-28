@@ -27,10 +27,12 @@ import { Route as AdminCommunityRouteImport } from './routes/admin/community'
 import { Route as AdminDevotionsRouteImport } from './routes/admin/devotions'
 import { Route as AdminDonationsRouteImport } from './routes/admin/donations'
 import { Route as AdminGrowthRouteImport } from './routes/admin/growth'
+import { Route as AdminHeadersRouteImport } from './routes/admin/headers'
 import { Route as AdminJourneysRouteImport } from './routes/admin/journeys'
 import { Route as AdminLoginRouteImport } from './routes/admin.login'
 import { Route as AdminMusicRouteImport } from './routes/admin/music'
 import { Route as AdminNotificationsRouteImport } from './routes/admin/notifications'
+import { Route as AdminPaymentsRouteImport } from './routes/admin/payments'
 import { Route as AdminReportsRouteImport } from './routes/admin/reports'
 import { Route as AdminSettingsRouteImport } from './routes/admin/settings'
 import { Route as AdminUsersRouteImport } from './routes/admin/users'
@@ -158,6 +160,11 @@ const AdminGrowthRoute = AdminGrowthRouteImport.update({
   path: '/growth',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminHeadersRoute = AdminHeadersRouteImport.update({
+  id: '/headers',
+  path: '/headers',
+  getParentRoute: () => AdminRoute,
+} as any)
 const AdminJourneysRoute = AdminJourneysRouteImport.update({
   id: '/journeys',
   path: '/journeys',
@@ -176,6 +183,11 @@ const AdminMusicRoute = AdminMusicRouteImport.update({
 const AdminNotificationsRoute = AdminNotificationsRouteImport.update({
   id: '/notifications',
   path: '/notifications',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminPaymentsRoute = AdminPaymentsRouteImport.update({
+  id: '/payments',
+  path: '/payments',
   getParentRoute: () => AdminRoute,
 } as any)
 const AdminReportsRoute = AdminReportsRouteImport.update({
@@ -378,10 +390,12 @@ export interface FileRoutesByFullPath {
   '/admin/devotions': typeof AdminDevotionsRoute
   '/admin/donations': typeof AdminDonationsRoute
   '/admin/growth': typeof AdminGrowthRoute
+  '/admin/headers': typeof AdminHeadersRoute
   '/admin/journeys': typeof AdminJourneysRoute
   '/admin/login': typeof AdminLoginRoute
   '/admin/music': typeof AdminMusicRoute
   '/admin/notifications': typeof AdminNotificationsRoute
+  '/admin/payments': typeof AdminPaymentsRoute
   '/admin/reports': typeof AdminReportsRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/users': typeof AdminUsersRoute
@@ -436,10 +450,12 @@ export interface FileRoutesByTo {
   '/admin/devotions': typeof AdminDevotionsRoute
   '/admin/donations': typeof AdminDonationsRoute
   '/admin/growth': typeof AdminGrowthRoute
+  '/admin/headers': typeof AdminHeadersRoute
   '/admin/journeys': typeof AdminJourneysRoute
   '/admin/login': typeof AdminLoginRoute
   '/admin/music': typeof AdminMusicRoute
   '/admin/notifications': typeof AdminNotificationsRoute
+  '/admin/payments': typeof AdminPaymentsRoute
   '/admin/reports': typeof AdminReportsRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/users': typeof AdminUsersRoute
@@ -495,10 +511,12 @@ export interface FileRoutesById {
   '/admin/devotions': typeof AdminDevotionsRoute
   '/admin/donations': typeof AdminDonationsRoute
   '/admin/growth': typeof AdminGrowthRoute
+  '/admin/headers': typeof AdminHeadersRoute
   '/admin/journeys': typeof AdminJourneysRoute
   '/admin/login': typeof AdminLoginRoute
   '/admin/music': typeof AdminMusicRoute
   '/admin/notifications': typeof AdminNotificationsRoute
+  '/admin/payments': typeof AdminPaymentsRoute
   '/admin/reports': typeof AdminReportsRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/users': typeof AdminUsersRoute
@@ -557,10 +575,12 @@ export interface FileRouteTypes {
     | '/admin/devotions'
     | '/admin/donations'
     | '/admin/growth'
+    | '/admin/headers'
     | '/admin/journeys'
     | '/admin/login'
     | '/admin/music'
     | '/admin/notifications'
+    | '/admin/payments'
     | '/admin/reports'
     | '/admin/settings'
     | '/admin/users'
@@ -615,10 +635,12 @@ export interface FileRouteTypes {
     | '/admin/devotions'
     | '/admin/donations'
     | '/admin/growth'
+    | '/admin/headers'
     | '/admin/journeys'
     | '/admin/login'
     | '/admin/music'
     | '/admin/notifications'
+    | '/admin/payments'
     | '/admin/reports'
     | '/admin/settings'
     | '/admin/users'
@@ -673,10 +695,12 @@ export interface FileRouteTypes {
     | '/admin/devotions'
     | '/admin/donations'
     | '/admin/growth'
+    | '/admin/headers'
     | '/admin/journeys'
     | '/admin/login'
     | '/admin/music'
     | '/admin/notifications'
+    | '/admin/payments'
     | '/admin/reports'
     | '/admin/settings'
     | '/admin/users'
@@ -860,6 +884,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminGrowthRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/headers': {
+      id: '/admin/headers'
+      path: '/headers'
+      fullPath: '/admin/headers'
+      preLoaderRoute: typeof AdminHeadersRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/journeys': {
       id: '/admin/journeys'
       path: '/journeys'
@@ -886,6 +917,13 @@ declare module '@tanstack/react-router' {
       path: '/notifications'
       fullPath: '/admin/notifications'
       preLoaderRoute: typeof AdminNotificationsRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/payments': {
+      id: '/admin/payments'
+      path: '/payments'
+      fullPath: '/admin/payments'
+      preLoaderRoute: typeof AdminPaymentsRouteImport
       parentRoute: typeof AdminRoute
     }
     '/admin/reports': {
@@ -1150,10 +1188,12 @@ interface AdminRouteChildren {
   AdminDevotionsRoute: typeof AdminDevotionsRoute
   AdminDonationsRoute: typeof AdminDonationsRoute
   AdminGrowthRoute: typeof AdminGrowthRoute
+  AdminHeadersRoute: typeof AdminHeadersRoute
   AdminJourneysRoute: typeof AdminJourneysRoute
   AdminLoginRoute: typeof AdminLoginRoute
   AdminMusicRoute: typeof AdminMusicRoute
   AdminNotificationsRoute: typeof AdminNotificationsRoute
+  AdminPaymentsRoute: typeof AdminPaymentsRoute
   AdminReportsRoute: typeof AdminReportsRoute
   AdminSettingsRoute: typeof AdminSettingsRoute
   AdminUsersRoute: typeof AdminUsersRoute
@@ -1169,10 +1209,12 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminDevotionsRoute: AdminDevotionsRoute,
   AdminDonationsRoute: AdminDonationsRoute,
   AdminGrowthRoute: AdminGrowthRoute,
+  AdminHeadersRoute: AdminHeadersRoute,
   AdminJourneysRoute: AdminJourneysRoute,
   AdminLoginRoute: AdminLoginRoute,
   AdminMusicRoute: AdminMusicRoute,
   AdminNotificationsRoute: AdminNotificationsRoute,
+  AdminPaymentsRoute: AdminPaymentsRoute,
   AdminReportsRoute: AdminReportsRoute,
   AdminSettingsRoute: AdminSettingsRoute,
   AdminUsersRoute: AdminUsersRoute,

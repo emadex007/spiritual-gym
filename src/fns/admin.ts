@@ -2,9 +2,10 @@ import { createServerFn } from '@tanstack/react-start'
 import { db, env } from '~/lib/env'
 import { audit, requireAdmin } from '~/lib/admin'
 import { currentUser } from '~/lib/auth'
-import { dayString, newId } from '~/lib/util'
+import { dayString, newId, weekOfYear } from '~/lib/util'
 import { notify } from '~/lib/notify'
-import { confirmDonation } from '~/lib/donations'
+import { confirmDonation, payConfig, testKey } from '~/lib/donations'
+import { siteOrigin } from '~/lib/origin'
 
 const LEVELS = ['recovery', 'build', 'deepen', 'intensive']
 const STEP_KINDS = ['stillness', 'breathe', 'scripture', 'prayer', 'worship', 'reflection', 'thanksgiving', 'devotion', 'tongues']
@@ -581,18 +582,26 @@ export const adminDeleteSchedule = createServerFn({ method: 'POST' })
   })
 
 // ---------------- Daily words (devotions) ----------------
-type DevotionRow = { id: string; sort: number; reference: string; text: string; reflection: string; declaration: string }
+type DevotionRow = { id: string; sort: number; reference: string; text: string; reflection: string; declaration: string; prayer: string | null }
 
 export const adminListDevotions = createServerFn({ method: 'GET' }).handler(async () => {
   await requireAdmin()
-  const { results } = await db().prepare('SELECT id, sort, reference, text, reflection, declaration FROM devotions ORDER BY sort, created_at').all<DevotionRow>()
+  const { results } = await db().prepare('SELECT id, sort, reference, text, reflection, declaration, prayer FROM devotions ORDER BY sort, created_at').all<DevotionRow>()
   return results
 })
 
 export const adminSaveDevotion = createServerFn({ method: 'POST' })
-  .validator((d: { id?: string; reference: string; text: string; reflection: string; declaration: string }) => {
+  .validator((d: { id?: string; day: number; reference: string; text: string; reflection: string; declaration: string; prayer?: string }) => {
     const clean = (v: unknown, max: number) => String(v ?? '').trim().slice(0, max)
-    const out = { id: d?.id ? String(d.id) : null, reference: clean(d?.reference, 80), text: clean(d?.text, 1500), reflection: clean(d?.reflection, 600), declaration: clean(d?.declaration, 400) }
+    const out = {
+      id: d?.id ? String(d.id) : null,
+      day: Math.max(1, Math.min(365, Math.round(Number(d?.day) || 1))),
+      reference: clean(d?.reference, 80),
+      text: clean(d?.text, 1500),
+      reflection: clean(d?.reflection, 600),
+      declaration: clean(d?.declaration, 400),
+      prayer: clean(d?.prayer, 800),
+    }
     if (!out.reference || !out.text || !out.declaration) throw new Error('Add the reference, the verse text and a declaration.')
     return out
   })
@@ -600,17 +609,16 @@ export const adminSaveDevotion = createServerFn({ method: 'POST' })
     const admin = await requireAdmin()
     if (data.id) {
       await db()
-        .prepare('UPDATE devotions SET reference = ?, text = ?, reflection = ?, declaration = ? WHERE id = ?')
-        .bind(data.reference, data.text, data.reflection, data.declaration, data.id)
+        .prepare('UPDATE devotions SET sort = ?, reference = ?, text = ?, reflection = ?, declaration = ?, prayer = ? WHERE id = ?')
+        .bind(data.day, data.reference, data.text, data.reflection, data.declaration, data.prayer || null, data.id)
         .run()
     } else {
-      const max = await db().prepare('SELECT COALESCE(MAX(sort), 0) AS m FROM devotions').first<{ m: number }>()
       await db()
-        .prepare('INSERT INTO devotions (id, sort, reference, text, reflection, declaration) VALUES (?, ?, ?, ?, ?, ?)')
-        .bind('dv-' + newId().slice(0, 8), (max?.m ?? 0) + 1, data.reference, data.text, data.reflection, data.declaration)
+        .prepare('INSERT INTO devotions (id, sort, reference, text, reflection, declaration, prayer) VALUES (?, ?, ?, ?, ?, ?, ?)')
+        .bind('dv-' + newId().slice(0, 8), data.day, data.reference, data.text, data.reflection, data.declaration, data.prayer || null)
         .run()
     }
-    await audit(admin, 'devotion.save', data.id, data.reference)
+    await audit(admin, 'devotion.save', data.id, `${data.reference} (day ${data.day})`)
     return { ok: true }
   })
 
@@ -732,24 +740,25 @@ export const adminReviewChurch = createServerFn({ method: 'POST' })
 // ---------------- Donations ----------------
 export const adminDonations = createServerFn({ method: 'GET' }).handler(async () => {
   await requireAdmin()
-  const e = env()
+  const cfg = await payConfig()
   const [totals, recent, monthly] = await Promise.all([
     db()
-      .prepare(`SELECT currency, COUNT(*) AS gifts, SUM(amount_minor) AS total FROM donations WHERE status = 'success' GROUP BY currency ORDER BY total DESC`)
+      .prepare(`SELECT currency, COUNT(*) AS gifts, SUM(amount_minor) AS total FROM donations WHERE status = 'success' AND mode = 'live' GROUP BY currency ORDER BY total DESC`)
       .all<{ currency: string; gifts: number; total: number }>(),
     db()
-      .prepare(`SELECT id, reference, provider, currency, amount_minor, name, email, message, is_anonymous, status, created_at, paid_at FROM donations ORDER BY created_at DESC LIMIT 200`)
-      .all<{ id: string; reference: string; provider: string; currency: string; amount_minor: number; name: string | null; email: string; message: string | null; is_anonymous: number; status: string; created_at: string; paid_at: string | null }>(),
+      .prepare(`SELECT id, mode, reference, provider, currency, amount_minor, name, email, message, is_anonymous, status, created_at, paid_at FROM donations ORDER BY created_at DESC LIMIT 200`)
+      .all<{ id: string; mode: string; reference: string; provider: string; currency: string; amount_minor: number; name: string | null; email: string; message: string | null; is_anonymous: number; status: string; created_at: string; paid_at: string | null }>(),
     db()
-      .prepare(`SELECT currency, SUM(amount_minor) AS total, COUNT(*) AS gifts FROM donations WHERE status = 'success' AND paid_at >= datetime('now', 'start of month') GROUP BY currency`)
+      .prepare(`SELECT currency, SUM(amount_minor) AS total, COUNT(*) AS gifts FROM donations WHERE status = 'success' AND mode = 'live' AND paid_at >= datetime('now', 'start of month') GROUP BY currency`)
       .all<{ currency: string; total: number; gifts: number }>(),
   ])
   return {
     setup: {
-      paystack: !!e.PAYSTACK_SECRET_KEY,
-      paystackCurrencies: e.PAYSTACK_CURRENCIES || 'NGN',
-      flutterwave: !!e.FLUTTERWAVE_SECRET_KEY,
-      flutterwaveWebhook: !!e.FLUTTERWAVE_WEBHOOK_HASH,
+      mode: cfg.mode,
+      paystack: !!cfg.keys.paystack[cfg.mode],
+      paystackCurrencies: cfg.paystackCurrencies.join(', '),
+      flutterwave: !!cfg.keys.flutterwave[cfg.mode],
+      flutterwaveWebhook: !!cfg.flutterwaveHash,
     },
     totals: totals.results,
     thisMonth: monthly.results,
@@ -763,4 +772,103 @@ export const adminRecheckDonation = createServerFn({ method: 'POST' })
     await requireAdmin()
     const r = await confirmDonation(data.reference)
     return { status: r?.status ?? 'not found' }
+  })
+
+// ---------------- Payment keys ----------------
+const SECRET_FIELDS = ['paystack_test_secret', 'paystack_live_secret', 'flutterwave_test_secret', 'flutterwave_live_secret', 'flutterwave_webhook_hash'] as const
+const PLAIN_FIELDS = ['pay_mode', 'paystack_currencies', 'flutterwave_currencies'] as const
+const mask = (v: string) => (v ? `${v.slice(0, Math.min(8, v.length - 4))}…${v.slice(-4)}` : '')
+
+export const adminPaymentSettings = createServerFn({ method: 'GET' }).handler(async () => {
+  await requireAdmin()
+  const cfg = await payConfig()
+  const origin = siteOrigin()
+  return {
+    mode: cfg.mode,
+    saved: {
+      paystack_test_secret: mask(cfg.keys.paystack.test),
+      paystack_live_secret: mask(cfg.keys.paystack.live),
+      flutterwave_test_secret: mask(cfg.keys.flutterwave.test),
+      flutterwave_live_secret: mask(cfg.keys.flutterwave.live),
+      flutterwave_webhook_hash: cfg.flutterwaveHash ? 'saved' : '',
+    },
+    paystackCurrencies: cfg.paystackCurrencies.join(','),
+    flutterwaveCurrencies: cfg.flutterwaveCurrencies.join(','),
+    webhooks: { paystack: `${origin}/api/webhooks/paystack`, flutterwave: `${origin}/api/webhooks/flutterwave` },
+  }
+})
+
+/** Only the fields that are sent are changed. An empty string leaves a key as it is; "__clear__" removes it. */
+export const adminSavePaymentSettings = createServerFn({ method: 'POST' })
+  .validator((d: Record<string, string>) => {
+    const out: Record<string, string> = {}
+    for (const k of [...SECRET_FIELDS, ...PLAIN_FIELDS]) {
+      const v = typeof d?.[k] === 'string' ? d[k].trim() : ''
+      if (v) out[k] = v.slice(0, 300)
+    }
+    if (out.pay_mode && !['test', 'live'].includes(out.pay_mode)) throw new Error('Choose test or live.')
+    const checks: [string, RegExp, string][] = [
+      ['paystack_test_secret', /^sk_test_\w+$/, 'Paystack test keys start with sk_test_'],
+      ['paystack_live_secret', /^sk_live_\w+$/, 'Paystack live keys start with sk_live_'],
+      ['flutterwave_test_secret', /^FLWSECK_TEST-[\w-]+$/, 'Flutterwave test secret keys start with FLWSECK_TEST-'],
+      ['flutterwave_live_secret', /^FLWSECK-[\w-]+$/, 'Flutterwave live secret keys start with FLWSECK-'],
+    ]
+    for (const [k, re, msg] of checks) if (out[k] && out[k] !== '__clear__' && !re.test(out[k])) throw new Error(`${msg}. Make sure you copied the SECRET key, not the public key.`)
+    if (out.flutterwave_webhook_hash && out.flutterwave_webhook_hash !== '__clear__' && out.flutterwave_webhook_hash.length < 12) throw new Error('Make the webhook secret hash at least 12 characters.')
+    for (const k of ['paystack_currencies', 'flutterwave_currencies']) if (out[k]) out[k] = out[k].toUpperCase().replace(/[^A-Z,]/g, '')
+    return out
+  })
+  .handler(async ({ data }) => {
+    const admin = await requireAdmin()
+    const stmts = Object.entries(data).map(([k, v]) =>
+      v === '__clear__'
+        ? db().prepare('DELETE FROM secure_settings WHERE key = ?').bind(k)
+        : db().prepare(`INSERT INTO secure_settings (key, value) VALUES (?, ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value, updated_at = datetime('now')`).bind(k, v),
+    )
+    if (stmts.length) await db().batch(stmts)
+    await audit(admin, 'payments.update', null, Object.keys(data).join(', '))
+    return { ok: true }
+  })
+
+export const adminTestPayment = createServerFn({ method: 'POST' })
+  .validator((d: { provider: 'paystack' | 'flutterwave'; mode: 'test' | 'live' }) => ({ provider: d?.provider === 'flutterwave' ? ('flutterwave' as const) : ('paystack' as const), mode: d?.mode === 'test' ? ('test' as const) : ('live' as const) }))
+  .handler(async ({ data }) => {
+    await requireAdmin()
+    const key = (await payConfig()).keys[data.provider][data.mode]
+    if (!key) return { ok: false, message: 'No key saved yet.' }
+    return testKey(data.provider, key)
+  })
+
+// ---------------- Home header pictures ----------------
+export const adminListHeaders = createServerFn({ method: 'GET' }).handler(async () => {
+  await requireAdmin()
+  const { results } = await db().prepare('SELECT id, media_key, caption, sort FROM header_images ORDER BY sort, created_at').all<{ id: string; media_key: string; caption: string | null; sort: number }>()
+  return { photos: results, week: weekOfYear(dayString()) }
+})
+
+export const adminAddHeader = createServerFn({ method: 'POST' })
+  .validator((d: { key: string; caption?: string }) => {
+    const key = String(d?.key ?? '')
+    if (!/^uploads\/[\w-]+\.(jpg|png|webp)$/.test(key)) throw new Error('Upload a JPG, PNG or WEBP photo first.')
+    return { key, caption: String(d?.caption ?? '').trim().slice(0, 80) }
+  })
+  .handler(async ({ data }) => {
+    const admin = await requireAdmin()
+    const max = await db().prepare('SELECT COALESCE(MAX(sort), 0) AS m FROM header_images').first<{ m: number }>()
+    const id = newId()
+    await db().prepare('INSERT INTO header_images (id, media_key, caption, sort) VALUES (?, ?, ?, ?)').bind(id, data.key, data.caption || null, (max?.m ?? 0) + 1).run()
+    await audit(admin, 'header.add', id, data.caption)
+    return { ok: true }
+  })
+
+export const adminDeleteHeader = createServerFn({ method: 'POST' })
+  .validator((d: { id: string }) => ({ id: String(d?.id ?? '') }))
+  .handler(async ({ data }) => {
+    const admin = await requireAdmin()
+    const h = await db().prepare('SELECT media_key FROM header_images WHERE id = ?').bind(data.id).first<{ media_key: string }>()
+    if (!h) return { ok: true }
+    await db().prepare('DELETE FROM header_images WHERE id = ?').bind(data.id).run()
+    await env().MEDIA.delete(h.media_key).catch(() => {})
+    await audit(admin, 'header.delete', data.id)
+    return { ok: true }
   })

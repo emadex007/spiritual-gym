@@ -47,7 +47,7 @@ function ChurchHome() {
     })
 
   return (
-    <main className="fade-in mx-auto max-w-2xl px-5 pt-6 pb-12 md:pt-10">
+    <main className="stagger mx-auto max-w-2xl px-5 pt-6 pb-12 md:pt-10">
       <Link to="/app/church" className="text-sm font-semibold text-accent">← Church</Link>
       <section className="relative mt-3 overflow-hidden rounded-[1.75rem] p-6 text-white" style={{ background: `linear-gradient(135deg, ${c.color}, #12203a)` }}>
         <span className="absolute -right-3 -bottom-6 text-9xl opacity-10" aria-hidden>⛪</span>
