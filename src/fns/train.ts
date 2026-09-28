@@ -16,7 +16,7 @@ export const getTrain = createServerFn({ method: 'GET' }).handler(async () => {
   const [workouts, journeys, active, done, steps] = await Promise.all([
     db().prepare('SELECT id, slug, title, description, level, minutes, is_recovery FROM workouts ORDER BY sort').all<WorkoutRow>(),
     db()
-      .prepare('SELECT id, slug, title, subtitle, focus, days, start_minutes, end_minutes, is_recovery FROM journeys ORDER BY sort')
+      .prepare('SELECT id, slug, title, subtitle, focus, days, start_minutes, end_minutes, is_recovery FROM journeys WHERE church_id IS NULL ORDER BY sort')
       .all<JourneyCard>(),
     getActiveJourney(user.id),
     db()
@@ -37,8 +37,13 @@ export const startJourney = createServerFn({ method: 'POST' })
   .validator((d: { slug: string }) => ({ slug: String(d?.slug ?? '') }))
   .handler(async ({ data }) => {
     const user = await requireUser()
-    const j = await db().prepare('SELECT id FROM journeys WHERE slug = ?').bind(data.slug).first<{ id: string }>()
+    const j = await db().prepare('SELECT id, church_id FROM journeys WHERE slug = ?').bind(data.slug).first<{ id: string; church_id: string | null }>()
     if (!j) throw new Error('Journey not found.')
+    if (j.church_id) {
+      // Church programs are for that church's members
+      const m = await db().prepare(`SELECT 1 AS ok FROM church_members cm JOIN churches c ON c.id = cm.church_id WHERE cm.church_id = ? AND cm.user_id = ? AND c.status = 'approved'`).bind(j.church_id, user.id).first()
+      if (!m) throw new Error('Join this church to start its programs.')
+    }
     await db().batch([
       db().prepare(`UPDATE user_journeys SET status = 'paused' WHERE user_id = ? AND status = 'active'`).bind(user.id),
       db().prepare('INSERT INTO user_journeys (id, user_id, journey_id) VALUES (?, ?, ?)').bind(newId(), user.id, j.id),

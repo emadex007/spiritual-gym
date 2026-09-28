@@ -168,6 +168,7 @@ function Welcome() {
             <Link to="/privacy">Privacy</Link>
             <Link to="/terms">Terms</Link>
             <Link to="/guidelines">Community guidelines</Link>
+            <Link to="/give">Support us 💛</Link>
           </p>
         </footer>
       </main>

@@ -20,6 +20,15 @@ export type AppEnv = {
   VAPID_PUBLIC_KEY?: string
   VAPID_PRIVATE_KEY?: string
   VAPID_SUBJECT?: string
+  /** Donations (optional; set as secrets). Paystack: sk_live_… · Flutterwave: FLWSECK-… */
+  PAYSTACK_SECRET_KEY?: string
+  /** Currencies your Paystack account accepts, e.g. "NGN" or "NGN,USD" (default NGN) */
+  PAYSTACK_CURRENCIES?: string
+  FLUTTERWAVE_SECRET_KEY?: string
+  /** The "secret hash" you set in Flutterwave → Settings → Webhooks */
+  FLUTTERWAVE_WEBHOOK_HASH?: string
+  /** Currencies to offer through Flutterwave (default: a wide list) */
+  FLUTTERWAVE_CURRENCIES?: string
 }
 
 export const env = () => cfEnv as unknown as AppEnv

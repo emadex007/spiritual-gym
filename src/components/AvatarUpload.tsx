@@ -3,7 +3,7 @@ import { useRouter } from '@tanstack/react-router'
 import { Avatar } from '~/components/Avatar'
 
 /** Crop to a square and shrink to 400×400 JPEG in the browser, so uploads are small (~40 KB) even on mobile data */
-async function squareJpeg(file: File, size = 400): Promise<Blob> {
+export async function squareJpeg(file: File, size = 400): Promise<Blob> {
   const url = URL.createObjectURL(file)
   try {
     const img = await new Promise<HTMLImageElement>((resolve, reject) => {

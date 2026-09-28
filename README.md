@@ -82,6 +82,19 @@ Optional, for live prayer on strict mobile networks: create a TURN key in Cloudf
 - Admin: Daily words (devotions), Music, Plans & medals.
 - Migration `0010_spirit.sql`.
 
+## Church Mode + donations
+- Churches: a pastor or leader (18+) requests a church at `/app/church/new`. It goes live only after you approve it in Admin → Churches, and the person who asked becomes its first church admin.
+- Members join with the church code or invite link (13+). Church admins can post announcements (members are notified), create programs (prayer challenges, fasting, devotionals, Bible study, workers' programs; each 1–60 days, built on journeys), start church-wide Bible plans, manage members and admins, and set the logo, colour and details.
+- Privacy: church admins see names and anonymous totals only, never journals, prayers, check-ins or anyone's personal progress. The "time with God this week" total only shows once a church has 5 or more members. Members can report a church, and Admin can suspend it.
+- Donations: the public page `/give` for SpiritualGym, in any of 15 currencies. Paystack handles the currencies set in PAYSTACK_CURRENCIES (default NGN); Flutterwave handles everything else. A gift is marked received only after the provider's API confirms the amount and currency. Webhooks are signature-checked. Givers get a thank-you by email (if Resend is set up) and in the app. Admin → Donations shows totals.
+- Secrets (set whichever you use):
+  - `PAYSTACK_SECRET_KEY` (sk_live_…); optional `PAYSTACK_CURRENCIES` (e.g. `NGN,USD` if USD is enabled on your Paystack account)
+  - `FLUTTERWAVE_SECRET_KEY` (FLWSECK-…) and `FLUTTERWAVE_WEBHOOK_HASH` (any long random text, also typed into Flutterwave)
+- Webhook URLs:
+  - Paystack → Settings → API Keys & Webhooks: `https://<your-site>/api/webhooks/paystack`
+  - Flutterwave → Settings → Webhooks: `https://<your-site>/api/webhooks/flutterwave` (secret hash = FLUTTERWAVE_WEBHOOK_HASH)
+- Migration `0011_church.sql`. The D1 database name is `spiritual_gym_db`.
+
 ## Setup (Windows, PowerShell)
 ```powershell
 nvm use 22

@@ -221,15 +221,20 @@ function Home() {
         </section>
       )}
 
-      <div className="mt-5 grid grid-cols-2 gap-3">
-        <Link to="/app/plans" className="card flex items-center gap-3 !p-4 transition hover:border-accent">
-          <span className="text-2xl" aria-hidden>📅</span>
-          <span><span className="block font-semibold">Reading plans</span><span className="text-xs text-muted">Read with friends</span></span>
-        </Link>
-        <Link to="/app/wake" className="card flex items-center gap-3 !p-4 transition hover:border-accent">
-          <span className="text-2xl" aria-hidden>⏰</span>
-          <span><span className="block font-semibold">Wake-up alarm</span><span className="text-xs text-muted">Bells + a spoken word</span></span>
-        </Link>
+      <div className="mt-5 grid grid-cols-3 gap-3">
+        {(
+          [
+          { to: '/app/plans', emoji: '📅', title: 'Reading plans', sub: 'Read with friends' },
+          { to: '/app/wake', emoji: '⏰', title: 'Wake-up', sub: 'Bells + a word' },
+          { to: '/app/church', emoji: '⛪', title: 'My church', sub: 'Programs & plans' },
+          ] as const
+        ).map((t) => (
+          <Link key={t.to} to={t.to} className="card flex flex-col items-center gap-1 !p-3 text-center transition hover:border-accent">
+            <span className="text-2xl" aria-hidden>{t.emoji}</span>
+            <span className="text-sm leading-tight font-semibold">{t.title}</span>
+            <span className="hidden text-xs text-muted sm:block">{t.sub}</span>
+          </Link>
+        ))}
       </div>
 
       <section className="card mt-5">

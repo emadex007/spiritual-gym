@@ -86,7 +86,8 @@ async function circleData(circleId: string, userId: string, total: number) {
       .prepare(
         `SELECT u.id, u.name, u.avatar_key, (SELECT COUNT(*) FROM plan_days_done d WHERE d.user_plan_id = up.id) AS done
          FROM user_plans up JOIN users u ON u.id = up.user_id WHERE up.circle_id = ? AND up.status != 'stopped'
-           AND u.id NOT IN (SELECT blocked_id FROM user_blocks WHERE user_id = ?)`,
+           AND u.id NOT IN (SELECT blocked_id FROM user_blocks WHERE user_id = ?)
+         ORDER BY up.created_at LIMIT 40`,
       )
       .bind(circleId, userId)
       .all<{ id: string; name: string; avatar_key: string | null; done: number }>(),
@@ -145,11 +146,13 @@ export const addPlanNote = createServerFn({ method: 'POST' })
       .prepare('INSERT INTO plan_notes (id, user_plan_id, circle_id, user_id, day_number, body) VALUES (?, ?, ?, ?, ?, ?)')
       .bind(newId(), data.userPlanId, circleId, user.id, data.day, data.body)
       .run()
-    if (circleId) {
+    // Small circles hear about each note; whole-church plans are too big for that
+    const isChurchPlan = circleId ? !!(await db().prepare('SELECT church_id FROM reading_circles WHERE id = ?').bind(circleId).first<{ church_id: string | null }>())?.church_id : false
+    if (circleId && !isChurchPlan) {
       const { results } = await db().prepare(`SELECT user_id FROM user_plans WHERE circle_id = ? AND user_id != ? AND status != 'stopped'`).bind(circleId, user.id).all<{ user_id: string }>()
       await notify(
         { userIds: results.map((r) => r.user_id) },
-        { kind: 'reply', title: `📖 ${user.name.split(' ')[0]} shared what they learnt`, body: data.body.slice(0, 120), url: `/app/plans/${data.userPlanId}`, tag: `circle-${circleId}` },
+        { kind: 'reply', title: `📖 ${user.name.split(' ')[0]} shared what they learnt`, body: data.body.slice(0, 120), url: '/app/plans', tag: `circle-${circleId}` },
         { push: false },
       )
     }
@@ -201,15 +204,15 @@ export const joinCircle = createServerFn({ method: 'POST' })
   .validator((d: { code: string }) => ({ code: String(d?.code ?? '').toUpperCase().slice(0, 12) }))
   .handler(async ({ data }) => {
     const user = await requireCommunityUser()
-    const c = await db().prepare('SELECT id, plan_key, start_date, created_by FROM reading_circles WHERE invite_code = ?').bind(data.code).first<{ id: string; plan_key: string; start_date: string; created_by: string }>()
+    const c = await db().prepare('SELECT id, plan_key, start_date, created_by, church_id FROM reading_circles WHERE invite_code = ?').bind(data.code).first<{ id: string; plan_key: string; start_date: string; created_by: string; church_id: string | null }>()
     if (!c) throw new Error('This invite is not valid.')
     const existing = await db().prepare(`SELECT id FROM user_plans WHERE circle_id = ? AND user_id = ? AND status != 'stopped'`).bind(c.id, user.id).first<{ id: string }>()
     if (existing) return { userPlanId: existing.id }
     const n = await db().prepare(`SELECT COUNT(*) AS n FROM user_plans WHERE circle_id = ? AND status != 'stopped'`).bind(c.id).first<{ n: number }>()
-    if ((n?.n ?? 0) >= 50) throw new Error('This reading circle is full.')
+    if (!c.church_id && (n?.n ?? 0) >= 50) throw new Error('This reading circle is full.')
     const id = newId()
     // Everyone in a circle follows the same calendar, so you read the same passage on the same day
     await db().prepare('INSERT INTO user_plans (id, user_id, plan_key, circle_id, start_date) VALUES (?, ?, ?, ?, ?)').bind(id, user.id, c.plan_key, c.id, c.start_date).run()
-    await notify({ userIds: [c.created_by] }, { kind: 'walk', title: `${user.name.split(' ')[0]} joined your reading circle`, url: '/app/plans' }, { push: false })
+    if (!c.church_id) await notify({ userIds: [c.created_by] }, { kind: 'walk', title: `${user.name.split(' ')[0]} joined your reading circle`, url: '/app/plans' }, { push: false })
     return { userPlanId: id }
   })

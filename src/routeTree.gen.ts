@@ -22,8 +22,10 @@ import { Route as SignupRouteImport } from './routes/signup'
 import { Route as TermsRouteImport } from './routes/terms'
 import { Route as AdminIndexRouteImport } from './routes/admin/index'
 import { Route as AdminAuditRouteImport } from './routes/admin/audit'
+import { Route as AdminChurchesRouteImport } from './routes/admin/churches'
 import { Route as AdminCommunityRouteImport } from './routes/admin/community'
 import { Route as AdminDevotionsRouteImport } from './routes/admin/devotions'
+import { Route as AdminDonationsRouteImport } from './routes/admin/donations'
 import { Route as AdminGrowthRouteImport } from './routes/admin/growth'
 import { Route as AdminJourneysRouteImport } from './routes/admin/journeys'
 import { Route as AdminLoginRouteImport } from './routes/admin.login'
@@ -42,7 +44,11 @@ import { Route as AppNotificationsRouteImport } from './routes/app/notifications
 import { Route as AppProfileRouteImport } from './routes/app/profile'
 import { Route as AppTrainRouteImport } from './routes/app/train'
 import { Route as AppWakeRouteImport } from './routes/app/wake'
+import { Route as GiveIndexRouteImport } from './routes/give/index'
+import { Route as GiveThanksRouteImport } from './routes/give/thanks'
 import { Route as AppBibleIndexRouteImport } from './routes/app/bible/index'
+import { Route as AppChurchIndexRouteImport } from './routes/app/church/index'
+import { Route as AppChurchNewRouteImport } from './routes/app/church/new'
 import { Route as AppCommunityIndexRouteImport } from './routes/app/community/index'
 import { Route as AppCommunityNewRouteImport } from './routes/app/community/new'
 import { Route as AppJournalIndexRouteImport } from './routes/app/journal/index'
@@ -52,6 +58,9 @@ import { Route as AppPlansIdRouteImport } from './routes/app/plans/$id'
 import { Route as AppWalkIndexRouteImport } from './routes/app/walk/index'
 import { Route as AppWorkoutSlugRouteImport } from './routes/app/workout.$slug'
 import { Route as AppBibleBookChapterRouteImport } from './routes/app/bible/$book.$chapter'
+import { Route as AppChurchIdIndexRouteImport } from './routes/app/church/$id.index'
+import { Route as AppChurchIdManageRouteImport } from './routes/app/church/$id.manage'
+import { Route as AppChurchJoinCodeRouteImport } from './routes/app/church/join.$code'
 import { Route as AppCommunityGroupIdIndexRouteImport } from './routes/app/community/$groupId.index'
 import { Route as AppCommunityGroupIdLiveRouteImport } from './routes/app/community/$groupId.live'
 import { Route as AppJournalMemoryIndexRouteImport } from './routes/app/journal/memory.index'
@@ -124,6 +133,11 @@ const AdminAuditRoute = AdminAuditRouteImport.update({
   path: '/audit',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminChurchesRoute = AdminChurchesRouteImport.update({
+  id: '/churches',
+  path: '/churches',
+  getParentRoute: () => AdminRoute,
+} as any)
 const AdminCommunityRoute = AdminCommunityRouteImport.update({
   id: '/community',
   path: '/community',
@@ -132,6 +146,11 @@ const AdminCommunityRoute = AdminCommunityRouteImport.update({
 const AdminDevotionsRoute = AdminDevotionsRouteImport.update({
   id: '/devotions',
   path: '/devotions',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminDonationsRoute = AdminDonationsRouteImport.update({
+  id: '/donations',
+  path: '/donations',
   getParentRoute: () => AdminRoute,
 } as any)
 const AdminGrowthRoute = AdminGrowthRouteImport.update({
@@ -224,9 +243,29 @@ const AppWakeRoute = AppWakeRouteImport.update({
   path: '/wake',
   getParentRoute: () => AppRoute,
 } as any)
+const GiveIndexRoute = GiveIndexRouteImport.update({
+  id: '/give/',
+  path: '/give/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const GiveThanksRoute = GiveThanksRouteImport.update({
+  id: '/give/thanks',
+  path: '/give/thanks',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AppBibleIndexRoute = AppBibleIndexRouteImport.update({
   id: '/bible/',
   path: '/bible/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppChurchIndexRoute = AppChurchIndexRouteImport.update({
+  id: '/church/',
+  path: '/church/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppChurchNewRoute = AppChurchNewRouteImport.update({
+  id: '/church/new',
+  path: '/church/new',
   getParentRoute: () => AppRoute,
 } as any)
 const AppCommunityIndexRoute = AppCommunityIndexRouteImport.update({
@@ -274,6 +313,21 @@ const AppBibleBookChapterRoute = AppBibleBookChapterRouteImport.update({
   path: '/bible/$book/$chapter',
   getParentRoute: () => AppRoute,
 } as any)
+const AppChurchIdIndexRoute = AppChurchIdIndexRouteImport.update({
+  id: '/church/$id/',
+  path: '/church/$id/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppChurchIdManageRoute = AppChurchIdManageRouteImport.update({
+  id: '/church/$id/manage',
+  path: '/church/$id/manage',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppChurchJoinCodeRoute = AppChurchJoinCodeRouteImport.update({
+  id: '/church/join/$code',
+  path: '/church/join/$code',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppCommunityGroupIdIndexRoute =
   AppCommunityGroupIdIndexRouteImport.update({
     id: '/$groupId/',
@@ -319,8 +373,10 @@ export interface FileRoutesByFullPath {
   '/signup': typeof SignupRoute
   '/terms': typeof TermsRoute
   '/admin/audit': typeof AdminAuditRoute
+  '/admin/churches': typeof AdminChurchesRoute
   '/admin/community': typeof AdminCommunityRoute
   '/admin/devotions': typeof AdminDevotionsRoute
+  '/admin/donations': typeof AdminDonationsRoute
   '/admin/growth': typeof AdminGrowthRoute
   '/admin/journeys': typeof AdminJourneysRoute
   '/admin/login': typeof AdminLoginRoute
@@ -338,22 +394,29 @@ export interface FileRoutesByFullPath {
   '/app/profile': typeof AppProfileRoute
   '/app/train': typeof AppTrainRoute
   '/app/wake': typeof AppWakeRoute
+  '/give/thanks': typeof GiveThanksRoute
   '/admin/': typeof AdminIndexRoute
   '/app/': typeof AppIndexRoute
+  '/give/': typeof GiveIndexRoute
+  '/app/church/new': typeof AppChurchNewRoute
   '/app/community/new': typeof AppCommunityNewRoute
   '/app/journal/prayer': typeof AppJournalPrayerRoute
   '/app/plans/$id': typeof AppPlansIdRoute
   '/app/workout/$slug': typeof AppWorkoutSlugRoute
   '/app/bible/': typeof AppBibleIndexRoute
+  '/app/church/': typeof AppChurchIndexRoute
   '/app/community/': typeof AppCommunityIndexRoute
   '/app/journal/': typeof AppJournalIndexRoute
   '/app/plans/': typeof AppPlansIndexRoute
   '/app/walk/': typeof AppWalkIndexRoute
   '/app/bible/$book/$chapter': typeof AppBibleBookChapterRoute
+  '/app/church/$id/manage': typeof AppChurchIdManageRoute
+  '/app/church/join/$code': typeof AppChurchJoinCodeRoute
   '/app/community/$groupId/live': typeof AppCommunityGroupIdLiveRoute
   '/app/journal/memory/$id': typeof AppJournalMemoryIdRoute
   '/app/plans/join/$code': typeof AppPlansJoinCodeRoute
   '/app/walk/join/$code': typeof AppWalkJoinCodeRoute
+  '/app/church/$id/': typeof AppChurchIdIndexRoute
   '/app/community/$groupId/': typeof AppCommunityGroupIdIndexRoute
   '/app/journal/memory/': typeof AppJournalMemoryIndexRoute
 }
@@ -368,8 +431,10 @@ export interface FileRoutesByTo {
   '/signup': typeof SignupRoute
   '/terms': typeof TermsRoute
   '/admin/audit': typeof AdminAuditRoute
+  '/admin/churches': typeof AdminChurchesRoute
   '/admin/community': typeof AdminCommunityRoute
   '/admin/devotions': typeof AdminDevotionsRoute
+  '/admin/donations': typeof AdminDonationsRoute
   '/admin/growth': typeof AdminGrowthRoute
   '/admin/journeys': typeof AdminJourneysRoute
   '/admin/login': typeof AdminLoginRoute
@@ -385,22 +450,29 @@ export interface FileRoutesByTo {
   '/app/profile': typeof AppProfileRoute
   '/app/train': typeof AppTrainRoute
   '/app/wake': typeof AppWakeRoute
+  '/give/thanks': typeof GiveThanksRoute
   '/admin': typeof AdminIndexRoute
   '/app': typeof AppIndexRoute
+  '/give': typeof GiveIndexRoute
+  '/app/church/new': typeof AppChurchNewRoute
   '/app/community/new': typeof AppCommunityNewRoute
   '/app/journal/prayer': typeof AppJournalPrayerRoute
   '/app/plans/$id': typeof AppPlansIdRoute
   '/app/workout/$slug': typeof AppWorkoutSlugRoute
   '/app/bible': typeof AppBibleIndexRoute
+  '/app/church': typeof AppChurchIndexRoute
   '/app/community': typeof AppCommunityIndexRoute
   '/app/journal': typeof AppJournalIndexRoute
   '/app/plans': typeof AppPlansIndexRoute
   '/app/walk': typeof AppWalkIndexRoute
   '/app/bible/$book/$chapter': typeof AppBibleBookChapterRoute
+  '/app/church/$id/manage': typeof AppChurchIdManageRoute
+  '/app/church/join/$code': typeof AppChurchJoinCodeRoute
   '/app/community/$groupId/live': typeof AppCommunityGroupIdLiveRoute
   '/app/journal/memory/$id': typeof AppJournalMemoryIdRoute
   '/app/plans/join/$code': typeof AppPlansJoinCodeRoute
   '/app/walk/join/$code': typeof AppWalkJoinCodeRoute
+  '/app/church/$id': typeof AppChurchIdIndexRoute
   '/app/community/$groupId': typeof AppCommunityGroupIdIndexRoute
   '/app/journal/memory': typeof AppJournalMemoryIndexRoute
 }
@@ -418,8 +490,10 @@ export interface FileRoutesById {
   '/signup': typeof SignupRoute
   '/terms': typeof TermsRoute
   '/admin/audit': typeof AdminAuditRoute
+  '/admin/churches': typeof AdminChurchesRoute
   '/admin/community': typeof AdminCommunityRoute
   '/admin/devotions': typeof AdminDevotionsRoute
+  '/admin/donations': typeof AdminDonationsRoute
   '/admin/growth': typeof AdminGrowthRoute
   '/admin/journeys': typeof AdminJourneysRoute
   '/admin/login': typeof AdminLoginRoute
@@ -437,22 +511,29 @@ export interface FileRoutesById {
   '/app/profile': typeof AppProfileRoute
   '/app/train': typeof AppTrainRoute
   '/app/wake': typeof AppWakeRoute
+  '/give/thanks': typeof GiveThanksRoute
   '/admin/': typeof AdminIndexRoute
   '/app/': typeof AppIndexRoute
+  '/give/': typeof GiveIndexRoute
+  '/app/church/new': typeof AppChurchNewRoute
   '/app/community/new': typeof AppCommunityNewRoute
   '/app/journal/prayer': typeof AppJournalPrayerRoute
   '/app/plans/$id': typeof AppPlansIdRoute
   '/app/workout/$slug': typeof AppWorkoutSlugRoute
   '/app/bible/': typeof AppBibleIndexRoute
+  '/app/church/': typeof AppChurchIndexRoute
   '/app/community/': typeof AppCommunityIndexRoute
   '/app/journal/': typeof AppJournalIndexRoute
   '/app/plans/': typeof AppPlansIndexRoute
   '/app/walk/': typeof AppWalkIndexRoute
   '/app/bible/$book/$chapter': typeof AppBibleBookChapterRoute
+  '/app/church/$id/manage': typeof AppChurchIdManageRoute
+  '/app/church/join/$code': typeof AppChurchJoinCodeRoute
   '/app/community/$groupId/live': typeof AppCommunityGroupIdLiveRoute
   '/app/journal/memory/$id': typeof AppJournalMemoryIdRoute
   '/app/plans/join/$code': typeof AppPlansJoinCodeRoute
   '/app/walk/join/$code': typeof AppWalkJoinCodeRoute
+  '/app/church/$id/': typeof AppChurchIdIndexRoute
   '/app/community/$groupId/': typeof AppCommunityGroupIdIndexRoute
   '/app/journal/memory/': typeof AppJournalMemoryIndexRoute
 }
@@ -471,8 +552,10 @@ export interface FileRouteTypes {
     | '/signup'
     | '/terms'
     | '/admin/audit'
+    | '/admin/churches'
     | '/admin/community'
     | '/admin/devotions'
+    | '/admin/donations'
     | '/admin/growth'
     | '/admin/journeys'
     | '/admin/login'
@@ -490,22 +573,29 @@ export interface FileRouteTypes {
     | '/app/profile'
     | '/app/train'
     | '/app/wake'
+    | '/give/thanks'
     | '/admin/'
     | '/app/'
+    | '/give/'
+    | '/app/church/new'
     | '/app/community/new'
     | '/app/journal/prayer'
     | '/app/plans/$id'
     | '/app/workout/$slug'
     | '/app/bible/'
+    | '/app/church/'
     | '/app/community/'
     | '/app/journal/'
     | '/app/plans/'
     | '/app/walk/'
     | '/app/bible/$book/$chapter'
+    | '/app/church/$id/manage'
+    | '/app/church/join/$code'
     | '/app/community/$groupId/live'
     | '/app/journal/memory/$id'
     | '/app/plans/join/$code'
     | '/app/walk/join/$code'
+    | '/app/church/$id/'
     | '/app/community/$groupId/'
     | '/app/journal/memory/'
   fileRoutesByTo: FileRoutesByTo
@@ -520,8 +610,10 @@ export interface FileRouteTypes {
     | '/signup'
     | '/terms'
     | '/admin/audit'
+    | '/admin/churches'
     | '/admin/community'
     | '/admin/devotions'
+    | '/admin/donations'
     | '/admin/growth'
     | '/admin/journeys'
     | '/admin/login'
@@ -537,22 +629,29 @@ export interface FileRouteTypes {
     | '/app/profile'
     | '/app/train'
     | '/app/wake'
+    | '/give/thanks'
     | '/admin'
     | '/app'
+    | '/give'
+    | '/app/church/new'
     | '/app/community/new'
     | '/app/journal/prayer'
     | '/app/plans/$id'
     | '/app/workout/$slug'
     | '/app/bible'
+    | '/app/church'
     | '/app/community'
     | '/app/journal'
     | '/app/plans'
     | '/app/walk'
     | '/app/bible/$book/$chapter'
+    | '/app/church/$id/manage'
+    | '/app/church/join/$code'
     | '/app/community/$groupId/live'
     | '/app/journal/memory/$id'
     | '/app/plans/join/$code'
     | '/app/walk/join/$code'
+    | '/app/church/$id'
     | '/app/community/$groupId'
     | '/app/journal/memory'
   id:
@@ -569,8 +668,10 @@ export interface FileRouteTypes {
     | '/signup'
     | '/terms'
     | '/admin/audit'
+    | '/admin/churches'
     | '/admin/community'
     | '/admin/devotions'
+    | '/admin/donations'
     | '/admin/growth'
     | '/admin/journeys'
     | '/admin/login'
@@ -588,22 +689,29 @@ export interface FileRouteTypes {
     | '/app/profile'
     | '/app/train'
     | '/app/wake'
+    | '/give/thanks'
     | '/admin/'
     | '/app/'
+    | '/give/'
+    | '/app/church/new'
     | '/app/community/new'
     | '/app/journal/prayer'
     | '/app/plans/$id'
     | '/app/workout/$slug'
     | '/app/bible/'
+    | '/app/church/'
     | '/app/community/'
     | '/app/journal/'
     | '/app/plans/'
     | '/app/walk/'
     | '/app/bible/$book/$chapter'
+    | '/app/church/$id/manage'
+    | '/app/church/join/$code'
     | '/app/community/$groupId/live'
     | '/app/journal/memory/$id'
     | '/app/plans/join/$code'
     | '/app/walk/join/$code'
+    | '/app/church/$id/'
     | '/app/community/$groupId/'
     | '/app/journal/memory/'
   fileRoutesById: FileRoutesById
@@ -620,6 +728,8 @@ export interface RootRouteChildren {
   ResetPasswordRoute: typeof ResetPasswordRoute
   SignupRoute: typeof SignupRoute
   TermsRoute: typeof TermsRoute
+  GiveThanksRoute: typeof GiveThanksRoute
+  GiveIndexRoute: typeof GiveIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -715,6 +825,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminAuditRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/churches': {
+      id: '/admin/churches'
+      path: '/churches'
+      fullPath: '/admin/churches'
+      preLoaderRoute: typeof AdminChurchesRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/community': {
       id: '/admin/community'
       path: '/community'
@@ -727,6 +844,13 @@ declare module '@tanstack/react-router' {
       path: '/devotions'
       fullPath: '/admin/devotions'
       preLoaderRoute: typeof AdminDevotionsRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/donations': {
+      id: '/admin/donations'
+      path: '/donations'
+      fullPath: '/admin/donations'
+      preLoaderRoute: typeof AdminDonationsRouteImport
       parentRoute: typeof AdminRoute
     }
     '/admin/growth': {
@@ -855,11 +979,39 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppWakeRouteImport
       parentRoute: typeof AppRoute
     }
+    '/give/': {
+      id: '/give/'
+      path: '/give'
+      fullPath: '/give/'
+      preLoaderRoute: typeof GiveIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/give/thanks': {
+      id: '/give/thanks'
+      path: '/give/thanks'
+      fullPath: '/give/thanks'
+      preLoaderRoute: typeof GiveThanksRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/app/bible/': {
       id: '/app/bible/'
       path: '/bible'
       fullPath: '/app/bible/'
       preLoaderRoute: typeof AppBibleIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/church/': {
+      id: '/app/church/'
+      path: '/church'
+      fullPath: '/app/church/'
+      preLoaderRoute: typeof AppChurchIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/church/new': {
+      id: '/app/church/new'
+      path: '/church/new'
+      fullPath: '/app/church/new'
+      preLoaderRoute: typeof AppChurchNewRouteImport
       parentRoute: typeof AppRoute
     }
     '/app/community/': {
@@ -925,6 +1077,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppBibleBookChapterRouteImport
       parentRoute: typeof AppRoute
     }
+    '/app/church/$id/': {
+      id: '/app/church/$id/'
+      path: '/church/$id'
+      fullPath: '/app/church/$id/'
+      preLoaderRoute: typeof AppChurchIdIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/church/$id/manage': {
+      id: '/app/church/$id/manage'
+      path: '/church/$id/manage'
+      fullPath: '/app/church/$id/manage'
+      preLoaderRoute: typeof AppChurchIdManageRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/church/join/$code': {
+      id: '/app/church/join/$code'
+      path: '/church/join/$code'
+      fullPath: '/app/church/join/$code'
+      preLoaderRoute: typeof AppChurchJoinCodeRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/app/community/$groupId/': {
       id: '/app/community/$groupId/'
       path: '/$groupId'
@@ -972,8 +1145,10 @@ declare module '@tanstack/react-router' {
 
 interface AdminRouteChildren {
   AdminAuditRoute: typeof AdminAuditRoute
+  AdminChurchesRoute: typeof AdminChurchesRoute
   AdminCommunityRoute: typeof AdminCommunityRoute
   AdminDevotionsRoute: typeof AdminDevotionsRoute
+  AdminDonationsRoute: typeof AdminDonationsRoute
   AdminGrowthRoute: typeof AdminGrowthRoute
   AdminJourneysRoute: typeof AdminJourneysRoute
   AdminLoginRoute: typeof AdminLoginRoute
@@ -989,8 +1164,10 @@ interface AdminRouteChildren {
 
 const AdminRouteChildren: AdminRouteChildren = {
   AdminAuditRoute: AdminAuditRoute,
+  AdminChurchesRoute: AdminChurchesRoute,
   AdminCommunityRoute: AdminCommunityRoute,
   AdminDevotionsRoute: AdminDevotionsRoute,
+  AdminDonationsRoute: AdminDonationsRoute,
   AdminGrowthRoute: AdminGrowthRoute,
   AdminJourneysRoute: AdminJourneysRoute,
   AdminLoginRoute: AdminLoginRoute,
@@ -1051,14 +1228,19 @@ interface AppRouteChildren {
   AppTrainRoute: typeof AppTrainRoute
   AppWakeRoute: typeof AppWakeRoute
   AppIndexRoute: typeof AppIndexRoute
+  AppChurchNewRoute: typeof AppChurchNewRoute
   AppPlansIdRoute: typeof AppPlansIdRoute
   AppWorkoutSlugRoute: typeof AppWorkoutSlugRoute
   AppBibleIndexRoute: typeof AppBibleIndexRoute
+  AppChurchIndexRoute: typeof AppChurchIndexRoute
   AppPlansIndexRoute: typeof AppPlansIndexRoute
   AppWalkIndexRoute: typeof AppWalkIndexRoute
   AppBibleBookChapterRoute: typeof AppBibleBookChapterRoute
+  AppChurchIdManageRoute: typeof AppChurchIdManageRoute
+  AppChurchJoinCodeRoute: typeof AppChurchJoinCodeRoute
   AppPlansJoinCodeRoute: typeof AppPlansJoinCodeRoute
   AppWalkJoinCodeRoute: typeof AppWalkJoinCodeRoute
+  AppChurchIdIndexRoute: typeof AppChurchIdIndexRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
@@ -1070,14 +1252,19 @@ const AppRouteChildren: AppRouteChildren = {
   AppTrainRoute: AppTrainRoute,
   AppWakeRoute: AppWakeRoute,
   AppIndexRoute: AppIndexRoute,
+  AppChurchNewRoute: AppChurchNewRoute,
   AppPlansIdRoute: AppPlansIdRoute,
   AppWorkoutSlugRoute: AppWorkoutSlugRoute,
   AppBibleIndexRoute: AppBibleIndexRoute,
+  AppChurchIndexRoute: AppChurchIndexRoute,
   AppPlansIndexRoute: AppPlansIndexRoute,
   AppWalkIndexRoute: AppWalkIndexRoute,
   AppBibleBookChapterRoute: AppBibleBookChapterRoute,
+  AppChurchIdManageRoute: AppChurchIdManageRoute,
+  AppChurchJoinCodeRoute: AppChurchJoinCodeRoute,
   AppPlansJoinCodeRoute: AppPlansJoinCodeRoute,
   AppWalkJoinCodeRoute: AppWalkJoinCodeRoute,
+  AppChurchIdIndexRoute: AppChurchIdIndexRoute,
 }
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
@@ -1094,6 +1281,8 @@ const rootRouteChildren: RootRouteChildren = {
   ResetPasswordRoute: ResetPasswordRoute,
   SignupRoute: SignupRoute,
   TermsRoute: TermsRoute,
+  GiveThanksRoute: GiveThanksRoute,
+  GiveIndexRoute: GiveIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

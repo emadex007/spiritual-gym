@@ -4,6 +4,7 @@ import { audit, requireAdmin } from '~/lib/admin'
 import { currentUser } from '~/lib/auth'
 import { dayString, newId } from '~/lib/util'
 import { notify } from '~/lib/notify'
+import { confirmDonation } from '~/lib/donations'
 
 const LEVELS = ['recovery', 'build', 'deepen', 'intensive']
 const STEP_KINDS = ['stillness', 'breathe', 'scripture', 'prayer', 'worship', 'reflection', 'thanksgiving', 'devotion', 'tongues']
@@ -241,7 +242,7 @@ type JourneyIn = { id?: string; title: string; subtitle?: string; focus: string;
 export const adminListJourneys = createServerFn({ method: 'GET' }).handler(async () => {
   await requireAdmin()
   const [j, d, used] = await Promise.all([
-    db().prepare('SELECT id, slug, title, subtitle, focus, days, start_minutes, end_minutes, is_recovery, sort FROM journeys ORDER BY sort').all<{
+    db().prepare('SELECT id, slug, title, subtitle, focus, days, start_minutes, end_minutes, is_recovery, sort FROM journeys WHERE church_id IS NULL ORDER BY sort').all<{
       id: string; slug: string; title: string; subtitle: string | null; focus: string; days: number; start_minutes: number; end_minutes: number; is_recovery: number; sort: number
     }>(),
     db().prepare('SELECT journey_id, day_number, title, scripture, prompt, minutes FROM journey_days ORDER BY journey_id, day_number').all<{
@@ -460,16 +461,19 @@ export const adminListReports = createServerFn({ method: 'GET' }).handler(async 
            WHEN 'post'  THEN (SELECT body FROM prayer_posts WHERE id = r.target_id)
            WHEN 'reply' THEN (SELECT body FROM prayer_replies WHERE id = r.target_id)
            WHEN 'group' THEN (SELECT name || ' — ' || COALESCE(description, '') FROM prayer_groups WHERE id = r.target_id)
+           WHEN 'church' THEN (SELECT '⛪ ' || name || ' — ' || COALESCE(description, '') FROM churches WHERE id = r.target_id)
            ELSE NULL END AS content,
          CASE r.target_type
            WHEN 'post'  THEN (SELECT u.name || ' <' || u.email || '>' FROM prayer_posts x JOIN users u ON u.id = x.user_id WHERE x.id = r.target_id)
            WHEN 'reply' THEN (SELECT u.name || ' <' || u.email || '>' FROM prayer_replies x JOIN users u ON u.id = x.user_id WHERE x.id = r.target_id)
            WHEN 'group' THEN (SELECT COALESCE(u.name || ' <' || u.email || '>', 'Official') FROM prayer_groups x LEFT JOIN users u ON u.id = x.created_by WHERE x.id = r.target_id)
+           WHEN 'church' THEN (SELECT u.name || ' <' || u.email || '>' FROM churches x JOIN users u ON u.id = x.created_by WHERE x.id = r.target_id)
            ELSE NULL END AS author,
          CASE r.target_type
            WHEN 'post'  THEN (SELECT is_hidden FROM prayer_posts WHERE id = r.target_id)
            WHEN 'reply' THEN (SELECT is_hidden FROM prayer_replies WHERE id = r.target_id)
            WHEN 'group' THEN (SELECT is_hidden FROM prayer_groups WHERE id = r.target_id)
+           WHEN 'church' THEN (SELECT CASE WHEN status = 'suspended' THEN 1 ELSE 0 END FROM churches WHERE id = r.target_id)
            ELSE 0 END AS is_hidden
        FROM reports r LEFT JOIN users ru ON ru.id = r.reporter_id
        ORDER BY r.status = 'open' DESC, r.created_at DESC LIMIT 200`,
@@ -492,6 +496,7 @@ export const adminResolveReport = createServerFn({ method: 'POST' })
     if (data.action === 'hide') {
       const table = { post: 'prayer_posts', reply: 'prayer_replies', group: 'prayer_groups' }[r.target_type]
       if (table) stmts.push(db().prepare(`UPDATE ${table} SET is_hidden = 1 WHERE id = ?`).bind(r.target_id))
+      if (r.target_type === 'church') stmts.push(db().prepare(`UPDATE churches SET status = 'suspended' WHERE id = ?`).bind(r.target_id))
     }
     await db().batch(stmts)
     await audit(admin, `report.${data.action}`, r.target_id, r.target_type)
@@ -670,3 +675,92 @@ export const adminGrowthStats = createServerFn({ method: 'GET' }).handler(async 
   ])
   return { plans: plans.results, circles: circles?.n ?? 0, notes: notes?.n ?? 0, awards: awards.results, recent: recent.results }
 })
+
+// ---------------- Churches ----------------
+export const adminListChurches = createServerFn({ method: 'GET' }).handler(async () => {
+  await requireAdmin()
+  const { results } = await db()
+    .prepare(
+      `SELECT c.id, c.name, c.city, c.country, c.denomination, c.description, c.status, c.pastor_name, c.contact_phone, c.contact_email, c.website,
+              c.review_note, c.created_at, c.invite_code, u.name AS requester, u.email AS requester_email,
+              (SELECT COUNT(*) FROM church_members m WHERE m.church_id = c.id) AS members,
+              (SELECT COUNT(*) FROM journeys j WHERE j.church_id = c.id) AS programs
+       FROM churches c LEFT JOIN users u ON u.id = c.created_by
+       ORDER BY c.status = 'pending' DESC, c.created_at DESC LIMIT 300`,
+    )
+    .all<{
+      id: string; name: string; city: string | null; country: string | null; denomination: string | null; description: string | null; status: string
+      pastor_name: string | null; contact_phone: string | null; contact_email: string | null; website: string | null; review_note: string | null
+      created_at: string; invite_code: string; requester: string | null; requester_email: string | null; members: number; programs: number
+    }>()
+  return results
+})
+
+export const adminReviewChurch = createServerFn({ method: 'POST' })
+  .validator((d: { id: string; action: 'approve' | 'reject' | 'suspend' | 'restore' | 'delete'; note?: string }) => ({
+    id: String(d?.id ?? ''),
+    action: (['approve', 'reject', 'suspend', 'restore', 'delete'] as const).includes(d?.action) ? d.action : 'reject',
+    note: String(d?.note ?? '').trim().slice(0, 300),
+  }))
+  .handler(async ({ data }) => {
+    const admin = await requireAdmin()
+    const c = await db().prepare('SELECT id, name, created_by, status FROM churches WHERE id = ?').bind(data.id).first<{ id: string; name: string; created_by: string; status: string }>()
+    if (!c) throw new Error('Church not found.')
+    if (data.action === 'delete') {
+      if (c.status === 'approved') throw new Error('Suspend the church first; only rejected or suspended churches can be deleted.')
+      await db().batch([
+        db().prepare('DELETE FROM journey_days WHERE journey_id IN (SELECT id FROM journeys WHERE church_id = ? AND id NOT IN (SELECT journey_id FROM user_journeys))').bind(c.id),
+        db().prepare('DELETE FROM journeys WHERE church_id = ? AND id NOT IN (SELECT journey_id FROM user_journeys)').bind(c.id),
+        db().prepare('DELETE FROM churches WHERE id = ?').bind(c.id),
+      ])
+      await audit(admin, 'church.delete', c.id, c.name)
+      return { ok: true }
+    }
+    const status = { approve: 'approved', restore: 'approved', reject: 'rejected', suspend: 'suspended' }[data.action]
+    const stmts = [db().prepare(`UPDATE churches SET status = ?, review_note = ?, reviewed_at = datetime('now') WHERE id = ?`).bind(status, data.note || null, c.id)]
+    // The person who registered the church becomes its first admin
+    if (status === 'approved') stmts.push(db().prepare(`INSERT INTO church_members (church_id, user_id, role) VALUES (?, ?, 'admin') ON CONFLICT (church_id, user_id) DO UPDATE SET role = 'admin'`).bind(c.id, c.created_by))
+    await db().batch(stmts)
+    if (data.action === 'approve')
+      await notify({ userIds: [c.created_by] }, { kind: 'church', title: `⛪ ${c.name} is approved!`, body: 'Share your church code so members can join, then create your first program.', url: `/app/church/${c.id}/manage` })
+    if (data.action === 'reject')
+      await notify({ userIds: [c.created_by] }, { kind: 'church', title: `About your church request: ${c.name}`, body: data.note || 'We couldn’t approve this request. Reply to our email for help.', url: '/app/church' })
+    await audit(admin, `church.${data.action}`, c.id, `${c.name}${data.note ? ' — ' + data.note : ''}`)
+    return { ok: true }
+  })
+
+// ---------------- Donations ----------------
+export const adminDonations = createServerFn({ method: 'GET' }).handler(async () => {
+  await requireAdmin()
+  const e = env()
+  const [totals, recent, monthly] = await Promise.all([
+    db()
+      .prepare(`SELECT currency, COUNT(*) AS gifts, SUM(amount_minor) AS total FROM donations WHERE status = 'success' GROUP BY currency ORDER BY total DESC`)
+      .all<{ currency: string; gifts: number; total: number }>(),
+    db()
+      .prepare(`SELECT id, reference, provider, currency, amount_minor, name, email, message, is_anonymous, status, created_at, paid_at FROM donations ORDER BY created_at DESC LIMIT 200`)
+      .all<{ id: string; reference: string; provider: string; currency: string; amount_minor: number; name: string | null; email: string; message: string | null; is_anonymous: number; status: string; created_at: string; paid_at: string | null }>(),
+    db()
+      .prepare(`SELECT currency, SUM(amount_minor) AS total, COUNT(*) AS gifts FROM donations WHERE status = 'success' AND paid_at >= datetime('now', 'start of month') GROUP BY currency`)
+      .all<{ currency: string; total: number; gifts: number }>(),
+  ])
+  return {
+    setup: {
+      paystack: !!e.PAYSTACK_SECRET_KEY,
+      paystackCurrencies: e.PAYSTACK_CURRENCIES || 'NGN',
+      flutterwave: !!e.FLUTTERWAVE_SECRET_KEY,
+      flutterwaveWebhook: !!e.FLUTTERWAVE_WEBHOOK_HASH,
+    },
+    totals: totals.results,
+    thisMonth: monthly.results,
+    recent: recent.results,
+  }
+})
+
+export const adminRecheckDonation = createServerFn({ method: 'POST' })
+  .validator((d: { reference: string }) => ({ reference: String(d?.reference ?? '') }))
+  .handler(async ({ data }) => {
+    await requireAdmin()
+    const r = await confirmDonation(data.reference)
+    return { status: r?.status ?? 'not found' }
+  })

@@ -19,7 +19,7 @@ export type JourneyCard = {
 export const listJourneys = createServerFn({ method: 'GET' }).handler(async () => {
   const { results } = await db()
     .prepare(
-      'SELECT id, slug, title, subtitle, focus, days, start_minutes, end_minutes, is_recovery FROM journeys ORDER BY sort',
+      'SELECT id, slug, title, subtitle, focus, days, start_minutes, end_minutes, is_recovery FROM journeys WHERE church_id IS NULL ORDER BY sort',
     )
     .all<JourneyCard>()
   return results
@@ -36,7 +36,7 @@ export const completeOnboarding = createServerFn({ method: 'POST' })
   .handler(async ({ data }) => {
     const user = await requireUser()
     const journey = await db()
-      .prepare('SELECT id FROM journeys WHERE slug = ?')
+      .prepare('SELECT id FROM journeys WHERE slug = ? AND church_id IS NULL')
       .bind(data.journeySlug)
       .first<{ id: string }>()
     if (!journey) throw new Error('That journey is not available.')

@@ -4,6 +4,7 @@ import type { AppEnv } from '~/lib/env'
 export { PrayerRoom } from '~/lib/prayer-room'
 export { PushDispatcher } from '~/lib/push-dispatcher'
 import { runCron } from '~/lib/cron'
+import { flutterwaveWebhook, paystackWebhook } from '~/lib/donations'
 
 const COOKIE = 'sg_session'
 const MAX_UPLOAD = 5 * 1024 * 1024 // 5 MB
@@ -52,6 +53,10 @@ export default {
       return new Response('body' in obj ? obj.body : null, { headers })
     }
 
+    // Payment webhooks (donations). Each is verified with the provider's signature, then re-checked with its API.
+    if (url.pathname === '/api/webhooks/paystack' && request.method === 'POST') return paystackWebhook(request)
+    if (url.pathname === '/api/webhooks/flutterwave' && request.method === 'POST') return flutterwaveWebhook(request)
+
     // Admin image upload:  POST /api/upload  (multipart field "file")
     if (url.pathname === '/api/upload' && request.method === 'POST') {
       const admin = await adminFromCookie(request, env)
@@ -68,6 +73,28 @@ export default {
       await env.DB.prepare('INSERT INTO audit_log (id, admin_id, admin_name, action, target) VALUES (?, ?, ?, ?, ?)')
         .bind(crypto.randomUUID(), admin.id, admin.name, 'media.upload', key)
         .run()
+      return json({ key, url: `/media/${key}` })
+    }
+
+    // Church logo:  POST /api/church-logo?church=<id>  (multipart "file", square JPEG made in the browser) — church admins only
+    if (url.pathname === '/api/church-logo' && request.method === 'POST') {
+      const user = await userFromCookie(request, env)
+      if (!user) return json({ error: 'Please sign in.' }, 401)
+      const churchId = url.searchParams.get('church') ?? ''
+      const m = await env.DB.prepare(`SELECT cm.role, c.logo_key FROM churches c LEFT JOIN church_members cm ON cm.church_id = c.id AND cm.user_id = ? WHERE c.id = ? AND c.status = 'approved'`)
+        .bind(user.id, churchId)
+        .first<{ role: string | null; logo_key: string | null }>()
+      if (!m || (m.role !== 'admin' && user.role !== 'admin')) return json({ error: 'Only church admins can change the logo.' }, 403)
+      const form = await request.formData()
+      const file = form.get('file')
+      if (!(file instanceof File)) return json({ error: 'No image received.' }, 400)
+      const ext = IMAGE_TYPES[file.type]
+      if (!ext || ext === 'gif') return json({ error: 'Please choose a JPG, PNG or WEBP image.' }, 400)
+      if (file.size > 2 * 1024 * 1024) return json({ error: 'Image is too large.' }, 400)
+      const key = `churches/${churchId}-${crypto.randomUUID().slice(0, 8)}.${ext}`
+      await env.MEDIA.put(key, file.stream(), { httpMetadata: { contentType: file.type } })
+      await env.DB.prepare('UPDATE churches SET logo_key = ? WHERE id = ?').bind(key, churchId).run()
+      if (m.logo_key) await env.MEDIA.delete(m.logo_key)
       return json({ key, url: `/media/${key}` })
     }
 

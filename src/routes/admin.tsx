@@ -24,9 +24,11 @@ const NAV = [
   { to: '/admin/devotions', label: 'Daily words', icon: '🌅', exact: false },
   { to: '/admin/music', label: 'Music', icon: '🎵', exact: false },
   { to: '/admin/growth', label: 'Plans & medals', icon: '🏅', exact: false },
+  { to: '/admin/churches', label: 'Churches', icon: '⛪', exact: false },
   { to: '/admin/community', label: 'Community', icon: '🙏', exact: false },
   { to: '/admin/reports', label: 'Reports', icon: '🚩', exact: false },
   { to: '/admin/notifications', label: 'Notifications', icon: '🔔', exact: false },
+  { to: '/admin/donations', label: 'Donations', icon: '💛', exact: false },
   { to: '/admin/users', label: 'Users', icon: '👥', exact: false },
   { to: '/admin/audit', label: 'Activity log', icon: '🗂️', exact: false },
 ] as const

@@ -5,7 +5,7 @@ import { db, env } from '~/lib/env'
 
 export type Notice = { kind: string; title: string; body?: string; url?: string; tag?: string }
 /** Who to notify: specific people, the members of a group who haven't muted it, or everyone */
-export type Audience = { userIds: string[] } | { groupId: string } | { all: true }
+export type Audience = { userIds: string[] } | { groupId: string } | { churchId: string; exceptUserId?: string } | { all: true }
 
 export function pushConfigured() {
   const e = env()
@@ -17,6 +17,8 @@ const RAND_ID = "lower(hex(randomblob(16)))"
 /** SQL that returns the user ids for an audience (split into chunks of ≤90 ids for bound-parameter limits) */
 function audienceQueries(a: Audience): { sql: string; binds: unknown[] }[] {
   if ('all' in a) return [{ sql: 'SELECT id AS uid FROM users', binds: [] }]
+  if ('churchId' in a)
+    return [{ sql: 'SELECT user_id AS uid FROM church_members WHERE church_id = ? AND notify = 1 AND user_id != ?', binds: [a.churchId, a.exceptUserId ?? ''] }]
   if ('groupId' in a) return [{ sql: 'SELECT user_id AS uid FROM prayer_group_members WHERE group_id = ? AND notify = 1', binds: [a.groupId] }]
   const ids = [...new Set(a.userIds)].filter(Boolean)
   const out = []

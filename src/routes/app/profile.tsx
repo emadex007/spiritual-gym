@@ -137,6 +137,16 @@ function Profile() {
       </section>
 
       <div className="mt-5"><InstallApp /></div>
+      <div className="mt-5 grid gap-3 sm:grid-cols-2">
+        <Link to="/app/church" className="card flex items-center gap-3 !p-4 transition hover:border-accent">
+          <span className="text-2xl" aria-hidden>⛪</span>
+          <span><span className="block font-semibold">My church</span><span className="text-xs text-muted">Join with a code, or register your church</span></span>
+        </Link>
+        <a href="/give" className="card flex items-center gap-3 !p-4 transition hover:border-accent">
+          <span className="text-2xl" aria-hidden>💛</span>
+          <span><span className="block font-semibold">Support SpiritualGym</span><span className="text-xs text-muted">Help keep it free for everyone</span></span>
+        </a>
+      </div>
 
       <section className="card mt-5">
         <p className="eyebrow mb-4">Notifications & reminders</p>

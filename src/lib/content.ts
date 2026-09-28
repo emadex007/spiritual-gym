@@ -157,3 +157,16 @@ export const WALK_CHEERS = [
   '❤️ Thinking of you',
   '✨ It’s okay to begin again',
 ] as const
+
+// ---------- Church Mode (safe for the browser) ----------
+export const PROGRAM_KINDS = [
+  { key: 'prayer', label: 'Prayer challenge', emoji: '🙏', focus: 'prayer' },
+  { key: 'fasting', label: 'Fasting program', emoji: '🕊️', focus: 'fasting' },
+  { key: 'devotional', label: 'Devotional journey', emoji: '📖', focus: 'growth' },
+  { key: 'bible', label: 'Bible study', emoji: '📜', focus: 'bible' },
+  { key: 'workers', label: 'Workers’ program', emoji: '🛠️', focus: 'growth' },
+  { key: 'worship', label: 'Worship & praise', emoji: '🎶', focus: 'worship' },
+] as const
+
+export const CHURCH_COLORS = ['#4f7a63', '#2f5fa8', '#7c4dbd', '#b8375a', '#c9971f', '#d9622b', '#12203a', '#0f766e']
+export const programKind = (k: string | null | undefined) => PROGRAM_KINDS.find((p) => p.key === k) ?? PROGRAM_KINDS[2]
