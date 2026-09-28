@@ -101,7 +101,10 @@ export function NotificationSettings() {
             <option key={t.value} value={t.value}>{t.label}</option>
           ))}
         </select>
-        <span className="mt-1 block text-xs text-muted">A gentle nudge, and only if you haven’t had your time with God yet that day.</span>
+        <span className="mt-1 block text-xs text-muted">
+          Arrives like an alarm (strong vibration, stays until tapped), only if you haven’t had your time with God yet that day. Tap it to hear your wake-up word.{' '}
+          <a href="/app/wake" className="font-semibold text-accent underline">Open wake-up alarm</a>
+        </span>
       </label>
 
       {[

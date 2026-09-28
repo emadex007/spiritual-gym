@@ -6,9 +6,9 @@ export const getProfile = createServerFn({ method: 'GET' }).handler(async () => 
   const user = await requireUser()
   const [p, stats, journeys] = await Promise.all([
     db()
-      .prepare('SELECT daily_minutes, level, favorite_verse, goals FROM profiles WHERE user_id = ?')
+      .prepare('SELECT daily_minutes, level, favorite_verse, goals, include_tongues FROM profiles WHERE user_id = ?')
       .bind(user.id)
-      .first<{ daily_minutes: number; level: string; favorite_verse: string | null; goals: string }>(),
+      .first<{ daily_minutes: number; level: string; favorite_verse: string | null; goals: string; include_tongues: number }>(),
     db()
       .prepare('SELECT COUNT(*) AS sessions, COALESCE(SUM(minutes), 0) AS minutes, COUNT(DISTINCT day) AS days FROM workout_sessions WHERE user_id = ?')
       .bind(user.id)
@@ -32,6 +32,7 @@ export const getProfile = createServerFn({ method: 'GET' }).handler(async () => 
     dailyMinutes: p?.daily_minutes ?? 10,
     level: p?.level ?? 'build',
     favoriteVerse: p?.favorite_verse ?? '',
+    includeTongues: (p?.include_tongues ?? 1) === 1,
     goals,
     stats: stats ?? { sessions: 0, minutes: 0, days: 0 },
     current: journeys.results.find((j) => j.status === 'active') ?? null,
@@ -40,21 +41,21 @@ export const getProfile = createServerFn({ method: 'GET' }).handler(async () => 
 })
 
 export const updateProfile = createServerFn({ method: 'POST' })
-  .validator((d: { name: string; dailyMinutes: number; level: string; favoriteVerse: string }) => {
+  .validator((d: { name: string; dailyMinutes: number; level: string; favoriteVerse: string; includeTongues?: boolean }) => {
     const name = String(d?.name ?? '').trim()
     if (name.length < 2) throw new Error('Please enter your name.')
     const dailyMinutes = Number(d.dailyMinutes)
     if (![5, 10, 15, 30, 45, 60].includes(dailyMinutes)) throw new Error('Choose a daily time.')
     if (!['recovery', 'build', 'deepen', 'intensive'].includes(d.level)) throw new Error('Choose a level.')
-    return { name, dailyMinutes, level: d.level, favoriteVerse: String(d.favoriteVerse ?? '').slice(0, 300) }
+    return { name, dailyMinutes, level: d.level, favoriteVerse: String(d.favoriteVerse ?? '').slice(0, 300), includeTongues: d.includeTongues === false ? 0 : 1 }
   })
   .handler(async ({ data }) => {
     const user = await requireUser()
     await db().batch([
       db().prepare('UPDATE users SET name = ? WHERE id = ?').bind(data.name, user.id),
       db()
-        .prepare(`UPDATE profiles SET daily_minutes = ?, level = ?, favorite_verse = ?, updated_at = datetime('now') WHERE user_id = ?`)
-        .bind(data.dailyMinutes, data.level, data.favoriteVerse || null, user.id),
+        .prepare(`UPDATE profiles SET daily_minutes = ?, level = ?, favorite_verse = ?, include_tongues = ?, updated_at = datetime('now') WHERE user_id = ?`)
+        .bind(data.dailyMinutes, data.level, data.favoriteVerse || null, data.includeTongues, user.id),
     ])
     return { ok: true }
   })

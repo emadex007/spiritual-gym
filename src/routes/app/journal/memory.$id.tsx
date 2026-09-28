@@ -4,6 +4,7 @@ import { deleteMemory, getMemoryVerse, recordPractice } from '~/fns/memory'
 import { MASTERY_LABELS } from '~/lib/content'
 import { accuracy, blanks, firstLetters, normalize } from '~/lib/memory'
 import { CheckIcon } from '~/components/Icons'
+import { AwardCelebration } from '~/components/AwardCelebration'
 
 export const Route = createFileRoute('/app/journal/memory/$id')({
   loader: ({ params }) => getMemoryVerse({ data: params.id }),
@@ -22,7 +23,7 @@ function Practice() {
   const v = Route.useLoaderData()
   const router = useRouter()
   const [mode, setMode] = useState<Mode>(v.mastery >= 3 ? 'recall' : v.mastery >= 1 ? 'missing' : 'read')
-  const [result, setResult] = useState<{ mastery: number; nextReview: string } | null>(null)
+  const [result, setResult] = useState<Awaited<ReturnType<typeof recordPractice>> | null>(null)
   const [saving, setSaving] = useState(false)
 
   async function record(recalled: boolean) {
@@ -73,6 +74,7 @@ function Practice() {
         {mode === 'recall' && <RecallMode text={v.text} />}
       </div>
 
+      {result?.awards?.length ? <AwardCelebration awards={result.awards} /> : null}
       {result ? (
         <div className="card fade-in mt-4 bg-sage-soft text-center">
           <p className="font-semibold">Practice saved</p>

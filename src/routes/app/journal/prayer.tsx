@@ -4,6 +4,8 @@ import { deletePrayer, listPrayers, markAnswered, reopenPrayer, savePrayer, type
 import { PRAYER_CATEGORIES } from '~/lib/content'
 import { FormError, errorText } from '~/components/AuthShell'
 import { CheckIcon } from '~/components/Icons'
+import { AwardCelebration } from '~/components/AwardCelebration'
+import type { AwardDef } from '~/lib/awards'
 
 export const Route = createFileRoute('/app/journal/prayer')({
   loader: () => listPrayers(),
@@ -125,12 +127,14 @@ function PrayerCard({ p, onEdit }: { p: Prayer; onEdit: () => void }) {
   const [what, setWhat] = useState('')
   const [resp, setResp] = useState('')
   const [busy, setBusy] = useState(false)
+  const [won, setWon] = useState<AwardDef[]>([])
 
   async function answer() {
     setBusy(true)
     try {
-      await markAnswered({ data: { id: p.id, whatHappened: what, myResponse: resp } })
-      await router.invalidate()
+      const r = await markAnswered({ data: { id: p.id, whatHappened: what, myResponse: resp } })
+      if (r.awards?.length) setWon(r.awards)
+      else await router.invalidate()
     } finally {
       setBusy(false)
     }
@@ -143,6 +147,7 @@ function PrayerCard({ p, onEdit }: { p: Prayer; onEdit: () => void }) {
 
   return (
     <article className="card">
+      <AwardCelebration awards={won} onDone={() => router.invalidate()} />
       <div className="flex items-start justify-between gap-3">
         <div>
           <span className="rounded-full bg-surface-2 px-2.5 py-0.5 text-xs font-medium text-muted">{catLabel(p.category)}</span>

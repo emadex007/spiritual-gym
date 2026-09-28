@@ -7,6 +7,8 @@ import { runCron } from '~/lib/cron'
 
 const COOKIE = 'sg_session'
 const MAX_UPLOAD = 5 * 1024 * 1024 // 5 MB
+const AUDIO_TYPES: Record<string, string> = { 'audio/mpeg': 'mp3', 'audio/mp3': 'mp3', 'audio/mp4': 'm4a', 'audio/x-m4a': 'm4a', 'audio/aac': 'aac', 'audio/ogg': 'ogg' }
+const MAX_AUDIO = 20 * 1024 * 1024 // 20 MB
 const IMAGE_TYPES: Record<string, string> = {
   'image/jpeg': 'jpg',
   'image/png': 'png',
@@ -23,17 +25,31 @@ export default {
   async fetch(request: Request, env: AppEnv) {
     const url = new URL(request.url)
 
-    // Public media from R2:  /media/<key>
-    if (url.pathname.startsWith('/media/') && request.method === 'GET') {
+    // Public media from R2:  /media/<key>  (supports Range requests so audio streams and loops smoothly)
+    if (url.pathname.startsWith('/media/') && (request.method === 'GET' || request.method === 'HEAD')) {
       const key = decodeURIComponent(url.pathname.slice('/media/'.length))
-      const obj = await env.MEDIA.get(key)
+      const rangeHeader = request.headers.get('range')
+      const m = rangeHeader?.match(/^bytes=(\d*)-(\d*)$/)
+      let range: R2Range | undefined
+      if (m && (m[1] || m[2])) range = m[1] ? { offset: Number(m[1]), ...(m[2] ? { length: Number(m[2]) - Number(m[1]) + 1 } : {}) } : { suffix: Number(m[2]) }
+      const obj = await env.MEDIA.get(key, range ? { range } : undefined)
       if (!obj) return new Response('Not found', { status: 404 })
       const headers = new Headers()
       obj.writeHttpMetadata(headers)
       headers.set('etag', obj.httpEtag)
+      headers.set('accept-ranges', 'bytes')
       headers.set('cache-control', 'public, max-age=31536000, immutable')
       headers.set('x-content-type-options', 'nosniff')
-      return new Response(obj.body, { headers })
+      if (range && 'body' in obj) {
+        const r = obj.range as { offset?: number; length?: number } | undefined
+        const start = r?.offset ?? 0
+        const len = r?.length ?? obj.size - start
+        headers.set('content-range', `bytes ${start}-${start + len - 1}/${obj.size}`)
+        headers.set('content-length', String(len))
+        return new Response(obj.body, { status: 206, headers })
+      }
+      headers.set('content-length', String(obj.size))
+      return new Response('body' in obj ? obj.body : null, { headers })
     }
 
     // Admin image upload:  POST /api/upload  (multipart field "file")
@@ -43,10 +59,11 @@ export default {
       const form = await request.formData()
       const file = form.get('file')
       if (!(file instanceof File)) return json({ error: 'No file received.' }, 400)
-      const ext = IMAGE_TYPES[file.type]
-      if (!ext) return json({ error: 'Please upload a JPG, PNG, WEBP or GIF image.' }, 400)
-      if (file.size > MAX_UPLOAD) return json({ error: 'Image must be 5 MB or smaller.' }, 400)
-      const key = `uploads/${crypto.randomUUID()}.${ext}`
+      const isAudio = !!AUDIO_TYPES[file.type]
+      const ext = IMAGE_TYPES[file.type] ?? AUDIO_TYPES[file.type]
+      if (!ext) return json({ error: 'Please upload a JPG, PNG, WEBP or GIF image, or an MP3/M4A audio file.' }, 400)
+      if (file.size > (isAudio ? MAX_AUDIO : MAX_UPLOAD)) return json({ error: isAudio ? 'Audio must be 20 MB or smaller.' : 'Image must be 5 MB or smaller.' }, 400)
+      const key = `${isAudio ? 'music' : 'uploads'}/${crypto.randomUUID()}.${ext}`
       await env.MEDIA.put(key, file.stream(), { httpMetadata: { contentType: file.type } })
       await env.DB.prepare('INSERT INTO audit_log (id, admin_id, admin_name, action, target) VALUES (?, ?, ?, ?, ?)')
         .bind(crypto.randomUUID(), admin.id, admin.name, 'media.upload', key)

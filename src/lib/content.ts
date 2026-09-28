@@ -53,6 +53,8 @@ export const STEP_LABELS: Record<string, string> = {
   worship: 'Worship',
   reflection: 'Reflection',
   thanksgiving: 'Thanksgiving',
+  devotion: 'Devotion',
+  tongues: 'Praying in the Spirit',
 }
 
 /** Starting level from onboarding answers. Longer is never treated as "more spiritual". */

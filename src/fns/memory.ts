@@ -2,6 +2,7 @@ import { createServerFn } from '@tanstack/react-start'
 import { db } from '~/lib/env'
 import { requireUser } from '~/lib/auth'
 import { dayString, newId } from '~/lib/util'
+import { checkAwards } from '~/lib/award-server'
 
 export type MemoryVerse = {
   id: string
@@ -95,7 +96,8 @@ export const recordPractice = createServerFn({ method: 'POST' })
       )
       .bind(mastery, next, data.id, user.id)
       .run()
-    return { mastery, nextReview: next }
+    const awards = mastery >= 5 ? await checkAwards(user.id, 'memory') : []
+    return { mastery, nextReview: next, awards }
   })
 
 export const deleteMemory = createServerFn({ method: 'POST' })

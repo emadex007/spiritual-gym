@@ -3,6 +3,8 @@ import { db } from '~/lib/env'
 import { requireUser } from '~/lib/auth'
 import { getActiveJourney, verseOfTheDay } from '~/lib/queries'
 import { dayString, newId } from '~/lib/util'
+import { adaptSteps, devotionOfTheDay, includeTongues } from '~/lib/devotion'
+import { checkAwards } from '~/lib/award-server'
 import type { JourneyCard } from '~/fns/onboarding'
 
 type WorkoutRow = { id: string; slug: string; title: string; description: string | null; level: string; minutes: number; is_recovery: number }
@@ -10,6 +12,7 @@ type StepRow = { position: number; kind: string; label: string; seconds: number;
 
 export const getTrain = createServerFn({ method: 'GET' }).handler(async () => {
   const user = await requireUser()
+  const tongues = await includeTongues(user.id)
   const [workouts, journeys, active, done, steps] = await Promise.all([
     db().prepare('SELECT id, slug, title, description, level, minutes, is_recovery FROM workouts ORDER BY sort').all<WorkoutRow>(),
     db()
@@ -23,7 +26,7 @@ export const getTrain = createServerFn({ method: 'GET' }).handler(async () => {
     db().prepare('SELECT workout_id, kind, seconds FROM workout_steps ORDER BY workout_id, position').all<{ workout_id: string; kind: string; seconds: number }>(),
   ])
   return {
-    workouts: workouts.results.map((w) => ({ ...w, steps: steps.results.filter((st) => st.workout_id === w.id) })),
+    workouts: workouts.results.map((w) => ({ ...w, steps: adaptSteps(steps.results.filter((st) => st.workout_id === w.id).map((st) => ({ ...st, label: st.kind })), tongues) })),
     journeys: journeys.results,
     active,
     completedJourneyIds: done.results.map((r) => r.journey_id),
@@ -49,12 +52,19 @@ export const getWorkout = createServerFn({ method: 'GET' })
     const user = await requireUser()
     const w = await db().prepare('SELECT id, slug, title, description, level, minutes, is_recovery FROM workouts WHERE slug = ?').bind(slug).first<WorkoutRow>()
     if (!w) throw new Error('Workout not found.')
-    const [steps, verse, journey] = await Promise.all([
+    const [steps, verse, journey, devotion, tongues] = await Promise.all([
       db().prepare('SELECT position, kind, label, seconds, guidance FROM workout_steps WHERE workout_id = ? ORDER BY position').bind(w.id).all<StepRow>(),
       verseOfTheDay(),
       getActiveJourney(user.id),
+      devotionOfTheDay(),
+      includeTongues(user.id),
     ])
-    return { workout: w, steps: steps.results, verse, journey }
+    const tracks = await db()
+      .prepare('SELECT media_key FROM music_tracks ORDER BY sort, created_at')
+      .all<{ media_key: string }>()
+      .then((r) => r.results.map((t) => t.media_key))
+      .catch(() => [] as string[])
+    return { workout: w, steps: adaptSteps(steps.results, tongues), verse, journey, devotion, tracks, firstName: user.name.split(' ')[0] }
   })
 
 export const completeWorkout = createServerFn({ method: 'POST' })
@@ -101,5 +111,6 @@ export const completeWorkout = createServerFn({ method: 'POST' })
       }
     }
     await db().batch(stmts)
-    return { minutes, journeyDay, journeyDays: journey?.days ?? null, journeyTitle: journey?.title ?? null, journeyFinished }
+    const awards = await checkAwards(user.id, journeyFinished ? 'journey' : 'workout')
+    return { minutes, journeyDay, journeyDays: journey?.days ?? null, journeyTitle: journey?.title ?? null, journeyFinished, awards, firstName: user.name.split(' ')[0] }
   })

@@ -14,7 +14,7 @@ export const Route = createFileRoute('/admin/workouts')({
 
 type W = Awaited<ReturnType<typeof adminListWorkouts>>[number]
 type Step = { kind: string; label: string; seconds: number; guidance: string }
-const KINDS = ['stillness', 'scripture', 'prayer', 'worship', 'reflection', 'thanksgiving']
+const KINDS = ['stillness', 'devotion', 'scripture', 'worship', 'tongues', 'prayer', 'reflection', 'thanksgiving']
 
 function Workouts() {
   const list = Route.useLoaderData()

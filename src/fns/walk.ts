@@ -4,6 +4,7 @@ import { requireUser } from '~/lib/auth'
 import { notify } from '~/lib/notify'
 import { dayString, newId } from '~/lib/util'
 import { WALK_CHEERS } from '~/lib/content'
+import { checkAwards } from '~/lib/award-server'
 
 const MAX_WALKS = 5
 
@@ -90,7 +91,8 @@ export const acceptWalkInvite = createServerFn({ method: 'POST' })
     if (existing) throw new Error('You’re already walking together.')
     await db().prepare(`UPDATE walk_pairs SET invitee_id = ?, status = 'active', accepted_at = datetime('now') WHERE id = ?`).bind(user.id, w.id).run()
     await notify({ userIds: [w.inviter_id] }, { kind: 'walk', title: `${user.name.split(' ')[0]} is walking with you`, body: 'You can now encourage each other every day.', url: '/app/walk' })
-    return { ok: true }
+    await checkAwards(w.inviter_id, 'walk') // they'll see it next time they open Home
+    return { ok: true, awards: await checkAwards(user.id, 'walk') }
   })
 
 export const sendCheer = createServerFn({ method: 'POST' })

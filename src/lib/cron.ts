@@ -86,7 +86,7 @@ async function dailyReminders(now: number) {
     groups.set(key, g)
   }
   for (const g of groups.values()) {
-    await notify({ userIds: g.ids }, { kind: 'reminder', title: 'SpiritualGym', body: g.msg, url: '/app', tag: 'daily' }, { inApp: false })
+    await notify({ userIds: g.ids }, { kind: 'reminder', title: '⏰ Rise and shine', body: `${g.msg} Tap to hear today’s word.`, url: '/app/wake', tag: 'daily' }, { inApp: false })
     for (let i = 0; i < g.ids.length; i += 90) {
       const chunk = g.ids.slice(i, i + 90)
       await db().prepare(`UPDATE profiles SET last_reminded_day = ? WHERE user_id IN (${chunk.map(() => '?').join(',')})`).bind(g.localDay, ...chunk).run()

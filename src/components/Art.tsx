@@ -82,6 +82,22 @@ export const LeafIcon = ({ className = 'h-6 w-6' }: IconProps) => (
   </svg>
 )
 
+export const WindIcon = ({ className = 'h-6 w-6' }: IconProps) => (
+  <svg viewBox="0 0 24 24" className={className} aria-hidden {...s}>
+    <path d="M3 8.5h11.5a2.5 2.5 0 1 0-2.5-2.5" />
+    <path d="M3 12.5h15.5a2.5 2.5 0 1 1-2.5 2.5" />
+    <path d="M3 16.5h7" />
+    <path d="M19.5 5.5c.6-1 1.4-1.6 2-1.8M20.5 9.2c.8-.2 1.5 0 2 .3" opacity=".7" />
+  </svg>
+)
+export const DevotionIcon = ({ className = 'h-6 w-6' }: IconProps) => (
+  <svg viewBox="0 0 24 24" className={className} aria-hidden {...s}>
+    <path d="M2.5 5.5c3.2-1.2 6.4-.9 9.5 1.2 3.1-2.1 6.3-2.4 9.5-1.2v13c-3.2-1.1-6.4-.8-9.5 1.3-3.1-2.1-6.3-2.4-9.5-1.3z" />
+    <path d="M12 6.7v13.1" />
+    <path d="M17 13.8s-2.4-1.4-2.4-3a1.2 1.2 0 0 1 2.4-.4 1.2 1.2 0 0 1 2.4.4c0 1.6-2.4 3-2.4 3z" fill="currentColor" fillOpacity=".25" />
+  </svg>
+)
+
 // ---------- Colour system per discipline ----------
 export type StepStyle = { color: string; soft: string; deep: string; Icon: ComponentType<IconProps> }
 export const STEP_STYLE: Record<string, StepStyle> = {
@@ -92,6 +108,8 @@ export const STEP_STYLE: Record<string, StepStyle> = {
   worship: { color: '#e05a7a', soft: '#fce6ec', deep: '#6e1d33', Icon: MusicIcon },
   reflection: { color: '#1f9a8f', soft: '#dcf2ef', deep: '#0d4540', Icon: LampIcon },
   thanksgiving: { color: '#e98a2b', soft: '#fdebd8', deep: '#6b3a0a', Icon: OliveIcon },
+  devotion: { color: '#b45309', soft: '#fcefd9', deep: '#5a2a04', Icon: DevotionIcon },
+  tongues: { color: '#dc3b3b', soft: '#fde4e1', deep: '#6d1414', Icon: WindIcon },
 }
 export const stepStyle = (kind: string) => STEP_STYLE[kind] ?? STEP_STYLE.prayer
 

@@ -9,11 +9,13 @@ import { ThemeSwitch } from '~/components/ThemeSwitch'
 import { AvatarUpload } from '~/components/AvatarUpload'
 import { InstallApp } from '~/components/InstallApp'
 import { NotificationSettings } from '~/components/NotificationSettings'
+import { TrophyCabinet } from '~/components/TrophyCabinet'
+import { getMyAwards } from '~/fns/awards'
 
 export const Route = createFileRoute('/app/profile')({
   loader: async () => {
-    const [p, site] = await Promise.all([getProfile(), getSiteSettings()])
-    return { ...p, supportText: site.support_text }
+    const [p, site, awards] = await Promise.all([getProfile(), getSiteSettings(), getMyAwards()])
+    return { ...p, supportText: site.support_text, awards: awards.all }
   },
   component: Profile,
 })
@@ -21,7 +23,7 @@ export const Route = createFileRoute('/app/profile')({
 function Profile() {
   const p = Route.useLoaderData()
   const router = useRouter()
-  const [form, setForm] = useState({ name: p.name, dailyMinutes: p.dailyMinutes, level: p.level, favoriteVerse: p.favoriteVerse })
+  const [form, setForm] = useState({ name: p.name, dailyMinutes: p.dailyMinutes, level: p.level, favoriteVerse: p.favoriteVerse, includeTongues: p.includeTongues })
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -65,6 +67,8 @@ function Profile() {
         ))}
       </div>
       <p className="mt-2 text-xs text-muted">These count the practices you chose. They don’t measure your walk with God.</p>
+
+      <TrophyCabinet items={p.awards} name={p.name.split(' ')[0]} />
 
       <section className="card mt-5">
         <p className="eyebrow">Journeys</p>
@@ -115,6 +119,13 @@ function Profile() {
           </div>
           <p className="mt-2 text-xs text-muted">You can move between levels any time. Recovery Mode is never a step down.</p>
         </div>
+        <label className="flex cursor-pointer items-start justify-between gap-4 rounded-2xl border border-line p-4">
+          <span>
+            <span className="block font-medium">Include praying in tongues</span>
+            <span className="mt-0.5 block text-xs text-muted">Adds “Praying in the Spirit” to workouts. Switch off to pray in your own words instead.</span>
+          </span>
+          <input type="checkbox" className="mt-1 h-5 w-5 accent-[#4f7a63]" checked={form.includeTongues} onChange={(e) => { setForm({ ...form, includeTongues: e.target.checked }); setSaved(false) }} />
+        </label>
         <div>
           <label className="label" htmlFor="fav">Favorite Scripture</label>
           <input id="fav" className="input" placeholder="e.g. Psalm 23:1" value={form.favoriteVerse} onChange={(e) => { setForm({ ...form, favoriteVerse: e.target.value }); setSaved(false) }} />

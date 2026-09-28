@@ -4,6 +4,7 @@ import { requireUser } from '~/lib/auth'
 import { MOODS, recommendWorkout } from '~/lib/content'
 import { getActiveJourney, isRecovery, lastSessionDay, verseOfTheDay } from '~/lib/queries'
 import { dayString, newId } from '~/lib/util'
+import { adaptSteps, devotionOfTheDay, includeTongues } from '~/lib/devotion'
 
 export const getHome = createServerFn({ method: 'GET' }).handler(async () => {
   const user = await requireUser()
@@ -46,6 +47,11 @@ export const getHome = createServerFn({ method: 'GET' }).handler(async () => {
     .prepare('SELECT id, slug, title, description, minutes, is_recovery FROM workouts WHERE slug = ?')
     .bind(slug)
     .first<{ id: string; slug: string; title: string; description: string | null; minutes: number; is_recovery: number }>()
+  const [devotion, tongues, unseen] = await Promise.all([
+    devotionOfTheDay(),
+    includeTongues(user.id),
+    db().prepare('SELECT award_key FROM user_awards WHERE user_id = ? AND seen_at IS NULL').bind(user.id).all<{ award_key: string }>().then((r) => r.results.map((x) => x.award_key)).catch(() => [] as string[]),
+  ])
   const steps = workout
     ? (
         await db()
@@ -80,7 +86,9 @@ export const getHome = createServerFn({ method: 'GET' }).handler(async () => {
     level: profile?.level ?? 'build',
     checkin: checkin ?? null,
     recovery,
-    workout: workout ? { ...workout, steps } : null,
+    workout: workout ? { ...workout, steps: adaptSteps(steps, tongues) } : null,
+    devotion,
+    unseenAwards: unseen,
     journey,
     verse,
     todayMinutes: Math.round(todayMinutes),

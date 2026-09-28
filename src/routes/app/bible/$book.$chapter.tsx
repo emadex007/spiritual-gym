@@ -3,6 +3,7 @@ import { Link, createFileRoute, notFound } from '@tanstack/react-router'
 import { getChapter } from '~/fns/bible'
 import { addMemory } from '~/fns/memory'
 import { TRANSLATIONS, bookFromSlug, bookSlug, formatReference, type TranslationCode } from '~/lib/bible'
+import { ShareButton } from '~/components/ShareButton'
 
 export const Route = createFileRoute('/app/bible/$book/$chapter')({
   loader: ({ params }) => {
@@ -199,6 +200,13 @@ function Reader() {
           <div className="fade-in mx-auto flex max-w-lg flex-wrap items-center gap-2 rounded-3xl bg-navy p-3 text-white shadow-2xl">
             <p className="flex-1 truncate px-2 text-sm font-semibold">{msg ?? (contiguous ? ref : `${sorted.length} verses`)}</p>
             <button type="button" onClick={copy} className="rounded-full bg-white/10 px-3 py-2 text-xs font-semibold">Copy</button>
+            {contiguous && (
+              <ShareButton
+                className="rounded-full bg-white/10 px-3 py-2 text-xs font-semibold"
+                card={{ kind: 'verse', text, reference: ref, translation: trLabel }}
+                text={`“${text}” (${ref} ${trLabel})`}
+              />
+            )}
             <button type="button" onClick={memorize} className="rounded-full bg-gold px-3 py-2 text-xs font-semibold text-navy">Memorise</button>
             <button type="button" onClick={() => setSelected([])} className="rounded-full px-2 py-2 text-xs text-white/70" aria-label="Clear selection">✕</button>
           </div>

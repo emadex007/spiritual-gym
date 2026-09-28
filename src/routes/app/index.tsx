@@ -8,6 +8,10 @@ import { CheckIcon, PlayIcon } from '~/components/Icons'
 import { Avatar } from '~/components/Avatar'
 import { InstallApp } from '~/components/InstallApp'
 import { NotificationBell } from '~/components/NotificationBell'
+import { ShareButton } from '~/components/ShareButton'
+import { DevotionIcon } from '~/components/Art'
+import { AwardCelebration } from '~/components/AwardCelebration'
+import { awardByKey } from '~/lib/awards'
 import { BibleIcon, DoveIcon, HandsIcon, HeartIcon, JourneyCover, LampIcon, MOOD_STYLE, STEP_STYLE, SunriseScene, stepStyle } from '~/components/Art'
 
 export const Route = createFileRoute('/app/')({
@@ -28,6 +32,7 @@ function Home() {
 
   return (
     <main className="fade-in mx-auto max-w-2xl px-5 pt-5 md:pt-10">
+      <AwardCelebration awards={h.unseenAwards.map(awardByKey).filter((a) => !!a)} name={firstName(h.name)} />
       {site.announcement && (
         <div className="mb-4 flex items-center gap-3 rounded-2xl bg-gold/20 px-4 py-3 text-sm font-medium">
           <span aria-hidden>📣</span> {site.announcement}
@@ -63,6 +68,28 @@ function Home() {
       )}
 
       <CheckIn current={h.checkin} />
+
+      {h.devotion && (
+        <section className="relative mt-5 overflow-hidden rounded-[1.75rem] p-6 text-white shadow-lg shadow-[#5a2a04]/20" style={{ background: 'linear-gradient(140deg,#5a2a04 0%,#b45309 55%,#e0a526 100%)' }}>
+          <DevotionIcon className="absolute -right-5 -bottom-5 h-36 w-36 text-white/10" />
+          <p className="text-xs font-semibold tracking-[0.14em] text-[#fde7b0] uppercase">Today’s word</p>
+          <blockquote className="relative mt-3 font-display text-xl leading-snug">“{h.devotion.text}”</blockquote>
+          <p className="mt-2 text-sm font-semibold text-[#fde7b0]">{h.devotion.reference} · KJV</p>
+          <p className="relative mt-3 text-sm text-white/85">{h.devotion.reflection}</p>
+          <div className="relative mt-4 rounded-2xl bg-white/15 p-4 backdrop-blur-sm">
+            <p className="text-xs font-bold tracking-[0.14em] text-[#fde7b0] uppercase">🗣️ I declare</p>
+            <p className="mt-1 font-semibold">{h.devotion.declaration}</p>
+          </div>
+          <div className="relative mt-4">
+            <ShareButton
+              className="inline-flex items-center gap-1.5 rounded-full bg-white px-4 py-2 text-sm font-semibold text-[#5a2a04]"
+              card={{ kind: 'word', heading: 'Today’s word', text: h.devotion.text, reference: h.devotion.reference, declaration: h.devotion.declaration }}
+              text={`“${h.devotion.text}” (${h.devotion.reference})\n\nI declare: ${h.devotion.declaration}`}
+            />
+          </div>
+        </section>
+      )}
+
       <InstallApp variant="banner" />
 
       {h.workout && (
@@ -188,8 +215,22 @@ function Home() {
           <p className="mt-3 text-sm font-semibold text-[#8a6310]">
             {h.verse.reference} · {h.verse.translation}
           </p>
+          <div className="relative mt-4">
+            <ShareButton card={{ kind: 'verse', text: h.verse.text, reference: h.verse.reference, translation: h.verse.translation }} text={`“${h.verse.text}” (${h.verse.reference} ${h.verse.translation})`} />
+          </div>
         </section>
       )}
+
+      <div className="mt-5 grid grid-cols-2 gap-3">
+        <Link to="/app/plans" className="card flex items-center gap-3 !p-4 transition hover:border-accent">
+          <span className="text-2xl" aria-hidden>📅</span>
+          <span><span className="block font-semibold">Reading plans</span><span className="text-xs text-muted">Read with friends</span></span>
+        </Link>
+        <Link to="/app/wake" className="card flex items-center gap-3 !p-4 transition hover:border-accent">
+          <span className="text-2xl" aria-hidden>⏰</span>
+          <span><span className="block font-semibold">Wake-up alarm</span><span className="text-xs text-muted">Bells + a spoken word</span></span>
+        </Link>
+      </div>
 
       <section className="card mt-5">
         <p className="eyebrow">Consistency</p>

@@ -66,11 +66,14 @@ function BibleHome() {
         <BibleIcon className="absolute -right-5 -bottom-6 h-36 w-36 text-[#c9971f]/20" />
         <p className="text-xs font-semibold tracking-[0.14em] text-[#8a6310] uppercase">Holy Bible · KJV, BSB, ASV, BBE</p>
         <h1 className="mt-1 font-display text-3xl font-semibold">Read the Word</h1>
-        {last && (
-          <Link to="/app/bible/$book/$chapter" params={{ book: bookSlug(last.book), chapter: String(last.chapter) }} className="mt-4 inline-flex items-center gap-2 rounded-full bg-navy px-4 py-2 text-sm font-semibold text-white">
-            Continue: {last.name} {last.chapter} →
-          </Link>
-        )}
+        <div className="mt-4 flex flex-wrap gap-2">
+          {last && (
+            <Link to="/app/bible/$book/$chapter" params={{ book: bookSlug(last.book), chapter: String(last.chapter) }} className="inline-flex items-center gap-2 rounded-full bg-navy px-4 py-2 text-sm font-semibold text-white">
+              Continue: {last.name} {last.chapter} →
+            </Link>
+          )}
+          <Link to="/app/plans" className="inline-flex items-center gap-2 rounded-full bg-white px-4 py-2 text-sm font-semibold text-[#8a6310]">📅 Reading plans</Link>
+        </div>
         <form onSubmit={search} className="relative mt-5">
           <input
             className="w-full rounded-2xl border border-[#e4dccb] bg-white px-4 py-3.5 pr-24 text-base text-[#12203a] outline-none placeholder:text-[#8a8f9c] focus:border-[#c9971f]"

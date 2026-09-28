@@ -3,6 +3,7 @@ import { db } from '~/lib/env'
 import { requireUser } from '~/lib/auth'
 import { PRAYER_CATEGORIES } from '~/lib/content'
 import { newId } from '~/lib/util'
+import { checkAwards } from '~/lib/award-server'
 
 export type Prayer = {
   id: string
@@ -74,7 +75,7 @@ export const markAnswered = createServerFn({ method: 'POST' })
       )
       .bind(data.whatHappened || null, data.myResponse, data.id, user.id)
       .run()
-    return { ok: true }
+    return { ok: true, awards: await checkAwards(user.id, 'prayer') }
   })
 
 export const reopenPrayer = createServerFn({ method: 'POST' })

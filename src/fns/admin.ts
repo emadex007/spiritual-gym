@@ -6,7 +6,7 @@ import { dayString, newId } from '~/lib/util'
 import { notify } from '~/lib/notify'
 
 const LEVELS = ['recovery', 'build', 'deepen', 'intensive']
-const STEP_KINDS = ['stillness', 'breathe', 'scripture', 'prayer', 'worship', 'reflection', 'thanksgiving']
+const STEP_KINDS = ['stillness', 'breathe', 'scripture', 'prayer', 'worship', 'reflection', 'thanksgiving', 'devotion', 'tongues']
 const FOCUSES = ['prayer', 'bible', 'worship', 'memory', 'fasting', 'gratitude', 'consistency', 'growth']
 const SETTING_KEYS = ['site_name', 'tagline', 'hero_title', 'hero_subtitle', 'hero_image', 'announcement', 'home_message', 'support_text', 'footer_text', 'contact_email', 'privacy_text', 'terms_text', 'guidelines_text']
 const LONG_KEYS = ['privacy_text', 'terms_text', 'guidelines_text']
@@ -574,3 +574,99 @@ export const adminDeleteSchedule = createServerFn({ method: 'POST' })
     await audit(admin, 'schedule.delete', data.id)
     return { ok: true }
   })
+
+// ---------------- Daily words (devotions) ----------------
+type DevotionRow = { id: string; sort: number; reference: string; text: string; reflection: string; declaration: string }
+
+export const adminListDevotions = createServerFn({ method: 'GET' }).handler(async () => {
+  await requireAdmin()
+  const { results } = await db().prepare('SELECT id, sort, reference, text, reflection, declaration FROM devotions ORDER BY sort, created_at').all<DevotionRow>()
+  return results
+})
+
+export const adminSaveDevotion = createServerFn({ method: 'POST' })
+  .validator((d: { id?: string; reference: string; text: string; reflection: string; declaration: string }) => {
+    const clean = (v: unknown, max: number) => String(v ?? '').trim().slice(0, max)
+    const out = { id: d?.id ? String(d.id) : null, reference: clean(d?.reference, 80), text: clean(d?.text, 1500), reflection: clean(d?.reflection, 600), declaration: clean(d?.declaration, 400) }
+    if (!out.reference || !out.text || !out.declaration) throw new Error('Add the reference, the verse text and a declaration.')
+    return out
+  })
+  .handler(async ({ data }) => {
+    const admin = await requireAdmin()
+    if (data.id) {
+      await db()
+        .prepare('UPDATE devotions SET reference = ?, text = ?, reflection = ?, declaration = ? WHERE id = ?')
+        .bind(data.reference, data.text, data.reflection, data.declaration, data.id)
+        .run()
+    } else {
+      const max = await db().prepare('SELECT COALESCE(MAX(sort), 0) AS m FROM devotions').first<{ m: number }>()
+      await db()
+        .prepare('INSERT INTO devotions (id, sort, reference, text, reflection, declaration) VALUES (?, ?, ?, ?, ?, ?)')
+        .bind('dv-' + newId().slice(0, 8), (max?.m ?? 0) + 1, data.reference, data.text, data.reflection, data.declaration)
+        .run()
+    }
+    await audit(admin, 'devotion.save', data.id, data.reference)
+    return { ok: true }
+  })
+
+export const adminDeleteDevotion = createServerFn({ method: 'POST' })
+  .validator((d: { id: string }) => ({ id: String(d?.id ?? '') }))
+  .handler(async ({ data }) => {
+    const admin = await requireAdmin()
+    await db().prepare('DELETE FROM devotions WHERE id = ?').bind(data.id).run()
+    await audit(admin, 'devotion.delete', data.id)
+    return { ok: true }
+  })
+
+// ---------------- Workout music ----------------
+export const adminListTracks = createServerFn({ method: 'GET' }).handler(async () => {
+  await requireAdmin()
+  const { results } = await db().prepare('SELECT id, title, media_key, sort FROM music_tracks ORDER BY sort, created_at').all<{ id: string; title: string; media_key: string; sort: number }>()
+  return results
+})
+
+export const adminAddTrack = createServerFn({ method: 'POST' })
+  .validator((d: { title: string; key: string }) => {
+    const title = String(d?.title ?? '').trim().slice(0, 100)
+    const key = String(d?.key ?? '')
+    if (!title) throw new Error('Give the track a title.')
+    if (!/^music\/[\w-]+\.(mp3|m4a|aac|ogg)$/.test(key)) throw new Error('Upload the audio file first.')
+    return { title, key }
+  })
+  .handler(async ({ data }) => {
+    const admin = await requireAdmin()
+    const max = await db().prepare('SELECT COALESCE(MAX(sort), 0) AS m FROM music_tracks').first<{ m: number }>()
+    const id = 'mt-' + newId().slice(0, 8)
+    await db().prepare('INSERT INTO music_tracks (id, title, media_key, sort) VALUES (?, ?, ?, ?)').bind(id, data.title, data.key, (max?.m ?? 0) + 1).run()
+    await audit(admin, 'music.add', id, data.title)
+    return { ok: true }
+  })
+
+export const adminDeleteTrack = createServerFn({ method: 'POST' })
+  .validator((d: { id: string }) => ({ id: String(d?.id ?? '') }))
+  .handler(async ({ data }) => {
+    const admin = await requireAdmin()
+    const t = await db().prepare('SELECT title, media_key FROM music_tracks WHERE id = ?').bind(data.id).first<{ title: string; media_key: string }>()
+    if (!t) return { ok: true }
+    await db().prepare('DELETE FROM music_tracks WHERE id = ?').bind(data.id).run()
+    await env().MEDIA.delete(t.media_key).catch(() => {})
+    await audit(admin, 'music.delete', data.id, t.title)
+    return { ok: true }
+  })
+
+// ---------------- Growth: plans & medals ----------------
+export const adminGrowthStats = createServerFn({ method: 'GET' }).handler(async () => {
+  await requireAdmin()
+  const [plans, circles, notes, awards, recent] = await Promise.all([
+    db()
+      .prepare(`SELECT plan_key, COUNT(*) AS started, SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) AS completed, SUM(CASE WHEN status = 'active' THEN 1 ELSE 0 END) AS active FROM user_plans GROUP BY plan_key ORDER BY started DESC`)
+      .all<{ plan_key: string; started: number; completed: number; active: number }>(),
+    db().prepare('SELECT COUNT(*) AS n FROM reading_circles').first<{ n: number }>(),
+    db().prepare('SELECT COUNT(*) AS n FROM plan_notes').first<{ n: number }>(),
+    db().prepare('SELECT award_key, COUNT(*) AS n FROM user_awards GROUP BY award_key ORDER BY n DESC').all<{ award_key: string; n: number }>(),
+    db()
+      .prepare('SELECT a.award_key, a.awarded_at, u.name FROM user_awards a JOIN users u ON u.id = a.user_id ORDER BY a.awarded_at DESC LIMIT 15')
+      .all<{ award_key: string; awarded_at: string; name: string }>(),
+  ])
+  return { plans: plans.results, circles: circles?.n ?? 0, notes: notes?.n ?? 0, awards: awards.results, recent: recent.results }
+})

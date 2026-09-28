@@ -47,5 +47,5 @@ crons = ["*/5 * * * *"]
 [vars]
 SITE_ENV = "production"
 # Push notifications: run `node scripts/vapid.mjs`, paste the public key here, and save the private key as a secret
-VAPID_PUBLIC_KEY = "BMUAnllpFPiro5d06ph7PNTgKKDkY4tKdnd4DmtOf0ns67eCyNaNlznvlW3SBpojOKSVigAhimXgCnN5gLW9sy4"
+VAPID_PUBLIC_KEY = ""
 VAPID_SUBJECT = "mailto:admin@example.com"

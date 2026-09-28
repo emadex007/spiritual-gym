@@ -72,6 +72,16 @@ Optional, for live prayer on strict mobile networks: create a TURN key in Cloudf
 - Admin → Notifications: announcements to everyone or a group, stats, all prayer times
 - Setup: `node scripts/vapid.mjs` and follow the printed steps. Migration `0009_engage.sql`
 
+## Worship, devotion, plans, medals, wake-up
+- Workouts now include worship, a daily devotion and praying in the Spirit (tongues). Members can switch tongues off in Profile, and those steps become personal prayer. There's a new 20-minute "Praying in the Spirit" workout.
+- A male voice guide announces the next step about 10 seconds before each step ends. Soft instrumental music plays during workouts: the built-in generated music, or tracks uploaded in Admin → Music. Voice and music can be toggled and the volume changed on the workout intro screen.
+- Today's word (verse, reflection and "I declare"), the verse of the day and Bible verses can be shared as pictures to WhatsApp, Instagram, Facebook, X and Telegram.
+- Reading plans: the whole Bible in 365/120/80/60/40 days, the OT in 180 days, the NT in 90 days, and book-a-month plans. Reading circles let friends read together by invite link and share what they learnt (18+).
+- Medals and trophies for milestones, shareable as victory cards. Trophy cabinet in Profile; stats in Admin → Plans & medals.
+- Wake-up alarm (`/app/wake`): bells, then "Wake up…", the day's word and a declaration spoken aloud. The alarm rings while the app is open on that screen. The daily reminder notification vibrates strongly, stays until tapped, and opens the wake screen.
+- Admin: Daily words (devotions), Music, Plans & medals.
+- Migration `0010_spirit.sql`.
+
 ## Setup (Windows, PowerShell)
 ```powershell
 nvm use 22

@@ -1,6 +1,6 @@
 // SpiritualGym service worker: installable app + offline fallback.
 // Never caches private data: server functions (/_serverFn), /api and signed-in pages always go to the network.
-const VERSION = 'sg-v2'
+const VERSION = 'sg-v4'
 const STATIC = `${VERSION}-static`
 const PRECACHE = ['/offline.html', '/icons/icon-192.png', '/manifest.webmanifest']
 
@@ -20,6 +20,8 @@ self.addEventListener('fetch', (e) => {
   const url = new URL(req.url)
   if (url.origin !== location.origin) return
   if (url.pathname.startsWith('/_serverFn') || url.pathname.startsWith('/api/')) return
+  // Audio streams use partial (Range) responses, which can't be cached: let the browser handle them directly
+  if (req.headers.has('range') || url.pathname.startsWith('/media/music/')) return
 
   // Pages: always fresh from the network; show the offline page if there's no connection
   if (req.mode === 'navigate') {
@@ -34,7 +36,7 @@ self.addEventListener('fetch', (e) => {
         const hit = await cache.match(req)
         if (hit) return hit
         const res = await fetch(req)
-        if (res.ok) cache.put(req, res.clone())
+        if (res.status === 200) cache.put(req, res.clone())
         return res
       }),
     )
@@ -57,6 +59,10 @@ self.addEventListener('push', (e) => {
       badge: '/icons/icon-192.png',
       tag: data.tag || undefined,
       renotify: !!data.tag,
+      // The daily reminder behaves like an alarm: strong vibration and it stays until tapped
+      vibrate: data.tag === 'daily' ? [500, 250, 500, 250, 500, 250, 1000] : [120, 60, 120],
+      requireInteraction: data.tag === 'daily',
+      silent: false,
       data: { url: data.url || '/app' },
     }),
   )

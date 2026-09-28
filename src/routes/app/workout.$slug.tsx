@@ -6,6 +6,8 @@ import { formatClock } from '~/lib/util'
 import { CheckIcon, CloseIcon, PauseIcon, PlayIcon } from '~/components/Icons'
 import { errorText } from '~/components/AuthShell'
 import { SunriseScene, stepStyle } from '~/components/Art'
+import { NEXT_LINES, WorkoutMusic, speak, speechSupported, unlockSpeech } from '~/lib/audio'
+import { AwardCelebration } from '~/components/AwardCelebration'
 
 export const Route = createFileRoute('/app/workout/$slug')({
   loader: ({ params }) => getWorkout({ data: params.slug }),
@@ -16,7 +18,7 @@ type Phase = 'intro' | 'running' | 'complete' | 'saved'
 type Result = Awaited<ReturnType<typeof completeWorkout>>
 
 function WorkoutPlayer() {
-  const { workout, steps, verse, journey } = Route.useLoaderData()
+  const { workout, steps, verse, journey, devotion, tracks } = Route.useLoaderData()
   const router = useRouter()
   const [phase, setPhase] = useState<Phase>('intro')
   const [index, setIndex] = useState(0)
@@ -29,6 +31,41 @@ function WorkoutPlayer() {
   const spent = useRef<Record<string, number>>({})
   const last = useRef<number>(0)
   const wakeLock = useRef<{ release: () => Promise<void> } | null>(null)
+  const music = useRef<WorkoutMusic | null>(null)
+  const announced = useRef(-1)
+  const [voiceOn, setVoiceOn] = useState(true)
+  const [musicOn, setMusicOn] = useState(true)
+  const [musicVol, setMusicVol] = useState(0.6)
+
+  // Remember audio choices on this device
+  useEffect(() => {
+    try {
+      setVoiceOn(localStorage.getItem('sg-voice') !== '0')
+      setMusicOn(localStorage.getItem('sg-music') !== '0')
+      const v = Number(localStorage.getItem('sg-music-vol'))
+      if (v > 0 && v <= 1) setMusicVol(v)
+    } catch {}
+    return () => music.current?.stop()
+  }, [])
+  const savePref = (k: string, v: string) => {
+    try { localStorage.setItem(k, v) } catch {}
+  }
+
+  const say = (text: string) => {
+    if (!voiceOn) return
+    speak(text, { onStart: () => music.current?.duck(true), onEnd: () => music.current?.duck(false) })
+  }
+
+  // ~10 seconds before a step ends, announce what comes next
+  useEffect(() => {
+    if (phase !== 'running' || !step || announced.current === index) return
+    const lead = Math.min(10, Math.max(4, step.seconds * 0.2))
+    if (remaining <= lead) {
+      announced.current = index
+      const nxt = steps[index + 1]
+      say(nxt ? NEXT_LINES[nxt.kind] ?? `Coming up: ${nxt.label}.` : 'Your time with God is almost complete.')
+    }
+  }, [remaining, phase, index])
 
   const step = steps[index]
   const totalSeconds = steps.reduce((a, s) => a + s.seconds, 0)
@@ -68,6 +105,14 @@ function WorkoutPlayer() {
   }, [phase])
 
   function begin() {
+    if (voiceOn) unlockSpeech()
+    if (musicOn) {
+      music.current?.stop()
+      music.current = new WorkoutMusic(tracks.map((t) => `/media/${t}`))
+      music.current.start(musicVol)
+    }
+    announced.current = -1
+    setTimeout(() => say(`Let’s begin. ${steps[0]?.label ?? ''}.`), 400)
     spent.current = {}
     setIndex(0)
     setRemaining(steps[0].seconds)
@@ -81,6 +126,9 @@ function WorkoutPlayer() {
       setRemaining(steps[index + 1].seconds)
     } else {
       setPhase('complete')
+      music.current?.stop()
+      music.current = null
+      say('Well done. Your time with God is complete. Go in peace.')
     }
   }
 
@@ -143,7 +191,23 @@ function WorkoutPlayer() {
                 )
               })}
             </ol>
-            <p className="mt-6 text-sm text-white/60">Find a quiet place. Put your phone down after you begin. Each step moves on by itself.</p>
+            <div className="mt-6 space-y-3 rounded-2xl bg-white/8 p-4 backdrop-blur-sm">
+              <label className="flex items-center justify-between gap-3 text-sm">
+                <span>🔊 Voice guide <span className="text-white/50">(announces each next step)</span></span>
+                <input type="checkbox" className="h-5 w-5 accent-[#d4a94a]" checked={voiceOn} disabled={!speechSupported()} onChange={(e) => { setVoiceOn(e.target.checked); savePref('sg-voice', e.target.checked ? '1' : '0') }} />
+              </label>
+              <label className="flex items-center justify-between gap-3 text-sm">
+                <span>🎵 Calm instrumental music</span>
+                <input type="checkbox" className="h-5 w-5 accent-[#d4a94a]" checked={musicOn} onChange={(e) => { setMusicOn(e.target.checked); savePref('sg-music', e.target.checked ? '1' : '0') }} />
+              </label>
+              {musicOn && (
+                <label className="flex items-center gap-3 text-xs text-white/70">
+                  <span>Volume</span>
+                  <input type="range" min={0.1} max={1} step={0.05} value={musicVol} className="flex-1 accent-[#d4a94a]" onChange={(e) => { const v = Number(e.target.value); setMusicVol(v); music.current?.setVolume(v); savePref('sg-music-vol', String(v)) }} />
+                </label>
+              )}
+            </div>
+            <p className="mt-4 text-sm text-white/60">Find a quiet place. Turn your volume up if you’d like the voice guide. Each step moves on by itself.</p>
             <button type="button" onClick={begin} className="btn-gold mt-8 w-full py-4 text-base">
               <PlayIcon /> START WORKOUT
             </button>
@@ -183,17 +247,34 @@ function WorkoutPlayer() {
                 )}
               </div>
             )}
+            {step.kind === 'devotion' && devotion && (
+              <div className="mt-6 w-full rounded-3xl bg-white/5 p-5 text-left">
+                <p className="text-xs font-semibold tracking-[0.14em] text-gold uppercase">Today’s word · {devotion.reference}</p>
+                <p className="mt-2 font-display text-xl leading-snug">“{devotion.text}”</p>
+                <p className="mt-3 text-white/80">{devotion.reflection}</p>
+                <p className="mt-4 rounded-2xl bg-gold/15 p-3 font-semibold text-gold">🗣️ Declare aloud: {devotion.declaration}</p>
+              </div>
+            )}
+            {step.kind === 'tongues' && (
+              <p className="mt-6 w-full rounded-3xl bg-white/5 p-5 text-left text-white/80">
+                “But ye, beloved, building up yourselves on your most holy faith, praying in the Holy Ghost.” <span className="text-white/50">Jude 1:20</span>
+              </p>
+            )}
             {step.kind === 'reflection' && journey?.today?.prompt && (
               <p className="mt-6 w-full rounded-3xl bg-white/5 p-5 text-left text-white/80">{journey.today.prompt}</p>
             )}
 
             <div className="mt-auto flex w-full items-center justify-center gap-4 pt-10">
-              <button type="button" onClick={() => setPhase('complete')} className="rounded-full px-5 py-3 text-sm font-semibold text-white/60 hover:text-white">
+              <button type="button" onClick={() => { music.current?.stop(); music.current = null; setPhase('complete') }} className="rounded-full px-5 py-3 text-sm font-semibold text-white/60 hover:text-white">
                 End
               </button>
               <button
                 type="button"
-                onClick={() => setPaused(!paused)}
+                onClick={() => {
+                  if (paused) music.current?.resume()
+                  else music.current?.pause()
+                  setPaused(!paused)
+                }}
                 className="flex h-16 w-16 items-center justify-center rounded-full bg-gold text-navy"
                 aria-label={paused ? 'Resume' : 'Pause'}
               >
@@ -234,6 +315,7 @@ function WorkoutPlayer() {
 
         {phase === 'saved' && result && (
           <div className="fade-in flex flex-1 flex-col justify-center py-8 text-center">
+            <AwardCelebration awards={result.awards} name={result.firstName} />
             <p className="text-xs font-semibold tracking-[0.14em] text-gold uppercase">{result.minutes} minutes with God</p>
             {result.journeyFinished ? (
               <>
