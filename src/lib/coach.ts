@@ -63,7 +63,7 @@ Boundaries (always):
 type Msg = { role: 'user' | 'assistant'; content: string }
 
 /** Ask the configured AI. Returns null when no AI is set up. */
-export async function askCoach(system: string, messages: Msg[]): Promise<string | null> {
+export async function askCoach(system: string, messages: Msg[], maxTokens = 700): Promise<string | null> {
   const key = await db()
     .prepare(`SELECT value FROM secure_settings WHERE key = 'anthropic_key'`)
     .first<{ value: string }>()
@@ -73,7 +73,7 @@ export async function askCoach(system: string, messages: Msg[]): Promise<string 
     const res = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: { 'x-api-key': key, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
-      body: JSON.stringify({ model: CLAUDE_MODEL, max_tokens: 700, system, messages }),
+      body: JSON.stringify({ model: CLAUDE_MODEL, max_tokens: maxTokens, system, messages }),
     })
     const j = (await res.json().catch(() => ({}))) as { content?: { type: string; text?: string }[]; error?: { message?: string } }
     if (!res.ok) throw new Error(j.error?.message || 'The coach is resting right now. Please try again in a moment.')
@@ -81,7 +81,7 @@ export async function askCoach(system: string, messages: Msg[]): Promise<string 
   }
   const ai = env().AI
   if (!ai) return null
-  const out = (await ai.run(WORKERS_MODEL, { messages: [{ role: 'system', content: system }, ...messages], max_tokens: 700, temperature: 0.6 })) as { response?: string }
+  const out = (await ai.run(WORKERS_MODEL, { messages: [{ role: 'system', content: system }, ...messages], max_tokens: maxTokens, temperature: 0.6 })) as { response?: string }
   return (out?.response ?? '').trim() || null
 }
 

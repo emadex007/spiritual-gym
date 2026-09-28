@@ -138,6 +138,7 @@ Optional, for live prayer on strict mobile networks: create a TURN key in Cloudf
 - Sermons: a preaching calendar with stages (idea, drafting, ready, preached). The editor has title, main Scripture, date, venue, big idea and notes; KJV verse insert; an outline template; "Suggest an outline" (AI, max 10 a day, a starting point to study, not a script); and copy notes.
 - Intercession: a list grouped by Church family, Workers, The sick…, with a "Pray through my list" mode, prayer counts and answered prayers.
 - Pastoral tasks: visits, calls, counselling and meetings, with due dates (overdue shown in red).
+- ✨ Write the full sermon with AI (15, 30 or 45 min): introduction, 3 points, each with supporting Scriptures, a Bible example, an everyday example and an application, then conclusion, optional altar call, closing prayer and benediction. Every Bible reference gets the exact KJV text from the database (the AI never quotes Scripture). Copy, Share, Download Word (.doc) or Text, or add it to the notes. Max 3 a day.
 - Leaders: people being raised up, with their role, what they're growing in, private notes and next meeting ("✓ Met today").
 - Migration `0016_pastor.sql`.
 

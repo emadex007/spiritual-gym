@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react'
 import { Link, createFileRoute, useRouter } from '@tanstack/react-router'
-import { deleteSermon, getSermon, saveSermon, suggestOutline } from '~/fns/pastor'
+import { deleteSermon, getSermon, saveSermon, suggestOutline, writeSermon } from '~/fns/pastor'
+import { FullSermon } from '~/components/FullSermon'
 import { lookupVerse } from '~/fns/bible'
 import { FormError, errorText } from '~/components/AuthShell'
 
@@ -143,6 +144,20 @@ function SermonEditor() {
         {!f.outline.trim() && <button className="btn-ghost" onClick={() => { setF({ ...f, outline: TEMPLATE }); setSaved(false) }}>Use outline template</button>}
         {aiReady && <button className="btn-ghost" disabled={busy === 'ai'} onClick={suggest}>{busy === 'ai' ? 'Thinking…' : '✨ Suggest an outline'}</button>}
       </div>
+
+      {aiReady && (
+        <FullSermon
+          title={f.title}
+          scripture={f.scripture}
+          bigIdea={f.bigIdea}
+          venue={f.venue}
+          write={(o) => writeSermon({ data: { title: f.title, scripture: f.scripture, bigIdea: f.bigIdea, audience: f.venue || 'Sunday service', ...o } })}
+          onUse={(text) => {
+            setF({ ...f, outline: f.outline.trim() ? `${f.outline}\n\n${text}` : text })
+            setSaved(false)
+          }}
+        />
+      )}
 
       {suggestion && (
         <section className="card fade-in mt-4 border-accent/40">

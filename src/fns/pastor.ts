@@ -2,6 +2,7 @@ import { createServerFn } from '@tanstack/react-start'
 import { db } from '~/lib/env'
 import { communityAccess, requireCommunityUser, requireUser } from '~/lib/auth'
 import { askCoach, coachReady } from '~/lib/coach'
+import { lookupText } from '~/lib/bible-db'
 import { dayString, newId } from '~/lib/util'
 
 const clean = (v: unknown, max: number) => String(v ?? '').trim().slice(0, max)
@@ -250,4 +251,71 @@ export const menteeAction = createServerFn({ method: 'POST' })
     if (data.action === 'delete') await db().prepare('DELETE FROM mentees WHERE id = ? AND user_id = ?').bind(data.id, user.id).run()
     else await db().batch([db().prepare('UPDATE mentees SET last_met_on = ?, next_meet_on = NULL WHERE id = ? AND user_id = ?').bind(dayString(), data.id, user.id), log(user.id, 'mentoring')])
     return { ok: true }
+  })
+
+/** Put the exact KJV words after every [[Book C:V]] the AI wrote (the AI never quotes Scripture itself) */
+async function fillScripture(text: string) {
+  const refs = [...new Set([...text.matchAll(/\[\[([^\]]{3,40})\]\]/g)].map((m) => m[1].trim()))].slice(0, 25)
+  const found = new Map<string, { reference: string; text: string }>()
+  for (const r of refs) {
+    const v = await lookupText(r).catch(() => null)
+    if (v) found.set(r, { reference: v.reference, text: v.text.length > 700 ? v.text.slice(0, 700) + '…' : v.text })
+  }
+  return text.replace(/\[\[([^\]]{3,40})\]\]/g, (_, r: string) => {
+    const v = found.get(r.trim())
+    return v ? `${v.reference} (KJV): “${v.text}”` : r.trim()
+  })
+}
+
+/** A complete sermon draft: points, Scriptures (exact KJV), Bible and everyday examples, altar call, prayer and benediction */
+export const writeSermon = createServerFn({ method: 'POST' })
+  .validator((d: { title: string; scripture?: string; bigIdea?: string; audience?: string; minutes?: number; altarCall?: boolean }) => {
+    const title = clean(d?.title, 120)
+    const scripture = clean(d?.scripture, 120)
+    if (!title && !scripture) throw new Error('Add a title or a main Scripture first.')
+    return {
+      title,
+      scripture,
+      bigIdea: clean(d?.bigIdea, 400),
+      audience: clean(d?.audience, 80) || 'Sunday service',
+      minutes: [15, 30, 45].includes(Number(d?.minutes)) ? Number(d?.minutes) : 30,
+      altarCall: d?.altarCall !== false,
+    }
+  })
+  .handler(async ({ data }) => {
+    const user = await requirePastor()
+    const used = await db().prepare(`SELECT COUNT(*) AS n FROM ministry_log WHERE user_id = ? AND day = ? AND kind = 'ai-sermon'`).bind(user.id, dayString()).first<{ n: number }>()
+    if ((used?.n ?? 0) >= 3) throw new Error('You’ve written 3 sermons with AI today. Take time to study and pray over them, and come back tomorrow.')
+    const words = { 15: 1100, 30: 1800, 45: 2400 }[data.minutes as 15 | 30 | 45]
+    const system = `You help Christian ministers draft complete sermons that they will then study, pray over and make their own. Write in warm, clear, simple English for a Nigerian congregation (easy to preach aloud; short sentences). Mainstream, Bible-based Christian teaching that respects all denominations. Never prosperity hype, never pressure to give money, never attack other churches or faiths, never prophesy or promise specific outcomes, no politics.
+
+Scripture rule (very important): write every Bible reference ONLY as [[Book C:V]] or [[Book C:V-V]] with full book names (e.g. [[John 15:5]], [[1 Samuel 17:45-47]]). NEVER write out the verse words yourself; the app inserts the exact King James text. Use real, correct references only.
+
+Use EXACTLY these section headings, each on its own line, plain text (no #, *, or markdown):
+TITLE:
+MAIN TEXT: [[…]]
+BIG IDEA: (one memorable sentence)
+INTRODUCTION: (a relatable opening: a question, a short everyday story, or a common situation)
+POINT 1: (a short, memorable point title)
+Explanation: (what the text teaches, in 1–2 paragraphs)
+Scriptures: (2–3 supporting references)
+Bible example: (a character or story from the Bible that shows this point, with its reference)
+Everyday example: (a simple modern example from daily life, e.g. family, market, work, school, traffic; never name real people)
+Application: (what the listener should do this week)
+POINT 2: … (same parts)
+POINT 3: … (same parts)
+CONCLUSION: (tie the points back to the big idea)
+${data.altarCall ? 'ALTAR CALL: (a gentle invitation to respond: salvation, rededication or prayer; never manipulative)\n' : ''}CLOSING PRAYER: (a heartfelt prayer for the congregation)
+BENEDICTION: (a biblical benediction with its reference, e.g. [[Numbers 6:24-26]], [[2 Corinthians 13:14]], [[Hebrews 13:20-21]], [[Jude 1:24-25]])
+
+Aim for about ${words} words (a ${data.minutes}-minute sermon).`
+    const prompt = `Please write a full sermon.
+Title: ${data.title || '(suggest one)'}
+Main Scripture: ${data.scripture || '(choose a fitting one)'}${data.bigIdea ? `\nMy big idea: ${data.bigIdea}` : ''}
+Setting: ${data.audience}`
+    const out = await askCoach(system, [{ role: 'user', content: prompt }], Math.min(4000, Math.round(words * 1.9)))
+    if (!out) throw new Error('The AI helper isn’t switched on yet (Admin → AI coach).')
+    await log(user.id, 'ai-sermon').run()
+    const text = (await fillScripture(out.replace(/\*\*|^#+\s*/gm, ''))).trim()
+    return { text }
   })
