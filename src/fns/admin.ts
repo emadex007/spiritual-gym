@@ -5,6 +5,7 @@ import { currentUser } from '~/lib/auth'
 import { dayString, newId, weekOfYear } from '~/lib/util'
 import { notify } from '~/lib/notify'
 import { confirmDonation, payConfig, testKey } from '~/lib/donations'
+import { checkAwards } from '~/lib/award-server'
 import { siteOrigin } from '~/lib/origin'
 
 const LEVELS = ['recovery', 'build', 'deepen', 'intensive']
@@ -464,6 +465,7 @@ export const adminListReports = createServerFn({ method: 'GET' }).handler(async 
            WHEN 'group' THEN (SELECT name || ' — ' || COALESCE(description, '') FROM prayer_groups WHERE id = r.target_id)
            WHEN 'church' THEN (SELECT '⛪ ' || name || ' — ' || COALESCE(description, '') FROM churches WHERE id = r.target_id)
            WHEN 'note' THEN (SELECT '📖 ' || body FROM plan_notes WHERE id = r.target_id)
+           WHEN 'testimony' THEN (SELECT '🎉 ' || title || ' — ' || body FROM testimonies WHERE id = r.target_id)
            ELSE NULL END AS content,
          CASE r.target_type
            WHEN 'post'  THEN (SELECT u.name || ' <' || u.email || '>' FROM prayer_posts x JOIN users u ON u.id = x.user_id WHERE x.id = r.target_id)
@@ -471,6 +473,7 @@ export const adminListReports = createServerFn({ method: 'GET' }).handler(async 
            WHEN 'group' THEN (SELECT COALESCE(u.name || ' <' || u.email || '>', 'Official') FROM prayer_groups x LEFT JOIN users u ON u.id = x.created_by WHERE x.id = r.target_id)
            WHEN 'church' THEN (SELECT u.name || ' <' || u.email || '>' FROM churches x JOIN users u ON u.id = x.created_by WHERE x.id = r.target_id)
            WHEN 'note' THEN (SELECT u.name || ' <' || u.email || '>' FROM plan_notes x JOIN users u ON u.id = x.user_id WHERE x.id = r.target_id)
+           WHEN 'testimony' THEN (SELECT u.name || ' <' || u.email || '>' FROM testimonies x JOIN users u ON u.id = x.user_id WHERE x.id = r.target_id)
            ELSE NULL END AS author,
          CASE r.target_type
            WHEN 'post'  THEN (SELECT is_hidden FROM prayer_posts WHERE id = r.target_id)
@@ -478,6 +481,7 @@ export const adminListReports = createServerFn({ method: 'GET' }).handler(async 
            WHEN 'group' THEN (SELECT is_hidden FROM prayer_groups WHERE id = r.target_id)
            WHEN 'church' THEN (SELECT CASE WHEN status = 'suspended' THEN 1 ELSE 0 END FROM churches WHERE id = r.target_id)
            WHEN 'note' THEN (SELECT is_hidden FROM plan_notes WHERE id = r.target_id)
+           WHEN 'testimony' THEN (SELECT CASE WHEN status = 'hidden' THEN 1 ELSE 0 END FROM testimonies WHERE id = r.target_id)
            ELSE 0 END AS is_hidden
        FROM reports r LEFT JOIN users ru ON ru.id = r.reporter_id
        ORDER BY r.status = 'open' DESC, r.created_at DESC LIMIT 200`,
@@ -501,6 +505,7 @@ export const adminResolveReport = createServerFn({ method: 'POST' })
       const table = { post: 'prayer_posts', reply: 'prayer_replies', group: 'prayer_groups', note: 'plan_notes' }[r.target_type]
       if (table) stmts.push(db().prepare(`UPDATE ${table} SET is_hidden = 1 WHERE id = ?`).bind(r.target_id))
       if (r.target_type === 'church') stmts.push(db().prepare(`UPDATE churches SET status = 'suspended' WHERE id = ?`).bind(r.target_id))
+      if (r.target_type === 'testimony') stmts.push(db().prepare(`UPDATE testimonies SET status = 'hidden' WHERE id = ?`).bind(r.target_id))
     }
     await db().batch(stmts)
     await audit(admin, `report.${data.action}`, r.target_id, r.target_type)
@@ -913,5 +918,51 @@ export const adminSaveCoachKey = createServerFn({ method: 'POST' })
         .bind(data.key)
         .run()
     await audit(admin, 'coach.key', null, data.key === '__clear__' ? 'removed' : 'saved')
+    return { ok: true }
+  })
+
+// ---------------- Testimonies ----------------
+export const adminListTestimonies = createServerFn({ method: 'GET' }).handler(async () => {
+  await requireAdmin()
+  const { results } = await db()
+    .prepare(
+      `SELECT t.id, t.category, t.title, t.body, t.scripture, t.is_anonymous, t.status, t.review_note, t.amens, t.praises, t.created_at, t.approved_at,
+              u.name AS author, u.email
+       FROM testimonies t JOIN users u ON u.id = t.user_id
+       ORDER BY t.status = 'pending' DESC, t.created_at DESC LIMIT 200`,
+    )
+    .all<{ id: string; category: string; title: string; body: string; scripture: string | null; is_anonymous: number; status: string; review_note: string | null; amens: number; praises: number; created_at: string; approved_at: string | null; author: string; email: string }>()
+  return results
+})
+
+export const adminReviewTestimony = createServerFn({ method: 'POST' })
+  .validator((d: { id: string; action: 'approve' | 'reject' | 'hide' | 'delete'; note?: string; title?: string; body?: string }) => ({
+    id: String(d?.id ?? ''),
+    action: (['approve', 'reject', 'hide', 'delete'] as const).includes(d?.action) ? d.action : 'reject',
+    note: String(d?.note ?? '').trim().slice(0, 300) || null,
+    title: d?.title ? String(d.title).trim().slice(0, 100) : null,
+    body: d?.body ? String(d.body).trim().slice(0, 2000) : null,
+  }))
+  .handler(async ({ data }) => {
+    const admin = await requireAdmin()
+    const t = await db().prepare('SELECT id, user_id, title, status FROM testimonies WHERE id = ?').bind(data.id).first<{ id: string; user_id: string; title: string; status: string }>()
+    if (!t) throw new Error('Not found.')
+    if (data.action === 'delete') {
+      await db().prepare('DELETE FROM testimonies WHERE id = ?').bind(t.id).run()
+    } else if (data.action === 'approve') {
+      // Admins may lightly correct spelling before approving
+      await db()
+        .prepare(`UPDATE testimonies SET status = 'approved', approved_at = COALESCE(approved_at, datetime('now')), review_note = NULL, title = COALESCE(?, title), body = COALESCE(?, body) WHERE id = ?`)
+        .bind(data.title, data.body, t.id)
+        .run()
+      if (t.status !== 'approved') {
+        await notify({ userIds: [t.user_id] }, { kind: 'testimony', title: '🎉 Your testimony is now shared', body: `“${t.title}” is encouraging others. Thank you!`, url: '/app/testimonies' })
+        await checkAwards(t.user_id, 'testimony')
+      }
+    } else {
+      await db().prepare('UPDATE testimonies SET status = ?, review_note = ? WHERE id = ?').bind(data.action === 'hide' ? 'hidden' : 'rejected', data.note, t.id).run()
+      if (data.action === 'reject') await notify({ userIds: [t.user_id] }, { kind: 'testimony', title: 'About your testimony', body: data.note || 'We couldn’t share this one on the wall, but we rejoice with you!', url: '/app/testimonies' }, { push: false })
+    }
+    await audit(admin, `testimony.${data.action}`, t.id, t.title)
     return { ok: true }
   })

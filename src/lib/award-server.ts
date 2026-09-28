@@ -3,7 +3,7 @@ import { db } from '~/lib/env'
 import { awardByKey, type AwardDef } from '~/lib/awards'
 import { dayString } from '~/lib/util'
 
-export type AwardEvent = 'workout' | 'journey' | 'reading' | 'plan' | 'memory' | 'prayer' | 'walk'
+export type AwardEvent = 'workout' | 'journey' | 'reading' | 'plan' | 'memory' | 'prayer' | 'walk' | 'fast' | 'testimony'
 
 async function grant(userId: string, keys: string[]): Promise<AwardDef[]> {
   const won: AwardDef[] = []
@@ -32,7 +32,7 @@ async function streak(userId: string) {
   return n
 }
 
-export async function checkAwards(userId: string, event: AwardEvent, extra: { planKey?: string } = {}): Promise<AwardDef[]> {
+export async function checkAwards(userId: string, event: AwardEvent, extra: { planKey?: string; fastDays?: number } = {}): Promise<AwardDef[]> {
   try {
     const keys: string[] = []
     if (event === 'workout' || event === 'journey') {
@@ -57,6 +57,12 @@ export async function checkAwards(userId: string, event: AwardEvent, extra: { pl
     if (event === 'memory') keys.push('memory_known')
     if (event === 'prayer') keys.push('answered_prayer')
     if (event === 'walk') keys.push('walk_partner')
+    if (event === 'fast') {
+      keys.push('fast_complete')
+      if ((extra.fastDays ?? 0) >= 7) keys.push('fast_7')
+      if ((extra.fastDays ?? 0) >= 21) keys.push('fast_21')
+    }
+    if (event === 'testimony') keys.push('testimony_shared')
     return await grant(userId, keys)
   } catch {
     return [] // medals must never break the main action

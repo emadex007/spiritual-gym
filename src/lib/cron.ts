@@ -3,6 +3,7 @@ import { db } from '~/lib/env'
 import { kickDispatcher, notify, notifyMany, pushConfigured } from '~/lib/notify'
 import { dayLabel, planByKey, planDays, type PlanDay } from '~/lib/plans'
 import { dayOfYear, daysBetween } from '~/lib/util'
+import { fastKind, fastState, type FastRow } from '~/lib/fasting'
 import { nextStart, type Schedule } from '~/lib/schedule'
 
 const REMINDERS = [
@@ -16,7 +17,7 @@ const REMINDERS = [
 // so a run that stops early (free-plan limits) never sends the same reminder twice.
 export async function runCron(now = Date.now()) {
   const jobs: [string, () => Promise<void>][] = [['schedules', () => scheduleReminders(now)]]
-  if (pushConfigured()) jobs.push(['daily', () => dailyReminders(now)], ['word', () => dailyWord(now)], ['plans', () => planReminders(now)])
+  if (pushConfigured()) jobs.push(['daily', () => dailyReminders(now)], ['word', () => dailyWord(now)], ['plans', () => planReminders(now)], ['fasts', () => fastReminders(now)])
   const d = new Date(now)
   if (d.getUTCHours() === 3 && d.getUTCMinutes() < 5) {
     jobs.push([
@@ -213,4 +214,44 @@ async function markDay(column: 'last_reminded_day' | 'last_word_day' | 'last_pla
     stmts.push(db().prepare(`UPDATE profiles SET ${column} = ? WHERE user_id IN (${chunk.map(() => '?').join(',')})`).bind(day, ...chunk))
   }
   if (stmts.length) await db().batch(stmts)
+}
+
+/** "Time to break your fast": at the end of each day's partial fast, and when a full/dry fast is complete */
+async function fastReminders(now: number) {
+  const { results } = await db()
+    .prepare(
+      `SELECT f.id, f.user_id, f.kind, f.title, f.days, f.hours, f.start_day, f.daily_start, f.daily_end, f.start_at, f.end_at, f.timezone, f.last_notified
+       FROM fasts f
+       WHERE f.status = 'active' AND f.notify = 1 AND (f.kind IN ('partial', 'full', 'dry'))
+         AND f.start_at <= ? AND f.end_at >= ?
+         AND EXISTS (SELECT 1 FROM push_subscriptions s WHERE s.user_id = f.user_id)
+       LIMIT 400`,
+    )
+    .bind(new Date(now).toISOString(), new Date(now - 45 * 60_000).toISOString())
+    .all<FastRow & { user_id: string; last_notified: string | null }>()
+  const items: { userId: string; notice: { kind: string; title: string; body: string; url: string; tag: string } }[] = []
+  const marks: D1PreparedStatement[] = []
+  for (const f of results) {
+    const local = safeLocal(now, f.timezone)
+    if (f.last_notified === local.day) continue
+    let due = false
+    let title = ''
+    let body = ''
+    if (f.kind === 'partial' && f.daily_end) {
+      due = inWindow(local.minutes, f.daily_end)
+      const st = fastState(f, now)
+      title = '🍽️ Time to break your fast'
+      body = `Day ${st.day} of ${st.totalDays} done. Thank God, then eat gently.`
+    } else if (Date.parse(f.end_at) <= now) {
+      due = true
+      title = `🎉 Your ${f.hours}-hour fast is complete`
+      body = f.kind === 'dry' ? 'Drink water slowly first, then eat something light. Well done!' : 'Break it gently with something light. Open the app to finish your fast.'
+    }
+    if (!due) continue
+    marks.push(db().prepare('UPDATE fasts SET last_notified = ? WHERE id = ?').bind(local.day, f.id))
+    items.push({ userId: f.user_id, notice: { kind: 'fast', title, body: `${fastKind(f.kind).emoji} ${f.title}: ${body}`, url: '/app/fasting', tag: `fast-${f.id}` } })
+    if (items.length >= 200) break
+  }
+  for (let i = 0; i < marks.length; i += 100) await db().batch(marks.slice(i, i + 100))
+  if (items.length) await notifyMany(items, { kick: false, inApp: true })
 }

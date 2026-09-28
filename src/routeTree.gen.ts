@@ -36,6 +36,7 @@ import { Route as AdminNotificationsRouteImport } from './routes/admin/notificat
 import { Route as AdminPaymentsRouteImport } from './routes/admin/payments'
 import { Route as AdminReportsRouteImport } from './routes/admin/reports'
 import { Route as AdminSettingsRouteImport } from './routes/admin/settings'
+import { Route as AdminTestimoniesRouteImport } from './routes/admin/testimonies'
 import { Route as AdminUsersRouteImport } from './routes/admin/users'
 import { Route as AdminVersesRouteImport } from './routes/admin/verses'
 import { Route as AdminWorkoutsRouteImport } from './routes/admin/workouts'
@@ -43,9 +44,11 @@ import { Route as AppIndexRouteImport } from './routes/app/index'
 import { Route as AppCoachRouteImport } from './routes/app/coach'
 import { Route as AppCommunityRouteImport } from './routes/app/community'
 import { Route as AppCommunityAccessRouteImport } from './routes/app/community-access'
+import { Route as AppFastingRouteImport } from './routes/app/fasting'
 import { Route as AppJournalRouteImport } from './routes/app/journal'
 import { Route as AppNotificationsRouteImport } from './routes/app/notifications'
 import { Route as AppProfileRouteImport } from './routes/app/profile'
+import { Route as AppTestimoniesRouteImport } from './routes/app/testimonies'
 import { Route as AppTrainRouteImport } from './routes/app/train'
 import { Route as AppWakeRouteImport } from './routes/app/wake'
 import { Route as GiveIndexRouteImport } from './routes/give/index'
@@ -207,6 +210,11 @@ const AdminSettingsRoute = AdminSettingsRouteImport.update({
   path: '/settings',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminTestimoniesRoute = AdminTestimoniesRouteImport.update({
+  id: '/testimonies',
+  path: '/testimonies',
+  getParentRoute: () => AdminRoute,
+} as any)
 const AdminUsersRoute = AdminUsersRouteImport.update({
   id: '/users',
   path: '/users',
@@ -242,6 +250,11 @@ const AppCommunityAccessRoute = AppCommunityAccessRouteImport.update({
   path: '/community-access',
   getParentRoute: () => AppRoute,
 } as any)
+const AppFastingRoute = AppFastingRouteImport.update({
+  id: '/fasting',
+  path: '/fasting',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppJournalRoute = AppJournalRouteImport.update({
   id: '/journal',
   path: '/journal',
@@ -255,6 +268,11 @@ const AppNotificationsRoute = AppNotificationsRouteImport.update({
 const AppProfileRoute = AppProfileRouteImport.update({
   id: '/profile',
   path: '/profile',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppTestimoniesRoute = AppTestimoniesRouteImport.update({
+  id: '/testimonies',
+  path: '/testimonies',
   getParentRoute: () => AppRoute,
 } as any)
 const AppTrainRoute = AppTrainRouteImport.update({
@@ -411,15 +429,18 @@ export interface FileRoutesByFullPath {
   '/admin/payments': typeof AdminPaymentsRoute
   '/admin/reports': typeof AdminReportsRoute
   '/admin/settings': typeof AdminSettingsRoute
+  '/admin/testimonies': typeof AdminTestimoniesRoute
   '/admin/users': typeof AdminUsersRoute
   '/admin/verses': typeof AdminVersesRoute
   '/admin/workouts': typeof AdminWorkoutsRoute
   '/app/coach': typeof AppCoachRoute
   '/app/community': typeof AppCommunityRouteWithChildren
   '/app/community-access': typeof AppCommunityAccessRoute
+  '/app/fasting': typeof AppFastingRoute
   '/app/journal': typeof AppJournalRouteWithChildren
   '/app/notifications': typeof AppNotificationsRoute
   '/app/profile': typeof AppProfileRoute
+  '/app/testimonies': typeof AppTestimoniesRoute
   '/app/train': typeof AppTrainRoute
   '/app/wake': typeof AppWakeRoute
   '/give/thanks': typeof GiveThanksRoute
@@ -473,13 +494,16 @@ export interface FileRoutesByTo {
   '/admin/payments': typeof AdminPaymentsRoute
   '/admin/reports': typeof AdminReportsRoute
   '/admin/settings': typeof AdminSettingsRoute
+  '/admin/testimonies': typeof AdminTestimoniesRoute
   '/admin/users': typeof AdminUsersRoute
   '/admin/verses': typeof AdminVersesRoute
   '/admin/workouts': typeof AdminWorkoutsRoute
   '/app/coach': typeof AppCoachRoute
   '/app/community-access': typeof AppCommunityAccessRoute
+  '/app/fasting': typeof AppFastingRoute
   '/app/notifications': typeof AppNotificationsRoute
   '/app/profile': typeof AppProfileRoute
+  '/app/testimonies': typeof AppTestimoniesRoute
   '/app/train': typeof AppTrainRoute
   '/app/wake': typeof AppWakeRoute
   '/give/thanks': typeof GiveThanksRoute
@@ -536,15 +560,18 @@ export interface FileRoutesById {
   '/admin/payments': typeof AdminPaymentsRoute
   '/admin/reports': typeof AdminReportsRoute
   '/admin/settings': typeof AdminSettingsRoute
+  '/admin/testimonies': typeof AdminTestimoniesRoute
   '/admin/users': typeof AdminUsersRoute
   '/admin/verses': typeof AdminVersesRoute
   '/admin/workouts': typeof AdminWorkoutsRoute
   '/app/coach': typeof AppCoachRoute
   '/app/community': typeof AppCommunityRouteWithChildren
   '/app/community-access': typeof AppCommunityAccessRoute
+  '/app/fasting': typeof AppFastingRoute
   '/app/journal': typeof AppJournalRouteWithChildren
   '/app/notifications': typeof AppNotificationsRoute
   '/app/profile': typeof AppProfileRoute
+  '/app/testimonies': typeof AppTestimoniesRoute
   '/app/train': typeof AppTrainRoute
   '/app/wake': typeof AppWakeRoute
   '/give/thanks': typeof GiveThanksRoute
@@ -602,15 +629,18 @@ export interface FileRouteTypes {
     | '/admin/payments'
     | '/admin/reports'
     | '/admin/settings'
+    | '/admin/testimonies'
     | '/admin/users'
     | '/admin/verses'
     | '/admin/workouts'
     | '/app/coach'
     | '/app/community'
     | '/app/community-access'
+    | '/app/fasting'
     | '/app/journal'
     | '/app/notifications'
     | '/app/profile'
+    | '/app/testimonies'
     | '/app/train'
     | '/app/wake'
     | '/give/thanks'
@@ -664,13 +694,16 @@ export interface FileRouteTypes {
     | '/admin/payments'
     | '/admin/reports'
     | '/admin/settings'
+    | '/admin/testimonies'
     | '/admin/users'
     | '/admin/verses'
     | '/admin/workouts'
     | '/app/coach'
     | '/app/community-access'
+    | '/app/fasting'
     | '/app/notifications'
     | '/app/profile'
+    | '/app/testimonies'
     | '/app/train'
     | '/app/wake'
     | '/give/thanks'
@@ -726,15 +759,18 @@ export interface FileRouteTypes {
     | '/admin/payments'
     | '/admin/reports'
     | '/admin/settings'
+    | '/admin/testimonies'
     | '/admin/users'
     | '/admin/verses'
     | '/admin/workouts'
     | '/app/coach'
     | '/app/community'
     | '/app/community-access'
+    | '/app/fasting'
     | '/app/journal'
     | '/app/notifications'
     | '/app/profile'
+    | '/app/testimonies'
     | '/app/train'
     | '/app/wake'
     | '/give/thanks'
@@ -971,6 +1007,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminSettingsRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/testimonies': {
+      id: '/admin/testimonies'
+      path: '/testimonies'
+      fullPath: '/admin/testimonies'
+      preLoaderRoute: typeof AdminTestimoniesRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/users': {
       id: '/admin/users'
       path: '/users'
@@ -1020,6 +1063,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppCommunityAccessRouteImport
       parentRoute: typeof AppRoute
     }
+    '/app/fasting': {
+      id: '/app/fasting'
+      path: '/fasting'
+      fullPath: '/app/fasting'
+      preLoaderRoute: typeof AppFastingRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/app/journal': {
       id: '/app/journal'
       path: '/journal'
@@ -1039,6 +1089,13 @@ declare module '@tanstack/react-router' {
       path: '/profile'
       fullPath: '/app/profile'
       preLoaderRoute: typeof AppProfileRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/testimonies': {
+      id: '/app/testimonies'
+      path: '/testimonies'
+      fullPath: '/app/testimonies'
+      preLoaderRoute: typeof AppTestimoniesRouteImport
       parentRoute: typeof AppRoute
     }
     '/app/train': {
@@ -1235,6 +1292,7 @@ interface AdminRouteChildren {
   AdminPaymentsRoute: typeof AdminPaymentsRoute
   AdminReportsRoute: typeof AdminReportsRoute
   AdminSettingsRoute: typeof AdminSettingsRoute
+  AdminTestimoniesRoute: typeof AdminTestimoniesRoute
   AdminUsersRoute: typeof AdminUsersRoute
   AdminVersesRoute: typeof AdminVersesRoute
   AdminWorkoutsRoute: typeof AdminWorkoutsRoute
@@ -1257,6 +1315,7 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminPaymentsRoute: AdminPaymentsRoute,
   AdminReportsRoute: AdminReportsRoute,
   AdminSettingsRoute: AdminSettingsRoute,
+  AdminTestimoniesRoute: AdminTestimoniesRoute,
   AdminUsersRoute: AdminUsersRoute,
   AdminVersesRoute: AdminVersesRoute,
   AdminWorkoutsRoute: AdminWorkoutsRoute,
@@ -1305,9 +1364,11 @@ interface AppRouteChildren {
   AppCoachRoute: typeof AppCoachRoute
   AppCommunityRoute: typeof AppCommunityRouteWithChildren
   AppCommunityAccessRoute: typeof AppCommunityAccessRoute
+  AppFastingRoute: typeof AppFastingRoute
   AppJournalRoute: typeof AppJournalRouteWithChildren
   AppNotificationsRoute: typeof AppNotificationsRoute
   AppProfileRoute: typeof AppProfileRoute
+  AppTestimoniesRoute: typeof AppTestimoniesRoute
   AppTrainRoute: typeof AppTrainRoute
   AppWakeRoute: typeof AppWakeRoute
   AppIndexRoute: typeof AppIndexRoute
@@ -1330,9 +1391,11 @@ const AppRouteChildren: AppRouteChildren = {
   AppCoachRoute: AppCoachRoute,
   AppCommunityRoute: AppCommunityRouteWithChildren,
   AppCommunityAccessRoute: AppCommunityAccessRoute,
+  AppFastingRoute: AppFastingRoute,
   AppJournalRoute: AppJournalRouteWithChildren,
   AppNotificationsRoute: AppNotificationsRoute,
   AppProfileRoute: AppProfileRoute,
+  AppTestimoniesRoute: AppTestimoniesRoute,
   AppTrainRoute: AppTrainRoute,
   AppWakeRoute: AppWakeRoute,
   AppIndexRoute: AppIndexRoute,

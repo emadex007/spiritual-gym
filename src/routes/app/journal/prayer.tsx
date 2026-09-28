@@ -224,9 +224,12 @@ function AnsweredCard({ p }: { p: Prayer }) {
           <p className="mt-0.5 whitespace-pre-wrap">{p.my_response}</p>
         </div>
       )}
-      <button type="button" className="mt-4 text-xs font-semibold text-muted hover:text-ink" onClick={reopen}>
-        Move back to my list
-      </button>
+      <div className="mt-4 flex flex-wrap items-center gap-4">
+        <a href={`/app/testimonies?from=${encodeURIComponent(p.id)}`} className="rounded-full bg-gold/20 px-4 py-2 text-xs font-semibold text-[#8a6310] dark:text-gold">🎉 Share as a testimony</a>
+        <button type="button" className="text-xs font-semibold text-muted hover:text-ink" onClick={reopen}>
+          Move back to my list
+        </button>
+      </div>
     </article>
   )
 }

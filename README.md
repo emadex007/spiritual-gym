@@ -123,6 +123,15 @@ Optional, for live prayer on strict mobile networks: create a TURN key in Cloudf
   - Optional: paste a Claude API key in Admin → AI coach for better replies.
 - Migration `0014_safety.sql`.
 
+## Fasting tracker + testimonies wall
+- Fasting (/app/fasting, for everyone): daily partial fast (6am–12pm, 3pm or 6pm), Daniel fast, media fast, full fast (water only, 12–72 hours) or dry fast (up to 24 hours).
+  - A live countdown, a 21-day fasting guide (KJV verse, reflection and 3 prayer points each day, with read-aloud), a daily "I kept today's fast" check-in with a private note, and medals (Fasted & Prayed, Seven Days Seeking, Daniel's Devotion).
+  - Break-fast push reminder (partial fasts: at the end of each day's hours; full and dry fasts: when time is up).
+  - A health note must be ticked before starting. Under-18s only see partial, Daniel and media fasts.
+- Testimonies (/app/testimonies): adults share what God did (optionally without their name, or straight from an answered prayer). Admin approves in Admin → Testimonies (and can fix spelling). Others react 🙏 Amen or 🎉 Praise God, testimonies can be reported, and approved ones earn the "Overcomer" medal.
+- Home shortcuts: Reading plans, Fasting, Testimonies, My church, Wake-up, Memory verses.
+- Migration `0015_fasting.sql`.
+
 ## Setup (Windows, PowerShell)
 ```powershell
 nvm use 22

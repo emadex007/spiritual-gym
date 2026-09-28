@@ -286,8 +286,11 @@ function Home() {
         {(
           [
           { to: '/app/plans', emoji: '📅', title: 'Reading plans', sub: 'Read with friends' },
-          { to: '/app/wake', emoji: '⏰', title: 'Wake-up', sub: 'Bells + a word' },
+          { to: '/app/fasting', emoji: '🕊️', title: 'Fasting', sub: 'Fast & pray' },
+          { to: '/app/testimonies', emoji: '🎉', title: 'Testimonies', sub: 'What God did' },
           { to: '/app/church', emoji: '⛪', title: 'My church', sub: 'Programs & plans' },
+          { to: '/app/wake', emoji: '⏰', title: 'Wake-up', sub: 'Bells + a word' },
+          { to: '/app/journal/memory', emoji: '💎', title: 'Memory verses', sub: 'Hide the Word' },
           ] as const
         ).map((t) => (
           <Link key={t.to} to={t.to} className="card flex flex-col items-center gap-1 !p-3 text-center transition hover:border-accent">

@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { reportContent } from '~/fns/community'
 import { REPORT_REASONS } from '~/lib/content'
 
-export function ReportDialog({ targetType, targetId, onClose }: { targetType: 'post' | 'reply' | 'group' | 'user' | 'church' | 'note'; targetId: string; onClose: () => void }) {
+export function ReportDialog({ targetType, targetId, onClose }: { targetType: 'post' | 'reply' | 'group' | 'user' | 'church' | 'note' | 'testimony'; targetId: string; onClose: () => void }) {
   const [reason, setReason] = useState<string>(REPORT_REASONS[0])
   const [details, setDetails] = useState('')
   const [done, setDone] = useState(false)

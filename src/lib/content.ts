@@ -190,3 +190,17 @@ export const MEMORY_CATEGORIES = [
   { key: 'praise', label: 'Praise & thanksgiving', emoji: '🎶' },
   { key: 'holiness', label: 'Holy living', emoji: '✨' },
 ] as const
+
+// ---------- Testimonies ----------
+export const TESTIMONY_CATEGORIES = [
+  { key: 'answered', label: 'Answered prayer', emoji: '🙌' },
+  { key: 'healing', label: 'Healing', emoji: '💚' },
+  { key: 'provision', label: 'Provision', emoji: '🍞' },
+  { key: 'family', label: 'Family', emoji: '🏡' },
+  { key: 'salvation', label: 'Salvation', emoji: '✝️' },
+  { key: 'breakthrough', label: 'Breakthrough', emoji: '🚪' },
+  { key: 'protection', label: 'Protection', emoji: '🛡️' },
+  { key: 'guidance', label: 'Guidance', emoji: '🧭' },
+  { key: 'other', label: 'Other', emoji: '✨' },
+] as const
+export const testimonyCategory = (k: string) => TESTIMONY_CATEGORIES.find((c) => c.key === k) ?? TESTIMONY_CATEGORIES[TESTIMONY_CATEGORIES.length - 1]

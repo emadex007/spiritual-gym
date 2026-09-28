@@ -20,6 +20,10 @@ export const AWARDS: AwardDef[] = [
   { key: 'memory_known', title: 'Hidden in My Heart', subtitle: 'Learned a verse by heart', emoji: '💎', tier: 'silver' },
   { key: 'answered_prayer', title: 'Testimony', subtitle: 'Recorded an answered prayer', emoji: '🙌', tier: 'silver' },
   { key: 'walk_partner', title: 'Walking Together', subtitle: 'Started walking with a friend', emoji: '🤝', tier: 'bronze' },
+  { key: 'fast_complete', title: 'Fasted & Prayed', subtitle: 'Completed a fast', emoji: '🕊️', tier: 'silver' },
+  { key: 'fast_7', title: 'Seven Days Seeking', subtitle: 'Completed a fast of 7 days or more', emoji: '🌾', tier: 'gold' },
+  { key: 'fast_21', title: 'Daniel’s Devotion', subtitle: 'Completed a fast of 21 days or more', emoji: '🦁', tier: 'special' },
+  { key: 'testimony_shared', title: 'Overcomer', subtitle: 'Shared a testimony of what God did', emoji: '🎉', tier: 'silver' },
 ]
 
 export const awardByKey = (k: string) => AWARDS.find((a) => a.key === k)
