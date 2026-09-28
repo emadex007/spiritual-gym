@@ -8,6 +8,7 @@ import { FormError, errorText } from '~/components/AuthShell'
 import { ThemeSwitch } from '~/components/ThemeSwitch'
 import { AvatarUpload } from '~/components/AvatarUpload'
 import { InstallApp } from '~/components/InstallApp'
+import { PastorToggle } from '~/components/PastorToggle'
 import { NotificationSettings } from '~/components/NotificationSettings'
 import { TrophyCabinet } from '~/components/TrophyCabinet'
 import { getMyAwards } from '~/fns/awards'
@@ -136,6 +137,7 @@ function Profile() {
         </button>
       </section>
 
+      <PastorToggle />
       <div className="mt-5"><InstallApp /></div>
       <div className="mt-5 grid gap-3 sm:grid-cols-2">
         <Link to="/app/church" className="card flex items-center gap-3 !p-4 transition hover:border-accent">

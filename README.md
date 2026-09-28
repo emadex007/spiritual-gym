@@ -132,6 +132,15 @@ Optional, for live prayer on strict mobile networks: create a TURN key in Cloudf
 - Home shortcuts: Reading plans, Fasting, Testimonies, My church, Wake-up, Memory verses.
 - Migration `0015_fasting.sql`.
 
+## Pastor Mode
+- For ministers and church workers (adults): turn it on in Profile, then open /app/pastor. Everything is private to the minister.
+- It keeps ministry apart from time with God: "Personal communion" (minutes with God today and this week) and "Ministry activity" (acts of service) are shown side by side. If someone has served today but not spent time with God, Home and Pastor Mode show: "You've spent time serving today. Have you had time to simply be with God?" with a 10-minute workout button.
+- Sermons: a preaching calendar with stages (idea, drafting, ready, preached). The editor has title, main Scripture, date, venue, big idea and notes; KJV verse insert; an outline template; "Suggest an outline" (AI, max 10 a day, a starting point to study, not a script); and copy notes.
+- Intercession: a list grouped by Church family, Workers, The sick…, with a "Pray through my list" mode, prayer counts and answered prayers.
+- Pastoral tasks: visits, calls, counselling and meetings, with due dates (overdue shown in red).
+- Leaders: people being raised up, with their role, what they're growing in, private notes and next meeting ("✓ Met today").
+- Migration `0016_pastor.sql`.
+
 ## Setup (Windows, PowerShell)
 ```powershell
 nvm use 22

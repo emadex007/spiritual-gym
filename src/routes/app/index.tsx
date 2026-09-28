@@ -84,6 +84,22 @@ function Home() {
 
       <CheckIn current={h.checkin} />
 
+      {h.pastor && (
+        h.pastor.ministryToday > 0 && h.todayMinutes === 0 ? (
+          <Link to="/app/workout/$slug" params={{ slug: 'reset-10' }} className="mt-5 block rounded-[1.75rem] bg-navy p-5 text-white shadow-lg">
+            <p className="text-xs font-semibold tracking-[0.14em] text-gold uppercase">Pastor Mode</p>
+            <p className="mt-1 font-display text-lg font-semibold">You’ve spent time serving today. Have you had time to simply be with God?</p>
+            <span className="btn-gold mt-3">Take 10 minutes with God</span>
+          </Link>
+        ) : (
+          <Link to="/app/pastor" className="card mt-5 flex items-center gap-3 !p-4 transition hover:border-accent">
+            <span className="text-2xl" aria-hidden>⛪</span>
+            <span className="flex-1"><span className="block font-semibold">Pastor Mode</span><span className="text-xs text-muted">Sermons, intercession, pastoral tasks, leaders</span></span>
+            <span className="text-accent">→</span>
+          </Link>
+        )
+      )}
+
       <Link to="/app/coach" className="relative mt-5 flex items-center gap-4 overflow-hidden rounded-[1.75rem] p-5 text-white shadow-lg shadow-[#3a2f86]/20 transition active:scale-[0.99]" style={{ background: 'linear-gradient(135deg,#4f8fe0 0%,#6f5ce6 100%)' }}>
         <DoveIcon className="absolute -right-3 -bottom-4 h-28 w-28 text-white/15" />
         <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-white/20 text-2xl" aria-hidden>🕊️</span>

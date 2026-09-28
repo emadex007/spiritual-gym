@@ -60,6 +60,7 @@ import { Route as AppCommunityIndexRouteImport } from './routes/app/community/in
 import { Route as AppCommunityNewRouteImport } from './routes/app/community/new'
 import { Route as AppJournalIndexRouteImport } from './routes/app/journal/index'
 import { Route as AppJournalPrayerRouteImport } from './routes/app/journal/prayer'
+import { Route as AppPastorIndexRouteImport } from './routes/app/pastor/index'
 import { Route as AppPlansIndexRouteImport } from './routes/app/plans/index'
 import { Route as AppPlansIdRouteImport } from './routes/app/plans/$id'
 import { Route as AppWalkIndexRouteImport } from './routes/app/walk/index'
@@ -72,6 +73,7 @@ import { Route as AppCommunityGroupIdIndexRouteImport } from './routes/app/commu
 import { Route as AppCommunityGroupIdLiveRouteImport } from './routes/app/community/$groupId.live'
 import { Route as AppJournalMemoryIndexRouteImport } from './routes/app/journal/memory.index'
 import { Route as AppJournalMemoryIdRouteImport } from './routes/app/journal/memory.$id'
+import { Route as AppPastorSermonIdRouteImport } from './routes/app/pastor/sermon.$id'
 import { Route as AppPlansJoinCodeRouteImport } from './routes/app/plans/join.$code'
 import { Route as AppWalkJoinCodeRouteImport } from './routes/app/walk/join.$code'
 
@@ -330,6 +332,11 @@ const AppJournalPrayerRoute = AppJournalPrayerRouteImport.update({
   path: '/prayer',
   getParentRoute: () => AppJournalRoute,
 } as any)
+const AppPastorIndexRoute = AppPastorIndexRouteImport.update({
+  id: '/pastor/',
+  path: '/pastor/',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppPlansIndexRoute = AppPlansIndexRouteImport.update({
   id: '/plans/',
   path: '/plans/',
@@ -390,6 +397,11 @@ const AppJournalMemoryIdRoute = AppJournalMemoryIdRouteImport.update({
   id: '/memory/$id',
   path: '/memory/$id',
   getParentRoute: () => AppJournalRoute,
+} as any)
+const AppPastorSermonIdRoute = AppPastorSermonIdRouteImport.update({
+  id: '/pastor/sermon/$id',
+  path: '/pastor/sermon/$id',
+  getParentRoute: () => AppRoute,
 } as any)
 const AppPlansJoinCodeRoute = AppPlansJoinCodeRouteImport.update({
   id: '/plans/join/$code',
@@ -456,6 +468,7 @@ export interface FileRoutesByFullPath {
   '/app/church/': typeof AppChurchIndexRoute
   '/app/community/': typeof AppCommunityIndexRoute
   '/app/journal/': typeof AppJournalIndexRoute
+  '/app/pastor/': typeof AppPastorIndexRoute
   '/app/plans/': typeof AppPlansIndexRoute
   '/app/walk/': typeof AppWalkIndexRoute
   '/app/bible/$book/$chapter': typeof AppBibleBookChapterRoute
@@ -463,6 +476,7 @@ export interface FileRoutesByFullPath {
   '/app/church/join/$code': typeof AppChurchJoinCodeRoute
   '/app/community/$groupId/live': typeof AppCommunityGroupIdLiveRoute
   '/app/journal/memory/$id': typeof AppJournalMemoryIdRoute
+  '/app/pastor/sermon/$id': typeof AppPastorSermonIdRoute
   '/app/plans/join/$code': typeof AppPlansJoinCodeRoute
   '/app/walk/join/$code': typeof AppWalkJoinCodeRoute
   '/app/church/$id/': typeof AppChurchIdIndexRoute
@@ -519,6 +533,7 @@ export interface FileRoutesByTo {
   '/app/church': typeof AppChurchIndexRoute
   '/app/community': typeof AppCommunityIndexRoute
   '/app/journal': typeof AppJournalIndexRoute
+  '/app/pastor': typeof AppPastorIndexRoute
   '/app/plans': typeof AppPlansIndexRoute
   '/app/walk': typeof AppWalkIndexRoute
   '/app/bible/$book/$chapter': typeof AppBibleBookChapterRoute
@@ -526,6 +541,7 @@ export interface FileRoutesByTo {
   '/app/church/join/$code': typeof AppChurchJoinCodeRoute
   '/app/community/$groupId/live': typeof AppCommunityGroupIdLiveRoute
   '/app/journal/memory/$id': typeof AppJournalMemoryIdRoute
+  '/app/pastor/sermon/$id': typeof AppPastorSermonIdRoute
   '/app/plans/join/$code': typeof AppPlansJoinCodeRoute
   '/app/walk/join/$code': typeof AppWalkJoinCodeRoute
   '/app/church/$id': typeof AppChurchIdIndexRoute
@@ -587,6 +603,7 @@ export interface FileRoutesById {
   '/app/church/': typeof AppChurchIndexRoute
   '/app/community/': typeof AppCommunityIndexRoute
   '/app/journal/': typeof AppJournalIndexRoute
+  '/app/pastor/': typeof AppPastorIndexRoute
   '/app/plans/': typeof AppPlansIndexRoute
   '/app/walk/': typeof AppWalkIndexRoute
   '/app/bible/$book/$chapter': typeof AppBibleBookChapterRoute
@@ -594,6 +611,7 @@ export interface FileRoutesById {
   '/app/church/join/$code': typeof AppChurchJoinCodeRoute
   '/app/community/$groupId/live': typeof AppCommunityGroupIdLiveRoute
   '/app/journal/memory/$id': typeof AppJournalMemoryIdRoute
+  '/app/pastor/sermon/$id': typeof AppPastorSermonIdRoute
   '/app/plans/join/$code': typeof AppPlansJoinCodeRoute
   '/app/walk/join/$code': typeof AppWalkJoinCodeRoute
   '/app/church/$id/': typeof AppChurchIdIndexRoute
@@ -656,6 +674,7 @@ export interface FileRouteTypes {
     | '/app/church/'
     | '/app/community/'
     | '/app/journal/'
+    | '/app/pastor/'
     | '/app/plans/'
     | '/app/walk/'
     | '/app/bible/$book/$chapter'
@@ -663,6 +682,7 @@ export interface FileRouteTypes {
     | '/app/church/join/$code'
     | '/app/community/$groupId/live'
     | '/app/journal/memory/$id'
+    | '/app/pastor/sermon/$id'
     | '/app/plans/join/$code'
     | '/app/walk/join/$code'
     | '/app/church/$id/'
@@ -719,6 +739,7 @@ export interface FileRouteTypes {
     | '/app/church'
     | '/app/community'
     | '/app/journal'
+    | '/app/pastor'
     | '/app/plans'
     | '/app/walk'
     | '/app/bible/$book/$chapter'
@@ -726,6 +747,7 @@ export interface FileRouteTypes {
     | '/app/church/join/$code'
     | '/app/community/$groupId/live'
     | '/app/journal/memory/$id'
+    | '/app/pastor/sermon/$id'
     | '/app/plans/join/$code'
     | '/app/walk/join/$code'
     | '/app/church/$id'
@@ -786,6 +808,7 @@ export interface FileRouteTypes {
     | '/app/church/'
     | '/app/community/'
     | '/app/journal/'
+    | '/app/pastor/'
     | '/app/plans/'
     | '/app/walk/'
     | '/app/bible/$book/$chapter'
@@ -793,6 +816,7 @@ export interface FileRouteTypes {
     | '/app/church/join/$code'
     | '/app/community/$groupId/live'
     | '/app/journal/memory/$id'
+    | '/app/pastor/sermon/$id'
     | '/app/plans/join/$code'
     | '/app/walk/join/$code'
     | '/app/church/$id/'
@@ -1175,6 +1199,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppJournalPrayerRouteImport
       parentRoute: typeof AppJournalRoute
     }
+    '/app/pastor/': {
+      id: '/app/pastor/'
+      path: '/pastor'
+      fullPath: '/app/pastor/'
+      preLoaderRoute: typeof AppPastorIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/app/plans/': {
       id: '/app/plans/'
       path: '/plans'
@@ -1258,6 +1289,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/app/journal/memory/$id'
       preLoaderRoute: typeof AppJournalMemoryIdRouteImport
       parentRoute: typeof AppJournalRoute
+    }
+    '/app/pastor/sermon/$id': {
+      id: '/app/pastor/sermon/$id'
+      path: '/pastor/sermon/$id'
+      fullPath: '/app/pastor/sermon/$id'
+      preLoaderRoute: typeof AppPastorSermonIdRouteImport
+      parentRoute: typeof AppRoute
     }
     '/app/plans/join/$code': {
       id: '/app/plans/join/$code'
@@ -1377,11 +1415,13 @@ interface AppRouteChildren {
   AppWorkoutSlugRoute: typeof AppWorkoutSlugRoute
   AppBibleIndexRoute: typeof AppBibleIndexRoute
   AppChurchIndexRoute: typeof AppChurchIndexRoute
+  AppPastorIndexRoute: typeof AppPastorIndexRoute
   AppPlansIndexRoute: typeof AppPlansIndexRoute
   AppWalkIndexRoute: typeof AppWalkIndexRoute
   AppBibleBookChapterRoute: typeof AppBibleBookChapterRoute
   AppChurchIdManageRoute: typeof AppChurchIdManageRoute
   AppChurchJoinCodeRoute: typeof AppChurchJoinCodeRoute
+  AppPastorSermonIdRoute: typeof AppPastorSermonIdRoute
   AppPlansJoinCodeRoute: typeof AppPlansJoinCodeRoute
   AppWalkJoinCodeRoute: typeof AppWalkJoinCodeRoute
   AppChurchIdIndexRoute: typeof AppChurchIdIndexRoute
@@ -1404,11 +1444,13 @@ const AppRouteChildren: AppRouteChildren = {
   AppWorkoutSlugRoute: AppWorkoutSlugRoute,
   AppBibleIndexRoute: AppBibleIndexRoute,
   AppChurchIndexRoute: AppChurchIndexRoute,
+  AppPastorIndexRoute: AppPastorIndexRoute,
   AppPlansIndexRoute: AppPlansIndexRoute,
   AppWalkIndexRoute: AppWalkIndexRoute,
   AppBibleBookChapterRoute: AppBibleBookChapterRoute,
   AppChurchIdManageRoute: AppChurchIdManageRoute,
   AppChurchJoinCodeRoute: AppChurchJoinCodeRoute,
+  AppPastorSermonIdRoute: AppPastorSermonIdRoute,
   AppPlansJoinCodeRoute: AppPlansJoinCodeRoute,
   AppWalkJoinCodeRoute: AppWalkJoinCodeRoute,
   AppChurchIdIndexRoute: AppChurchIdIndexRoute,

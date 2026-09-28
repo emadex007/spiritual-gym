@@ -49,6 +49,11 @@ export const getHome = createServerFn({ method: 'GET' }).handler(async () => {
     .prepare('SELECT id, slug, title, description, minutes, is_recovery FROM workouts WHERE slug = ?')
     .bind(slug)
     .first<{ id: string; slug: string; title: string; description: string | null; minutes: number; is_recovery: number }>()
+  const pastorRow = await db()
+    .prepare(`SELECT p.pastor_mode, (SELECT COUNT(*) FROM ministry_log m WHERE m.user_id = p.user_id AND m.day = ?) AS ministry FROM profiles p WHERE p.user_id = ?`)
+    .bind(today, user.id)
+    .first<{ pastor_mode: number; ministry: number }>()
+    .catch(() => null)
   const [devotion, tongues, unseen, header, planRow] = await Promise.all([
     devotionOfTheDay(),
     includeTongues(user.id),
@@ -119,6 +124,7 @@ export const getHome = createServerFn({ method: 'GET' }).handler(async () => {
     devotion,
     header,
     activePlan,
+    pastor: pastorRow?.pastor_mode ? { ministryToday: pastorRow.ministry } : null,
     unseenAwards: unseen,
     journey,
     verse,
