@@ -5,6 +5,7 @@ import { Logo } from '~/components/Logo'
 import { BibleIcon } from '~/components/Art'
 import { ThemeSwitch } from '~/components/ThemeSwitch'
 import { NotificationBell } from '~/components/NotificationBell'
+import { SupportFloat, SupportLink } from '~/components/SupportButton'
 
 export const Route = createFileRoute('/app')({
   beforeLoad: async () => {
@@ -57,6 +58,7 @@ function AppLayout() {
           ))}
         </nav>
         <div className="mt-auto space-y-4 px-1">
+          <SupportLink />
           <ThemeSwitch compact />
           <p className="px-2 text-xs leading-relaxed text-muted">You don’t have to be perfect to begin again.</p>
         </div>
@@ -65,6 +67,13 @@ function AppLayout() {
       <div className="min-w-0 flex-1 pb-24 md:pb-10">
         <Outlet />
       </div>
+
+      {/* Support pill (phones), kept out of the way of the plan reading bar and editors */}
+      {!pathname.startsWith('/app/bible/') && !pathname.endsWith('/manage') && (
+        <div className="md:hidden">
+          <SupportFloat />
+        </div>
+      )}
 
       {/* Mobile bottom navigation */}
       <nav className="fixed inset-x-0 bottom-0 z-20 border-t border-line bg-bg/92 backdrop-blur md:hidden safe-bottom" aria-label="Main">
