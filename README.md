@@ -99,7 +99,7 @@ Optional, for live prayer on strict mobile networks: create a TURN key in Cloudf
 - 365 daily words, one for each day of the year (Christmas passages at Christmas, and so on). Each has a KJV verse (exact text), a reflection, a declaration that follows the verse, and a prayer. Edit them in Admin → Daily words.
 - The morning notification "Today's word & declaration" goes out at 6:00 AM by default. Reading-plan members get a nudge at 7:00 AM with the next day's chapters, only if they're behind. Both times can be changed or turned off in Profile → Notifications.
 - Reading from a plan: the Bible opens with a plan bar ("Next chapter →", then "✓ Done — mark Day N read"), which returns to the plan.
-- Weekly header pictures: 52 painted Bible landscapes (a different one each week, gently animated), or your own photos from Admin → Header pictures.
+- Bible scene pictures (silhouette art): 26 Bible stories, each twice a year in different light, so each week has its own header (wise men in January, the cross and the empty tomb near Easter, Pentecost in May, the nativity at Christmas). Today's word shows a different scene each day, and it's used on the shared picture. You can use your own photos instead from Admin → Header pictures.
 - Admin → Payments: paste Paystack and Flutterwave test and live secret keys, switch test/live, test the connection, and see the webhook URLs. These override the Worker secrets. Test gifts never count in the totals.
 - Animations: drifting clouds, a glowing sun, twinkling stars, card fade-ins, a medal pop and confetti. All of it respects the phone's "reduce motion" setting.
 - Migration `0012_year.sql`.

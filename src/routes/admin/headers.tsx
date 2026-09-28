@@ -48,14 +48,14 @@ function Headers() {
   const s = sceneFor(week)
   return (
     <>
-      <PageHead title="Header pictures" sub="The picture at the top of Home changes every week. With no photos here, members see a painted Bible landscape that is different each week of the year. Add your own photos and they take turns instead, one per week." />
+      <PageHead title="Header pictures" sub="The picture at the top of Home changes every week. With no photos here, members see a Bible story scene (Moses at the Red Sea, David and Goliath, the empty tomb and more) that changes each week of the year. Add your own photos and they take turns instead, one per week." />
 
       <section className="card">
         <p className="font-semibold">This week (week {week + 1})</p>
         <div className="relative mt-3 h-44 overflow-hidden rounded-2xl">
           {current ? <img src={mediaUrl(current.media_key)} alt="" className="kenburns h-full w-full object-cover" /> : <WeeklyScene week={week} className="h-full w-full" />}
         </div>
-        <p className="mt-2 text-sm text-muted">{current ? current.caption || 'Your photo' : `${s.name} · ${s.time}`}</p>
+        <p className="mt-2 text-sm text-muted">{current ? current.caption || 'Your photo' : `${s.name} · ${s.ref}`}</p>
       </section>
 
       <section className="card mt-5 space-y-3">
@@ -91,7 +91,7 @@ function Headers() {
       )}
 
       <section className="mt-6">
-        <button className="btn-ghost" onClick={() => setAll(!all)}>{all ? 'Hide' : 'Preview'} the 52 painted scenes</button>
+        <button className="btn-ghost" onClick={() => setAll(!all)}>{all ? 'Hide' : 'Preview'} the 52 Bible scenes</button>
         {all && (
           <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
             {Array.from({ length: 53 }, (_, w) => (

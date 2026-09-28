@@ -99,10 +99,11 @@ function footer(ctx: CanvasRenderingContext2D) {
 async function pageBackground(ctx: CanvasRenderingContext2D) {
   try {
     const photo = document.querySelector<HTMLImageElement>('img[data-header-photo]')
-    const svg = document.querySelector<SVGSVGElement>('svg[data-weekly-scene]')
+    const svg = document.querySelector<SVGSVGElement>('svg[data-share-scene]') ?? document.querySelector<SVGSVGElement>('svg[data-weekly-scene]')
     let img: HTMLImageElement | null = null
-    if (photo?.complete && photo.naturalWidth) img = photo
-    else if (svg) {
+    if (svg?.hasAttribute('data-share-scene')) img = null
+    else if (photo?.complete && photo.naturalWidth) img = photo
+    if (!img && svg) {
       const clone = svg.cloneNode(true) as SVGSVGElement
       clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg')
       clone.setAttribute('width', '1600')

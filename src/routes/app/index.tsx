@@ -15,7 +15,7 @@ import { DevotionIcon } from '~/components/Art'
 import { AwardCelebration } from '~/components/AwardCelebration'
 import { awardByKey } from '~/lib/awards'
 import { BibleIcon, DoveIcon, HandsIcon, HeartIcon, JourneyCover, LampIcon, MOOD_STYLE, STEP_STYLE, stepStyle } from '~/components/Art'
-import { WeeklyScene } from '~/components/WeeklyScene'
+import { WeeklyScene, sceneFor, sceneForDay } from '~/components/WeeklyScene'
 
 export const Route = createFileRoute('/app/')({
   loader: async () => {
@@ -50,7 +50,12 @@ function Home() {
             <div className="absolute inset-0 -z-10" style={{ background: 'linear-gradient(180deg,rgba(10,16,32,.5),rgba(10,16,32,.15) 50%,rgba(10,16,32,.6))' }} />
           </>
         ) : (
-          <WeeklyScene week={h.header.week} className="absolute inset-0 -z-10 h-full w-full" />
+          <>
+            <WeeklyScene week={h.header.week} className="absolute inset-0 -z-10 h-full w-full" />
+            <p className="absolute right-4 bottom-3 max-w-[70%] truncate rounded-full bg-black/25 px-3 py-1 text-[11px] font-medium text-white/90 backdrop-blur-sm">
+              {sceneFor(h.header.week).name} · {sceneFor(h.header.week).ref}
+            </p>
+          </>
         )}
         <div className="absolute top-5 right-5 flex items-center gap-2">
           <NotificationBell />
@@ -81,6 +86,11 @@ function Home() {
 
       {h.devotion && (
         <section className="relative mt-5 overflow-hidden rounded-[1.75rem] p-6 text-white shadow-lg shadow-[#5a2a04]/20" style={{ background: 'linear-gradient(140deg,#5a2a04 0%,#b45309 55%,#e0a526 100%)' }}>
+          <div className="relative -mx-6 -mt-6 mb-5 h-44 overflow-hidden">
+            <WeeklyScene day={h.header.day} data-share-scene="" className="absolute inset-0 h-full w-full" />
+            <div className="absolute inset-x-0 bottom-0 h-16" style={{ background: 'linear-gradient(180deg,transparent,#5a2a04)' }} />
+            <p className="absolute bottom-2 left-6 text-[11px] font-medium text-white/85">{sceneForDay(h.header.day).name} · {sceneForDay(h.header.day).ref}</p>
+          </div>
           <DevotionIcon className="absolute -right-5 -bottom-5 h-36 w-36 text-white/10" />
           <p className="text-xs font-semibold tracking-[0.14em] text-[#fde7b0] uppercase">Today’s word</p>
           <blockquote className="relative mt-3 font-display text-xl leading-snug">“{h.devotion.text}”</blockquote>

@@ -1,6 +1,6 @@
 // Server-only query helpers shared by several server functions
 import { db } from '~/lib/env'
-import { dayString, daysBetween, weekOfYear } from '~/lib/util'
+import { dayOfYear, dayString, daysBetween, weekOfYear } from '~/lib/util'
 
 export type ActiveJourney = {
   user_journey_id: string
@@ -90,8 +90,8 @@ export async function weeklyHeader() {
   try {
     const { results } = await db().prepare('SELECT media_key, caption FROM header_images ORDER BY sort, created_at').all<{ media_key: string; caption: string | null }>()
     const photo = results.length ? results[week % results.length] : null
-    return { week, photo: photo?.media_key ?? null, caption: photo?.caption ?? null }
+    return { week, day: dayOfYear(dayString()), photo: photo?.media_key ?? null, caption: photo?.caption ?? null }
   } catch {
-    return { week, photo: null, caption: null }
+    return { week, day: dayOfYear(dayString()), photo: null, caption: null }
   }
 }
