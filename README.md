@@ -111,6 +111,18 @@ Optional, for live prayer on strict mobile networks: create a TURN key in Cloudf
 - Fix: Bible references to Isaiah failed to look up ("I" was read as a Roman numeral).
 - Migration `0013_libraries.sql`.
 
+## Launch fixes + AI coach
+- Invite links (church, reading circle, Walk With Me) now survive sign-up: new visitors land on sign-up, then onboarding, then the invite they tapped. Only in-app paths are allowed.
+- Church-wide Bible plans are members only (no invite code, and joining checks membership).
+- Shared plan notes can be deleted (by the author or the circle creator) and reported, and admins can hide them.
+- Sign-in: after 8 wrong passwords for an email, wait 15 minutes.
+- Cron: marks people before sending, wakes the push dispatcher once per run, and each job is guarded, so there are no duplicate reminders.
+- Walk With Me pairs adults with adults and under-18s with under-18s.
+- AI coach at /app/coach: Scripture (exact KJV text), a short prayer and a next step. Crisis messages get emergency guidance (112, findahelpline.com) and never go to the AI. Up to 30 messages a day, and people can clear their chat. Admin → AI coach shows totals only.
+  - Free engine: add to wrangler.toml → `[ai]` / `binding = "AI"`
+  - Optional: paste a Claude API key in Admin → AI coach for better replies.
+- Migration `0014_safety.sql`.
+
 ## Setup (Windows, PowerShell)
 ```powershell
 nvm use 22

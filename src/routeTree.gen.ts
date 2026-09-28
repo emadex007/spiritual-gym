@@ -23,6 +23,7 @@ import { Route as TermsRouteImport } from './routes/terms'
 import { Route as AdminIndexRouteImport } from './routes/admin/index'
 import { Route as AdminAuditRouteImport } from './routes/admin/audit'
 import { Route as AdminChurchesRouteImport } from './routes/admin/churches'
+import { Route as AdminCoachRouteImport } from './routes/admin/coach'
 import { Route as AdminCommunityRouteImport } from './routes/admin/community'
 import { Route as AdminDevotionsRouteImport } from './routes/admin/devotions'
 import { Route as AdminDonationsRouteImport } from './routes/admin/donations'
@@ -39,6 +40,7 @@ import { Route as AdminUsersRouteImport } from './routes/admin/users'
 import { Route as AdminVersesRouteImport } from './routes/admin/verses'
 import { Route as AdminWorkoutsRouteImport } from './routes/admin/workouts'
 import { Route as AppIndexRouteImport } from './routes/app/index'
+import { Route as AppCoachRouteImport } from './routes/app/coach'
 import { Route as AppCommunityRouteImport } from './routes/app/community'
 import { Route as AppCommunityAccessRouteImport } from './routes/app/community-access'
 import { Route as AppJournalRouteImport } from './routes/app/journal'
@@ -140,6 +142,11 @@ const AdminChurchesRoute = AdminChurchesRouteImport.update({
   path: '/churches',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminCoachRoute = AdminCoachRouteImport.update({
+  id: '/coach',
+  path: '/coach',
+  getParentRoute: () => AdminRoute,
+} as any)
 const AdminCommunityRoute = AdminCommunityRouteImport.update({
   id: '/community',
   path: '/community',
@@ -218,6 +225,11 @@ const AdminWorkoutsRoute = AdminWorkoutsRouteImport.update({
 const AppIndexRoute = AppIndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppCoachRoute = AppCoachRouteImport.update({
+  id: '/coach',
+  path: '/coach',
   getParentRoute: () => AppRoute,
 } as any)
 const AppCommunityRoute = AppCommunityRouteImport.update({
@@ -386,6 +398,7 @@ export interface FileRoutesByFullPath {
   '/terms': typeof TermsRoute
   '/admin/audit': typeof AdminAuditRoute
   '/admin/churches': typeof AdminChurchesRoute
+  '/admin/coach': typeof AdminCoachRoute
   '/admin/community': typeof AdminCommunityRoute
   '/admin/devotions': typeof AdminDevotionsRoute
   '/admin/donations': typeof AdminDonationsRoute
@@ -401,6 +414,7 @@ export interface FileRoutesByFullPath {
   '/admin/users': typeof AdminUsersRoute
   '/admin/verses': typeof AdminVersesRoute
   '/admin/workouts': typeof AdminWorkoutsRoute
+  '/app/coach': typeof AppCoachRoute
   '/app/community': typeof AppCommunityRouteWithChildren
   '/app/community-access': typeof AppCommunityAccessRoute
   '/app/journal': typeof AppJournalRouteWithChildren
@@ -446,6 +460,7 @@ export interface FileRoutesByTo {
   '/terms': typeof TermsRoute
   '/admin/audit': typeof AdminAuditRoute
   '/admin/churches': typeof AdminChurchesRoute
+  '/admin/coach': typeof AdminCoachRoute
   '/admin/community': typeof AdminCommunityRoute
   '/admin/devotions': typeof AdminDevotionsRoute
   '/admin/donations': typeof AdminDonationsRoute
@@ -461,6 +476,7 @@ export interface FileRoutesByTo {
   '/admin/users': typeof AdminUsersRoute
   '/admin/verses': typeof AdminVersesRoute
   '/admin/workouts': typeof AdminWorkoutsRoute
+  '/app/coach': typeof AppCoachRoute
   '/app/community-access': typeof AppCommunityAccessRoute
   '/app/notifications': typeof AppNotificationsRoute
   '/app/profile': typeof AppProfileRoute
@@ -507,6 +523,7 @@ export interface FileRoutesById {
   '/terms': typeof TermsRoute
   '/admin/audit': typeof AdminAuditRoute
   '/admin/churches': typeof AdminChurchesRoute
+  '/admin/coach': typeof AdminCoachRoute
   '/admin/community': typeof AdminCommunityRoute
   '/admin/devotions': typeof AdminDevotionsRoute
   '/admin/donations': typeof AdminDonationsRoute
@@ -522,6 +539,7 @@ export interface FileRoutesById {
   '/admin/users': typeof AdminUsersRoute
   '/admin/verses': typeof AdminVersesRoute
   '/admin/workouts': typeof AdminWorkoutsRoute
+  '/app/coach': typeof AppCoachRoute
   '/app/community': typeof AppCommunityRouteWithChildren
   '/app/community-access': typeof AppCommunityAccessRoute
   '/app/journal': typeof AppJournalRouteWithChildren
@@ -571,6 +589,7 @@ export interface FileRouteTypes {
     | '/terms'
     | '/admin/audit'
     | '/admin/churches'
+    | '/admin/coach'
     | '/admin/community'
     | '/admin/devotions'
     | '/admin/donations'
@@ -586,6 +605,7 @@ export interface FileRouteTypes {
     | '/admin/users'
     | '/admin/verses'
     | '/admin/workouts'
+    | '/app/coach'
     | '/app/community'
     | '/app/community-access'
     | '/app/journal'
@@ -631,6 +651,7 @@ export interface FileRouteTypes {
     | '/terms'
     | '/admin/audit'
     | '/admin/churches'
+    | '/admin/coach'
     | '/admin/community'
     | '/admin/devotions'
     | '/admin/donations'
@@ -646,6 +667,7 @@ export interface FileRouteTypes {
     | '/admin/users'
     | '/admin/verses'
     | '/admin/workouts'
+    | '/app/coach'
     | '/app/community-access'
     | '/app/notifications'
     | '/app/profile'
@@ -691,6 +713,7 @@ export interface FileRouteTypes {
     | '/terms'
     | '/admin/audit'
     | '/admin/churches'
+    | '/admin/coach'
     | '/admin/community'
     | '/admin/devotions'
     | '/admin/donations'
@@ -706,6 +729,7 @@ export interface FileRouteTypes {
     | '/admin/users'
     | '/admin/verses'
     | '/admin/workouts'
+    | '/app/coach'
     | '/app/community'
     | '/app/community-access'
     | '/app/journal'
@@ -856,6 +880,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminChurchesRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/coach': {
+      id: '/admin/coach'
+      path: '/coach'
+      fullPath: '/admin/coach'
+      preLoaderRoute: typeof AdminCoachRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/community': {
       id: '/admin/community'
       path: '/community'
@@ -966,6 +997,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/app/'
       preLoaderRoute: typeof AppIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/coach': {
+      id: '/app/coach'
+      path: '/coach'
+      fullPath: '/app/coach'
+      preLoaderRoute: typeof AppCoachRouteImport
       parentRoute: typeof AppRoute
     }
     '/app/community': {
@@ -1184,6 +1222,7 @@ declare module '@tanstack/react-router' {
 interface AdminRouteChildren {
   AdminAuditRoute: typeof AdminAuditRoute
   AdminChurchesRoute: typeof AdminChurchesRoute
+  AdminCoachRoute: typeof AdminCoachRoute
   AdminCommunityRoute: typeof AdminCommunityRoute
   AdminDevotionsRoute: typeof AdminDevotionsRoute
   AdminDonationsRoute: typeof AdminDonationsRoute
@@ -1205,6 +1244,7 @@ interface AdminRouteChildren {
 const AdminRouteChildren: AdminRouteChildren = {
   AdminAuditRoute: AdminAuditRoute,
   AdminChurchesRoute: AdminChurchesRoute,
+  AdminCoachRoute: AdminCoachRoute,
   AdminCommunityRoute: AdminCommunityRoute,
   AdminDevotionsRoute: AdminDevotionsRoute,
   AdminDonationsRoute: AdminDonationsRoute,
@@ -1262,6 +1302,7 @@ const AppJournalRouteWithChildren = AppJournalRoute._addFileChildren(
 )
 
 interface AppRouteChildren {
+  AppCoachRoute: typeof AppCoachRoute
   AppCommunityRoute: typeof AppCommunityRouteWithChildren
   AppCommunityAccessRoute: typeof AppCommunityAccessRoute
   AppJournalRoute: typeof AppJournalRouteWithChildren
@@ -1286,6 +1327,7 @@ interface AppRouteChildren {
 }
 
 const AppRouteChildren: AppRouteChildren = {
+  AppCoachRoute: AppCoachRoute,
   AppCommunityRoute: AppCommunityRouteWithChildren,
   AppCommunityAccessRoute: AppCommunityAccessRoute,
   AppJournalRoute: AppJournalRouteWithChildren,

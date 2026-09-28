@@ -29,6 +29,8 @@ export type AppEnv = {
   FLUTTERWAVE_WEBHOOK_HASH?: string
   /** Currencies to offer through Flutterwave (default: a wide list) */
   FLUTTERWAVE_CURRENCIES?: string
+  /** Cloudflare Workers AI (free daily allowance) for the spiritual coach — add [ai] binding = "AI" in wrangler.toml */
+  AI?: { run: (model: string, input: unknown) => Promise<{ response?: string } | unknown> }
 }
 
 export const env = () => cfEnv as unknown as AppEnv

@@ -6,12 +6,14 @@ import { BibleIcon } from '~/components/Art'
 import { ThemeSwitch } from '~/components/ThemeSwitch'
 import { NotificationBell } from '~/components/NotificationBell'
 import { SupportFloat, SupportLink } from '~/components/SupportButton'
+import { isInvite, safeNext } from '~/lib/next'
 
 export const Route = createFileRoute('/app')({
-  beforeLoad: async () => {
+  beforeLoad: async ({ location }) => {
     const me = await getMe()
-    if (!me) throw redirect({ to: '/login' })
-    if (!me.onboarded) throw redirect({ to: '/onboarding' })
+    const next = safeNext(location.href)
+    if (!me) throw redirect({ to: isInvite(location.pathname) ? '/signup' : '/login', search: { next } })
+    if (!me.onboarded) throw redirect({ to: '/onboarding', search: { next } })
     return { me }
   },
   component: AppLayout,

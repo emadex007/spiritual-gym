@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { createFileRoute, redirect, useRouter } from '@tanstack/react-router'
+import { validateNext } from '~/lib/next'
 import { getMe } from '~/fns/auth'
 import { completeOnboarding, listJourneys } from '~/fns/onboarding'
 import { GOALS, MINUTES, SPIRITUAL_STATES, recommendJourney } from '~/lib/content'
@@ -23,9 +24,10 @@ const GOAL_ICON: Record<string, { Icon: typeof BibleIcon; color: string }> = {
 }
 
 export const Route = createFileRoute('/onboarding')({
-  beforeLoad: async () => {
+  validateSearch: validateNext,
+  beforeLoad: async ({ search }) => {
     const me = await getMe()
-    if (!me) throw redirect({ to: '/login' })
+    if (!me) throw redirect({ to: '/login', search: { next: search.next } })
     return { me }
   },
   loader: () => listJourneys(),
@@ -38,6 +40,7 @@ function Onboarding() {
   const journeys = Route.useLoaderData()
   const { me } = Route.useRouteContext()
   const router = useRouter()
+  const { next } = Route.useSearch()
   const [step, setStep] = useState(1)
   const [state, setState] = useState('')
   const [goals, setGoals] = useState<string[]>([])
@@ -58,7 +61,7 @@ function Onboarding() {
     try {
       await completeOnboarding({ data: { state, goals, minutes: minutes ?? 10, journeySlug } })
       await router.invalidate()
-      await router.navigate({ to: '/app' })
+      await router.navigate({ href: next ?? '/app' })
     } catch (e) {
       setError(errorText(e))
       setBusy(false)

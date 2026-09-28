@@ -26,6 +26,7 @@ const NAV = [
   { to: '/admin/music', label: 'Music', icon: '🎵', exact: false },
   { to: '/admin/growth', label: 'Plans & medals', icon: '🏅', exact: false },
   { to: '/admin/churches', label: 'Churches', icon: '⛪', exact: false },
+  { to: '/admin/coach', label: 'AI coach', icon: '🕊️', exact: false },
   { to: '/admin/community', label: 'Community', icon: '🙏', exact: false },
   { to: '/admin/reports', label: 'Reports', icon: '🚩', exact: false },
   { to: '/admin/notifications', label: 'Notifications', icon: '🔔', exact: false },

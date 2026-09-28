@@ -29,7 +29,8 @@ function audienceQueries(a: Audience): { sql: string; binds: unknown[] }[] {
   return out
 }
 
-export async function notify(audience: Audience, n: Notice, opts: { push?: boolean; inApp?: boolean } = {}) {
+/** kick: false lets a caller (the cron) queue many notices and wake the dispatcher once at the end */
+export async function notify(audience: Audience, n: Notice, opts: { push?: boolean; inApp?: boolean; kick?: boolean } = {}) {
   const payload = JSON.stringify({ title: n.title, body: n.body ?? '', url: n.url ?? '/app', tag: n.tag })
   const wantPush = opts.push !== false && pushConfigured()
   const stmts: D1PreparedStatement[] = []
@@ -50,7 +51,7 @@ export async function notify(audience: Audience, n: Notice, opts: { push?: boole
     }
   }
   if (stmts.length) await db().batch(stmts)
-  if (wantPush) await kickDispatcher()
+  if (wantPush && opts.kick !== false) await kickDispatcher()
 }
 
 export async function kickDispatcher() {
@@ -61,7 +62,7 @@ export async function kickDispatcher() {
 }
 
 /** Different messages for different people in one go (a single database batch per 50 people), then one dispatcher kick. */
-export async function notifyMany(items: { userId: string; notice: Notice }[], opts: { inApp?: boolean } = {}) {
+export async function notifyMany(items: { userId: string; notice: Notice }[], opts: { inApp?: boolean; kick?: boolean } = {}) {
   if (!items.length) return
   const wantPush = pushConfigured()
   const stmts: D1PreparedStatement[] = []
@@ -71,5 +72,5 @@ export async function notifyMany(items: { userId: string; notice: Notice }[], op
     if (wantPush) stmts.push(db().prepare(`INSERT INTO push_outbox (id, sub_id, payload) SELECT ${RAND_ID}, id, ? FROM push_subscriptions WHERE user_id = ?`).bind(payload, userId))
   }
   for (let i = 0; i < stmts.length; i += 100) await db().batch(stmts.slice(i, i + 100))
-  if (wantPush) await kickDispatcher()
+  if (wantPush && opts.kick !== false) await kickDispatcher()
 }

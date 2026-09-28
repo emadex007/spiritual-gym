@@ -5,6 +5,7 @@ import { PLANS, planByKey, planDays } from '~/lib/plans'
 import { dayString, daysBetween, newId } from '~/lib/util'
 import { checkAwards } from '~/lib/award-server'
 import { notify } from '~/lib/notify'
+import { requireChurchMember } from '~/lib/church'
 
 function code() {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
@@ -79,8 +80,10 @@ export const getMyPlan = createServerFn({ method: 'GET' })
   })
 
 async function circleData(circleId: string, userId: string, total: number) {
-  const c = await db().prepare('SELECT id, name, invite_code, start_date, created_by FROM reading_circles WHERE id = ?').bind(circleId).first<{ id: string; name: string; invite_code: string; start_date: string; created_by: string }>()
-  if (!c) return null
+  const row = await db().prepare('SELECT id, name, invite_code, start_date, created_by, church_id FROM reading_circles WHERE id = ?').bind(circleId).first<{ id: string; name: string; invite_code: string; start_date: string; created_by: string; church_id: string | null }>()
+  if (!row) return null
+  // Church-wide plans are joined from the church page (members only), so they never expose an invite code
+  const c = { ...row, invite_code: row.church_id ? '' : row.invite_code, isChurch: !!row.church_id }
   const [members, notes] = await Promise.all([
     db()
       .prepare(
@@ -195,6 +198,8 @@ export const getCircleInvite = createServerFn({ method: 'GET' })
       .bind(c)
       .first<{ id: string; name: string; plan_key: string; start_date: string; owner: string; members: number }>()
     if (!circle) return null
+    const ch = await db().prepare('SELECT church_id FROM reading_circles WHERE id = ?').bind(circle.id).first<{ church_id: string | null }>()
+    if (ch?.church_id) return null
     const mine = await db().prepare(`SELECT id FROM user_plans WHERE circle_id = ? AND user_id = ? AND status != 'stopped'`).bind(circle.id, user.id).first<{ id: string }>()
     const def = planByKey(circle.plan_key)
     return { ...circle, owner: circle.owner.split(' ')[0], planTitle: def?.title ?? '', myPlanId: mine?.id ?? null }
@@ -206,6 +211,7 @@ export const joinCircle = createServerFn({ method: 'POST' })
     const user = await requireCommunityUser()
     const c = await db().prepare('SELECT id, plan_key, start_date, created_by, church_id FROM reading_circles WHERE invite_code = ?').bind(data.code).first<{ id: string; plan_key: string; start_date: string; created_by: string; church_id: string | null }>()
     if (!c) throw new Error('This invite is not valid.')
+    if (c.church_id) await requireChurchMember(c.church_id)
     const existing = await db().prepare(`SELECT id FROM user_plans WHERE circle_id = ? AND user_id = ? AND status != 'stopped'`).bind(c.id, user.id).first<{ id: string }>()
     if (existing) return { userPlanId: existing.id }
     const n = await db().prepare(`SELECT COUNT(*) AS n FROM user_plans WHERE circle_id = ? AND status != 'stopped'`).bind(c.id).first<{ n: number }>()
@@ -215,4 +221,19 @@ export const joinCircle = createServerFn({ method: 'POST' })
     await db().prepare('INSERT INTO user_plans (id, user_id, plan_key, circle_id, start_date) VALUES (?, ?, ?, ?, ?)').bind(id, user.id, c.plan_key, c.id, c.start_date).run()
     if (!c.church_id) await notify({ userIds: [c.created_by] }, { kind: 'walk', title: `${user.name.split(' ')[0]} joined your reading circle`, url: '/app/plans' }, { push: false })
     return { userPlanId: id }
+  })
+
+/** Remove a shared note: its author, the circle's creator, or a SpiritualGym admin */
+export const deletePlanNote = createServerFn({ method: 'POST' })
+  .validator((d: { id: string }) => ({ id: String(d?.id ?? '') }))
+  .handler(async ({ data }) => {
+    const user = await requireUser()
+    const n = await db()
+      .prepare('SELECT n.user_id, rc.created_by FROM plan_notes n LEFT JOIN reading_circles rc ON rc.id = n.circle_id WHERE n.id = ?')
+      .bind(data.id)
+      .first<{ user_id: string; created_by: string | null }>()
+    if (!n) return { ok: true }
+    if (n.user_id !== user.id && n.created_by !== user.id && user.role !== 'admin') throw new Error('You can’t remove this note.')
+    await db().prepare('DELETE FROM plan_notes WHERE id = ?').bind(data.id).run()
+    return { ok: true }
   })

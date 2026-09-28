@@ -2,17 +2,21 @@ import { useState, type FormEvent } from 'react'
 import { Link, createFileRoute, redirect, useRouter } from '@tanstack/react-router'
 import { getMe, signUp } from '~/fns/auth'
 import { AuthShell, FormError, errorText } from '~/components/AuthShell'
+import { validateNext } from '~/lib/next'
 
 export const Route = createFileRoute('/signup')({
-  beforeLoad: async () => {
+  validateSearch: validateNext,
+  beforeLoad: async ({ search }) => {
     const me = await getMe()
-    if (me) throw redirect({ to: me.onboarded ? '/app' : '/onboarding' })
+    if (me && !me.onboarded) throw redirect({ to: '/onboarding', search: { next: search.next } })
+    if (me) throw redirect({ href: search.next ?? '/app' })
   },
   component: SignUp,
 })
 
 function SignUp() {
   const router = useRouter()
+  const { next } = Route.useSearch()
   const [form, setForm] = useState({ name: '', email: '', password: '', birthYear: '' })
   const thisYear = new Date().getFullYear()
   const [error, setError] = useState<string | null>(null)
@@ -25,7 +29,7 @@ function SignUp() {
     try {
       await signUp({ data: { ...form, birthYear: Number(form.birthYear) } })
       await router.invalidate()
-      await router.navigate({ to: '/onboarding' })
+      await router.navigate({ to: '/onboarding', search: { next } })
     } catch (err) {
       setError(errorText(err))
       setBusy(false)
@@ -39,7 +43,7 @@ function SignUp() {
       footer={
         <>
           Already have an account?{' '}
-          <Link to="/login" className="font-semibold text-ink underline underline-offset-4">
+          <Link to="/login" search={{ next }} className="font-semibold text-ink underline underline-offset-4">
             Sign in
           </Link>
         </>

@@ -2,17 +2,21 @@ import { useState, type FormEvent } from 'react'
 import { Link, createFileRoute, redirect, useRouter } from '@tanstack/react-router'
 import { getMe, signIn } from '~/fns/auth'
 import { AuthShell, FormError, errorText } from '~/components/AuthShell'
+import { validateNext } from '~/lib/next'
 
 export const Route = createFileRoute('/login')({
-  beforeLoad: async () => {
+  validateSearch: validateNext,
+  beforeLoad: async ({ search }) => {
     const me = await getMe()
-    if (me) throw redirect({ to: me.onboarded ? '/app' : '/onboarding' })
+    if (me && !me.onboarded) throw redirect({ to: '/onboarding', search: { next: search.next } })
+    if (me) throw redirect({ href: search.next ?? '/app' })
   },
   component: Login,
 })
 
 function Login() {
   const router = useRouter()
+  const { next } = Route.useSearch()
   const [form, setForm] = useState({ email: '', password: '' })
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
@@ -24,7 +28,8 @@ function Login() {
     try {
       const res = await signIn({ data: form })
       await router.invalidate()
-      await router.navigate({ to: res.onboarded ? '/app' : '/onboarding' })
+      if (res.onboarded) await router.navigate({ href: next ?? '/app' })
+      else await router.navigate({ to: '/onboarding', search: { next } })
     } catch (err) {
       setError(errorText(err))
       setBusy(false)
@@ -38,7 +43,7 @@ function Login() {
       footer={
         <>
           New here?{' '}
-          <Link to="/signup" className="font-semibold text-ink underline underline-offset-4">
+          <Link to="/signup" search={{ next }} className="font-semibold text-ink underline underline-offset-4">
             Create an account
           </Link>
         </>

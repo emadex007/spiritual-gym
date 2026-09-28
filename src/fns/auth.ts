@@ -52,13 +52,27 @@ export const signIn = createServerFn({ method: 'POST' })
     password: String(d?.password ?? ''),
   }))
   .handler(async ({ data }) => {
+    // Slow down password guessing: after 8 wrong tries for an email, wait 15 minutes (or reset the password)
+    const recent = await db()
+      .prepare(`SELECT COUNT(*) AS n FROM login_failures WHERE email = ? AND created_at > datetime('now', '-15 minutes')`)
+      .bind(data.email)
+      .first<{ n: number }>()
+      .catch(() => null)
+    if ((recent?.n ?? 0) >= 8) throw new Error('Too many tries. Please wait 15 minutes, or use “Forgot password?” to reset it.')
     const u = await db()
       .prepare('SELECT id, password_hash FROM users WHERE email = ?')
       .bind(data.email)
       .first<{ id: string; password_hash: string }>()
     if (!u || !(await verifyPassword(data.password, u.password_hash))) {
+      await db()
+        .batch([
+          db().prepare('INSERT INTO login_failures (email) VALUES (?)').bind(data.email),
+          db().prepare(`DELETE FROM login_failures WHERE created_at < datetime('now', '-1 day')`),
+        ])
+        .catch(() => {})
       throw new Error('That email and password don’t match.')
     }
+    await db().prepare('DELETE FROM login_failures WHERE email = ?').bind(data.email).run().catch(() => {})
     await createSession(u.id)
     const p = await db()
       .prepare('SELECT onboarded_at FROM profiles WHERE user_id = ?')

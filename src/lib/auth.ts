@@ -102,7 +102,7 @@ export function communityAccess(user: SessionUser): 'ok' | 'unknown' | 'underage
 export async function requireCommunityUser() {
   const user = await requireUser()
   const a = communityAccess(user)
-  if (a === 'unknown') throw new Error('Please confirm your year of birth to use prayer groups.')
-  if (a === 'underage') throw new Error('Prayer groups and live prayer are for adults (18+).')
+  if (a === 'unknown') throw new Error('Please confirm your year of birth first: open Community, and it will ask you once.')
+  if (a === 'underage') throw new Error('This part of SpiritualGym is for adults (18+).')
   return user
 }

@@ -288,7 +288,7 @@ export const deletePost = createServerFn({ method: 'POST' })
 // ---------------- Safety ----------------
 export const reportContent = createServerFn({ method: 'POST' })
   .validator((d: { targetType: string; targetId: string; reason: string; details?: string }) => {
-    if (!['post', 'reply', 'group', 'user', 'church'].includes(d?.targetType)) throw new Error('Invalid report.')
+    if (!['post', 'reply', 'group', 'user', 'church', 'note'].includes(d?.targetType)) throw new Error('Invalid report.')
     const reason = (REPORT_REASONS as readonly string[]).includes(d.reason) ? d.reason : 'Other'
     return { targetType: d.targetType, targetId: String(d.targetId), reason: d.details ? `${reason}: ${String(d.details).slice(0, 500)}` : reason }
   })

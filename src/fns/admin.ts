@@ -463,18 +463,21 @@ export const adminListReports = createServerFn({ method: 'GET' }).handler(async 
            WHEN 'reply' THEN (SELECT body FROM prayer_replies WHERE id = r.target_id)
            WHEN 'group' THEN (SELECT name || ' — ' || COALESCE(description, '') FROM prayer_groups WHERE id = r.target_id)
            WHEN 'church' THEN (SELECT '⛪ ' || name || ' — ' || COALESCE(description, '') FROM churches WHERE id = r.target_id)
+           WHEN 'note' THEN (SELECT '📖 ' || body FROM plan_notes WHERE id = r.target_id)
            ELSE NULL END AS content,
          CASE r.target_type
            WHEN 'post'  THEN (SELECT u.name || ' <' || u.email || '>' FROM prayer_posts x JOIN users u ON u.id = x.user_id WHERE x.id = r.target_id)
            WHEN 'reply' THEN (SELECT u.name || ' <' || u.email || '>' FROM prayer_replies x JOIN users u ON u.id = x.user_id WHERE x.id = r.target_id)
            WHEN 'group' THEN (SELECT COALESCE(u.name || ' <' || u.email || '>', 'Official') FROM prayer_groups x LEFT JOIN users u ON u.id = x.created_by WHERE x.id = r.target_id)
            WHEN 'church' THEN (SELECT u.name || ' <' || u.email || '>' FROM churches x JOIN users u ON u.id = x.created_by WHERE x.id = r.target_id)
+           WHEN 'note' THEN (SELECT u.name || ' <' || u.email || '>' FROM plan_notes x JOIN users u ON u.id = x.user_id WHERE x.id = r.target_id)
            ELSE NULL END AS author,
          CASE r.target_type
            WHEN 'post'  THEN (SELECT is_hidden FROM prayer_posts WHERE id = r.target_id)
            WHEN 'reply' THEN (SELECT is_hidden FROM prayer_replies WHERE id = r.target_id)
            WHEN 'group' THEN (SELECT is_hidden FROM prayer_groups WHERE id = r.target_id)
            WHEN 'church' THEN (SELECT CASE WHEN status = 'suspended' THEN 1 ELSE 0 END FROM churches WHERE id = r.target_id)
+           WHEN 'note' THEN (SELECT is_hidden FROM plan_notes WHERE id = r.target_id)
            ELSE 0 END AS is_hidden
        FROM reports r LEFT JOIN users ru ON ru.id = r.reporter_id
        ORDER BY r.status = 'open' DESC, r.created_at DESC LIMIT 200`,
@@ -495,7 +498,7 @@ export const adminResolveReport = createServerFn({ method: 'POST' })
         .bind(data.action === 'hide' ? 'actioned' : 'dismissed', admin.id, r.target_type, r.target_id),
     ]
     if (data.action === 'hide') {
-      const table = { post: 'prayer_posts', reply: 'prayer_replies', group: 'prayer_groups' }[r.target_type]
+      const table = { post: 'prayer_posts', reply: 'prayer_replies', group: 'prayer_groups', note: 'plan_notes' }[r.target_type]
       if (table) stmts.push(db().prepare(`UPDATE ${table} SET is_hidden = 1 WHERE id = ?`).bind(r.target_id))
       if (r.target_type === 'church') stmts.push(db().prepare(`UPDATE churches SET status = 'suspended' WHERE id = ?`).bind(r.target_id))
     }
@@ -561,7 +564,7 @@ export const adminBroadcast = createServerFn({ method: 'POST' })
     return {
       title,
       body: String(d?.body ?? '').trim().slice(0, 240),
-      url: url.startsWith('/') ? url.slice(0, 200) : '/app',
+      url: /^\/(?![/\\])/.test(url) ? url.slice(0, 200) : '/app',
       groupId: d?.groupId ? String(d.groupId) : null,
     }
   })
@@ -727,7 +730,12 @@ export const adminReviewChurch = createServerFn({ method: 'POST' })
     const status = { approve: 'approved', restore: 'approved', reject: 'rejected', suspend: 'suspended' }[data.action]
     const stmts = [db().prepare(`UPDATE churches SET status = ?, review_note = ?, reviewed_at = datetime('now') WHERE id = ?`).bind(status, data.note || null, c.id)]
     // The person who registered the church becomes its first admin
-    if (status === 'approved') stmts.push(db().prepare(`INSERT INTO church_members (church_id, user_id, role) VALUES (?, ?, 'admin') ON CONFLICT (church_id, user_id) DO UPDATE SET role = 'admin'`).bind(c.id, c.created_by))
+    const registrant = await db().prepare('SELECT id FROM users WHERE id = ?').bind(c.created_by).first()
+    if (status === 'approved' && registrant) stmts.push(db().prepare(`INSERT INTO church_members (church_id, user_id, role) VALUES (?, ?, 'admin') ON CONFLICT (church_id, user_id) DO UPDATE SET role = 'admin'`).bind(c.id, c.created_by))
+    if (status === 'approved' && !registrant) {
+      const admins = await db().prepare(`SELECT COUNT(*) AS n FROM church_members WHERE church_id = ? AND role = 'admin'`).bind(c.id).first<{ n: number }>()
+      if (!admins?.n) throw new Error('The person who registered this church has deleted their account, so it has no admin. Reject it and ask the church to register again.')
+    }
     await db().batch(stmts)
     if (data.action === 'approve')
       await notify({ userIds: [c.created_by] }, { kind: 'church', title: `⛪ ${c.name} is approved!`, body: 'Share your church code so members can join, then create your first program.', url: `/app/church/${c.id}/manage` })
@@ -870,5 +878,40 @@ export const adminDeleteHeader = createServerFn({ method: 'POST' })
     await db().prepare('DELETE FROM header_images WHERE id = ?').bind(data.id).run()
     await env().MEDIA.delete(h.media_key).catch(() => {})
     await audit(admin, 'header.delete', data.id)
+    return { ok: true }
+  })
+
+// ---------------- AI coach ----------------
+export const adminCoachSettings = createServerFn({ method: 'GET' }).handler(async () => {
+  await requireAdmin()
+  const [key, today, week, users, flagged] = await Promise.all([
+    db().prepare(`SELECT value FROM secure_settings WHERE key = 'anthropic_key'`).first<{ value: string }>().catch(() => null),
+    db().prepare(`SELECT COUNT(*) AS n FROM coach_messages WHERE role = 'user' AND created_at > datetime('now', '-1 day')`).first<{ n: number }>().catch(() => null),
+    db().prepare(`SELECT COUNT(*) AS n FROM coach_messages WHERE role = 'user' AND created_at > datetime('now', '-7 days')`).first<{ n: number }>().catch(() => null),
+    db().prepare(`SELECT COUNT(DISTINCT user_id) AS n FROM coach_messages WHERE created_at > datetime('now', '-7 days')`).first<{ n: number }>().catch(() => null),
+    db().prepare(`SELECT COUNT(*) AS n FROM coach_messages WHERE role = 'user' AND flagged = 1 AND created_at > datetime('now', '-7 days')`).first<{ n: number }>().catch(() => null),
+  ])
+  return {
+    workersAi: !!env().AI,
+    claudeKey: key?.value ? `••••${key.value.slice(-4)}` : '',
+    stats: { today: today?.n ?? 0, week: week?.n ?? 0, people: users?.n ?? 0, crisis: flagged?.n ?? 0 },
+  }
+})
+
+export const adminSaveCoachKey = createServerFn({ method: 'POST' })
+  .validator((d: { key: string }) => {
+    const key = String(d?.key ?? '').trim()
+    if (key && key !== '__clear__' && !/^sk-ant-[\w-]{20,}$/.test(key)) throw new Error('Claude API keys start with sk-ant-')
+    return { key }
+  })
+  .handler(async ({ data }) => {
+    const admin = await requireAdmin()
+    if (data.key === '__clear__') await db().prepare(`DELETE FROM secure_settings WHERE key = 'anthropic_key'`).run()
+    else if (data.key)
+      await db()
+        .prepare(`INSERT INTO secure_settings (key, value) VALUES ('anthropic_key', ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value, updated_at = datetime('now')`)
+        .bind(data.key)
+        .run()
+    await audit(admin, 'coach.key', null, data.key === '__clear__' ? 'removed' : 'saved')
     return { ok: true }
   })

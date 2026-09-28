@@ -1,10 +1,11 @@
 import { useState } from 'react'
 import { Link, createFileRoute, useRouter } from '@tanstack/react-router'
-import { addPlanNote, getMyPlan, markPlanDay, stopPlan } from '~/fns/plans'
+import { addPlanNote, deletePlanNote, getMyPlan, markPlanDay, stopPlan } from '~/fns/plans'
 import { bookSlug } from '~/lib/bible'
 import { dayLabel, dayMinutes, readingLabel } from '~/lib/plans'
 import { awardByKey, type AwardDef } from '~/lib/awards'
 import { JourneyCover } from '~/components/Art'
+import { ReportDialog } from '~/components/ReportDialog'
 import { Avatar, timeAgo } from '~/components/Avatar'
 import { AwardCelebration } from '~/components/AwardCelebration'
 import { ShareButton } from '~/components/ShareButton'
@@ -33,6 +34,8 @@ function MyPlan() {
   const [share, setShare] = useState(!!d.circle)
   const [msg, setMsg] = useState<string | null>(null)
   const [showAll, setShowAll] = useState(false)
+  const [reporting, setReporting] = useState<string | null>(null)
+  const meId = (Route.useRouteContext() as { me?: { user?: { id: string } } }).me?.user?.id ?? ''
   const day = d.days[sel - 1]
   const pct = Math.round((d.done.length / d.days.length) * 100)
   const inviteLink = d.circle ? `${typeof location !== 'undefined' ? location.origin : ''}/app/plans/join/${d.circle.invite_code}` : ''
@@ -171,6 +174,7 @@ function MyPlan() {
         {d.circle && (
           <section className="card mt-5">
             <p className="eyebrow">👥 {d.circle.name}</p>
+            {!d.circle.isChurch && (
             <div className="mt-3 flex flex-wrap gap-2">
               <ShareButton
                 label="Invite friends"
@@ -179,6 +183,7 @@ function MyPlan() {
               />
               <a className="btn-ghost !py-2" target="_blank" rel="noreferrer" href={`https://wa.me/?text=${encodeURIComponent(`Read “${d.plan.title}” with me on SpiritualGym 📖 ${inviteLink}`)}`}>WhatsApp</a>
             </div>
+            )}
             <ul className="mt-4 space-y-3">
               {d.circle.members.map((m) => (
                 <li key={m.id} className="flex items-center gap-3">
@@ -202,6 +207,12 @@ function MyPlan() {
                     <div className="min-w-0 flex-1 rounded-2xl bg-surface-2 px-3 py-2">
                       <p className="text-xs"><span className="font-semibold">{n.name}</span> <span className="text-muted">· Day {n.day_number} · {timeAgo(n.created_at)}</span></p>
                       <p className="mt-0.5 text-sm whitespace-pre-wrap">{n.body}</p>
+                      <div className="mt-1 flex gap-3 text-xs font-semibold text-muted">
+                        {n.user_id === meId || d.circle!.created_by === meId ? (
+                          <button type="button" onClick={async () => { if (confirm('Delete this note?')) { await deletePlanNote({ data: { id: n.id } }); await router.invalidate() } }}>Delete</button>
+                        ) : null}
+                        {n.user_id !== meId && <button type="button" onClick={() => setReporting(n.id)}>Report</button>}
+                      </div>
                     </div>
                   </li>
                 ))}
@@ -212,6 +223,7 @@ function MyPlan() {
 
         {d.plan.status === 'active' && <button type="button" className="mt-6 text-xs text-muted hover:text-red-600" onClick={stop}>Stop this plan</button>}
       </div>
+      {reporting && <ReportDialog targetType="note" targetId={reporting} onClose={() => setReporting(null)} />}
     </main>
   )
 }

@@ -12,19 +12,29 @@ const REMINDERS = [
   'A few quiet minutes with God can change your whole day.',
 ]
 
+// Each job marks people as reminded BEFORE queueing their notification, and the dispatcher is woken once at the end,
+// so a run that stops early (free-plan limits) never sends the same reminder twice.
 export async function runCron(now = Date.now()) {
-  await scheduleReminders(now)
-  if (pushConfigured()) {
-    await dailyReminders(now)
-    await dailyWord(now)
-    await planReminders(now)
-  }
+  const jobs: [string, () => Promise<void>][] = [['schedules', () => scheduleReminders(now)]]
+  if (pushConfigured()) jobs.push(['daily', () => dailyReminders(now)], ['word', () => dailyWord(now)], ['plans', () => planReminders(now)])
   const d = new Date(now)
   if (d.getUTCHours() === 3 && d.getUTCMinutes() < 5) {
-    await db().batch([
-      db().prepare(`DELETE FROM notifications WHERE created_at < datetime('now', '-60 days')`),
-      db().prepare(`DELETE FROM schedule_sent WHERE occurrence < ?`).bind(new Date(now - 7 * 86_400_000).toISOString()),
+    jobs.push([
+      'cleanup',
+      async () => {
+        await db().batch([
+          db().prepare(`DELETE FROM notifications WHERE created_at < datetime('now', '-60 days')`),
+          db().prepare(`DELETE FROM schedule_sent WHERE occurrence < ?`).bind(new Date(now - 7 * 86_400_000).toISOString()),
+        ])
+      },
     ])
+  }
+  for (const [name, job] of jobs) {
+    try {
+      await job()
+    } catch (e) {
+      console.error(`cron ${name} failed`, e)
+    }
   }
   await kickDispatcher()
 }
@@ -39,7 +49,7 @@ async function scheduleReminders(now: number) {
     .all<Schedule & { group_id: string; group_name: string }>()
   let sent = 0
   for (const s of results) {
-    if (sent >= 10) break // anything left is picked up 5 minutes later
+    if (sent >= 6) break // anything left is picked up 5 minutes later (keeps each run within the free plan)
     const start = nextStart(s, now)
     if (start == null || start < now - 60_000 || start - now > 15 * 60_000) continue
     const mark = await db().prepare('INSERT OR IGNORE INTO schedule_sent (schedule_id, occurrence) VALUES (?, ?)').bind(s.id, new Date(start).toISOString()).run()
@@ -54,6 +64,7 @@ async function scheduleReminders(now: number) {
         url: `/app/community/${s.group_id}/live`,
         tag: `sched-${s.id}`,
       },
+      { kick: false },
     )
     sent++
   }
@@ -92,8 +103,8 @@ async function dailyReminders(now: number) {
     groups.set(key, g)
   }
   for (const g of groups.values()) {
-    await notify({ userIds: g.ids }, { kind: 'reminder', title: '⏰ Rise and shine', body: `${g.msg} Tap to hear today’s word.`, url: '/app/wake', tag: 'daily' }, { inApp: false })
     await markDay('last_reminded_day', g.localDay, g.ids)
+    await notify({ userIds: g.ids }, { kind: 'reminder', title: '⏰ Rise and shine', body: `${g.msg} Tap to hear today’s word.`, url: '/app/wake', tag: 'daily' }, { inApp: false, kick: false })
   }
 }
 
@@ -124,8 +135,8 @@ async function dailyWord(now: number) {
       .prepare('SELECT reference, declaration FROM devotions WHERE sort = ? ORDER BY created_at DESC LIMIT 1')
       .bind(dayOfYear(day))
       .first<{ reference: string; declaration: string }>()
-    if (d) await notify({ userIds: ids }, { kind: 'word', title: `🌅 Today’s word · ${d.reference}`, body: `I declare: ${d.declaration}`, url: '/app', tag: 'word' }, { inApp: false })
     await markDay('last_word_day', day, ids)
+    if (d) await notify({ userIds: ids }, { kind: 'word', title: `🌅 Today’s word · ${d.reference}`, body: `I declare: ${d.declaration}`, url: '/app', tag: 'word' }, { inApp: false, kick: false })
   }
 }
 
@@ -147,6 +158,7 @@ async function planReminders(now: number) {
   for (const r of results) {
     const local = safeLocal(now, r.timezone)
     if (r.last_plan_day === local.day || !inWindow(local.minutes, r.plan_time)) continue
+    if (!seen.has(`${r.user_id}|${local.day}`) && seen.size >= 300) continue // the rest are handled in the next runs (every 5 minutes)
     seen.add(`${r.user_id}|${local.day}`)
     if (chosen.has(r.user_id)) continue
     const plan = planByKey(r.plan_key)
@@ -168,7 +180,6 @@ async function planReminders(now: number) {
       },
     })
   }
-  if (chosen.size) await notifyMany([...chosen].map(([userId, c]) => ({ userId, notice: c.notice })))
   // Remember everyone we looked at today (reminded or already caught up), so they're not checked again today
   const byDay = new Map<string, string[]>()
   for (const k of seen) {
@@ -176,6 +187,7 @@ async function planReminders(now: number) {
     byDay.set(day, [...(byDay.get(day) ?? []), uid])
   }
   for (const [day, ids] of byDay) await markDay('last_plan_day', day, ids)
+  if (chosen.size) await notifyMany([...chosen].map(([userId, c]) => ({ userId, notice: c.notice })), { kick: false })
 }
 
 function safeLocal(now: number, tz: string) {

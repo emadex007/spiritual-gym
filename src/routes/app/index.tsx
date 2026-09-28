@@ -84,6 +84,15 @@ function Home() {
 
       <CheckIn current={h.checkin} />
 
+      <Link to="/app/coach" className="relative mt-5 flex items-center gap-4 overflow-hidden rounded-[1.75rem] p-5 text-white shadow-lg shadow-[#3a2f86]/20 transition active:scale-[0.99]" style={{ background: 'linear-gradient(135deg,#4f8fe0 0%,#6f5ce6 100%)' }}>
+        <DoveIcon className="absolute -right-3 -bottom-4 h-28 w-28 text-white/15" />
+        <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-white/20 text-2xl" aria-hidden>🕊️</span>
+        <span className="relative">
+          <span className="block font-display text-lg font-semibold">Talk to your coach</span>
+          <span className="block text-sm text-white/85">Share what’s on your heart. Get Scripture, prayer and a next step.</span>
+        </span>
+      </Link>
+
       {h.devotion && (
         <section className="relative mt-5 overflow-hidden rounded-[1.75rem] p-6 text-white shadow-lg shadow-[#5a2a04]/20" style={{ background: 'linear-gradient(140deg,#5a2a04 0%,#b45309 55%,#e0a526 100%)' }}>
           <div className="relative -mx-6 -mt-6 mb-5 h-44 overflow-hidden">
