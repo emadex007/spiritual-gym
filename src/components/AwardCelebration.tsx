@@ -1,3 +1,4 @@
+import { Portal } from '~/components/Portal'
 import { useEffect, useState } from 'react'
 import { markAwardsSeen } from '~/fns/awards'
 import { TIER_COLOR, type AwardDef } from '~/lib/awards'
@@ -13,10 +14,12 @@ export function AwardCelebration({ awards, name, onDone }: { awards: AwardDef[];
   if (!awards.length || i >= awards.length) return null
   const a = awards[i]
   const next = () => (i + 1 < awards.length ? setI(i + 1) : (setI(awards.length), onDone?.()))
+  const close = () => (setI(awards.length), onDone?.())
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-5" role="dialog" aria-modal="true" aria-label="Medal earned">
-      <div className="fade-in relative w-full max-w-sm overflow-hidden rounded-[2rem] p-7 text-center text-white" style={{ background: 'linear-gradient(160deg,#1b2750,#3a2f86 60%,#6f5ce6)' }}>
+    <Portal><div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-5" role="dialog" aria-modal="true" aria-label="Medal earned" onClick={close}>
+      <div onClick={(e) => e.stopPropagation()} className="fade-in relative w-full max-w-sm overflow-hidden rounded-[2rem] p-7 text-center text-white" style={{ background: 'linear-gradient(160deg,var(--brand-navy-2),#3a2f86 60%,#6f5ce6)' }}>
+        <button type="button" onClick={close} className="absolute top-3 right-3 z-10 rounded-full bg-white/15 px-3 py-1 text-sm text-white/90 hover:bg-white/25" aria-label="Close">✕</button>
         <div className="pointer-events-none absolute inset-0 opacity-60" aria-hidden>
           {Array.from({ length: 28 }, (_, k) => (
             <span
@@ -36,13 +39,13 @@ export function AwardCelebration({ awards, name, onDone }: { awards: AwardDef[];
             className="btn-gold w-full"
             label="Share my victory"
             card={{ kind: 'medal', title: a.title, subtitle: a.subtitle, emoji: a.emoji, color: TIER_COLOR[a.tier], name }}
-            text={`I just earned “${a.title}” on SpiritualGym: ${a.subtitle}. 🙏`}
+            text={`I just earned “${a.title}” on TheRenewGym: ${a.subtitle}. 🙏`}
           />
           <button type="button" className="rounded-full px-5 py-3 text-sm font-semibold text-white/80 hover:text-white" onClick={next}>
             {i + 1 < awards.length ? 'Next' : 'Amen!'}
           </button>
         </div>
       </div>
-    </div>
+    </div></Portal>
   )
 }

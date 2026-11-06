@@ -1,8 +1,9 @@
 import { useState } from 'react'
 import { createFileRoute, useRouter } from '@tanstack/react-router'
-import { adminBroadcast, adminDeleteSchedule, getEngagementAdmin } from '~/fns/admin'
+import { adminBroadcast, adminDeleteSchedule, adminWeeklyEmail, getEngagementAdmin } from '~/fns/admin'
 import { Field, PageHead, Stat, Toast } from '~/components/AdminUI'
 import { FormError, errorText } from '~/components/AuthShell'
+import { LineIcon } from '~/components/LineIcon'
 import { describeSchedule, nextStart, relativeStart } from '~/lib/schedule'
 
 export const Route = createFileRoute('/admin/notifications')({
@@ -51,7 +52,7 @@ function AdminNotifications() {
       {!d.pushReady && (
         <div className="card mb-5 border-orange-300 bg-orange-50 text-sm text-orange-900 dark:bg-orange-950/30 dark:text-orange-200">
           <p className="font-semibold">Phone notifications aren’t switched on yet</p>
-          <p className="mt-1">Run <code>node scripts/vapid.mjs</code> in the project folder and follow the three steps it prints. Until then, notifications still appear under the 🔔 bell inside the app.</p>
+          <p className="mt-1">Run <code>node scripts/vapid.mjs</code> in the project folder and follow the three steps it prints. Until then, notifications still appear under the <LineIcon name="bell" className="inline h-4 w-4 -translate-y-px" /> bell inside the app.</p>
         </div>
       )}
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
@@ -61,8 +62,10 @@ function AdminNotifications() {
         <Stat label="Notices (7 days)" value={d.sent7} color="bg-sage-soft text-sage" />
       </div>
 
+      <WeeklyEmailCard />
+
       <section className="card mt-6 space-y-4">
-        <p className="font-semibold">📣 Send an announcement</p>
+        <p className="flex items-center gap-2 font-semibold"><LineIcon name="megaphone" className="h-[18px] w-[18px] text-accent" />Send an announcement</p>
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label="Title"><input className="input" maxLength={80} placeholder="e.g. 21-Day Consistency starts Monday" value={f.title} onChange={(e) => setF({ ...f, title: e.target.value })} /></Field>
           <Field label="Send to">
@@ -83,7 +86,7 @@ function AdminNotifications() {
       </section>
 
       <section className="card mt-6">
-        <p className="font-semibold">⏰ Scheduled group prayer</p>
+        <p className="flex items-center gap-2 font-semibold"><LineIcon name="alarm" className="h-[18px] w-[18px] text-accent" />Scheduled group prayer</p>
         {upcoming.length === 0 ? (
           <p className="mt-2 text-sm text-muted">No prayer times set. Group leaders (and you) can add them on any group page.</p>
         ) : (
@@ -103,5 +106,55 @@ function AdminNotifications() {
         )}
       </section>
     </>
+  )
+}
+
+/** The Sunday-evening weekly email: status, preview and a test send to yourself */
+function WeeklyEmailCard() {
+  const [d, setD] = useState<Awaited<ReturnType<typeof adminWeeklyEmail>> | null>(null)
+  const [busy, setBusy] = useState<string | null>(null)
+  const [msg, setMsg] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  async function run(send: boolean) {
+    setBusy(send ? 'send' : 'preview')
+    setError(null)
+    setMsg(null)
+    try {
+      const r = await adminWeeklyEmail({ data: { send } })
+      setD(r)
+      if (send) setMsg(`Sent to ${r.to}. Check your inbox (and spam) in a minute.`)
+    } catch (e) {
+      setError(errorText(e))
+    } finally {
+      setBusy(null)
+    }
+  }
+  return (
+    <section className="card mt-6 space-y-3">
+      <p className="flex items-center gap-2 font-semibold"><LineIcon name="mail" className="h-[18px] w-[18px] text-accent" />Weekly email: “Your week with God”</p>
+      <p className="text-sm text-muted">Every Sunday from 6 PM (each person’s own time zone): their days and minutes with God, answered prayers, prayers from walk partners, reading-plan progress and a word for the week ahead. Sent to people active in the last 90 days who haven’t unsubscribed.</p>
+      {d && (
+        <p className="text-sm">
+          {d.ready ? <><LineIcon name="check" className="mr-1 inline h-4 w-4 -translate-y-px" />Email is set up.</> : <><LineIcon name="flag" className="mr-1 inline h-4 w-4 -translate-y-px" />Email isn’t set up yet, so nothing is sent.</>} {d.subscribed} of {d.total} people have it on · {d.sentThisWeek} sent in the last 7 days.
+        </p>
+      )}
+      {d && !d.ready && (
+        <div className="rounded-2xl bg-orange-50 p-3 text-sm text-orange-900 dark:bg-orange-950/30 dark:text-orange-200">
+          To switch it on: create a free account at resend.com, verify your domain, create an API key, then run <code>wrangler secret put RESEND_API_KEY</code> and add <code>EMAIL_FROM = "TheRenewGym &lt;hello@yourdomain&gt;"</code> and <code>APP_URL</code> under [vars] in wrangler.toml.
+        </div>
+      )}
+      <div className="flex flex-wrap gap-2">
+        <button type="button" className="btn-ghost" disabled={!!busy} onClick={() => run(false)}>{busy === 'preview' ? 'Loading…' : <><LineIcon name="eye" className="h-4 w-4" />Preview my email</>}</button>
+        <button type="button" className="btn-primary" disabled={!!busy} onClick={() => run(true)}>{busy === 'send' ? 'Sending…' : <><LineIcon name="mail" className="h-4 w-4" />Send it to me now</>}</button>
+      </div>
+      <FormError message={error} />
+      <Toast text={msg} />
+      {d && (
+        <div>
+          <p className="text-xs text-muted">Subject: <b>{d.subject}</b></p>
+          <iframe title="Weekly email preview" srcDoc={d.html} sandbox="" className="mt-2 h-[640px] w-full rounded-2xl border border-line bg-white" />
+        </div>
+      )}
+    </section>
   )
 }

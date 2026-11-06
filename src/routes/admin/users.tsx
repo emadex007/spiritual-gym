@@ -67,7 +67,7 @@ function Users() {
           <input readOnly className="input mt-3 font-mono text-xs" value={resetFor.link} onFocus={(e) => e.target.select()} />
           <div className="mt-3 flex flex-wrap gap-2">
             <button type="button" className="btn-primary !py-2" onClick={() => navigator.clipboard.writeText(resetFor.link)}>Copy</button>
-            <a className="btn-ghost !py-2" target="_blank" rel="noreferrer" href={`https://wa.me/?text=${encodeURIComponent('Here is your SpiritualGym password reset link (valid 24 hours): ' + resetFor.link)}`}>Send on WhatsApp</a>
+            <a className="btn-ghost !py-2" target="_blank" rel="noreferrer" href={`https://wa.me/?text=${encodeURIComponent('Here is your TheRenewGym password reset link (valid 24 hours): ' + resetFor.link)}`}>Send on WhatsApp</a>
             <button type="button" className="btn-ghost !py-2" onClick={() => setResetFor(null)}>Close</button>
           </div>
         </div>

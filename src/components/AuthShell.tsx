@@ -9,7 +9,7 @@ export function AuthShell({ title, subtitle, children, footer }: { title: string
       {/* Illustration panel */}
       <aside className="relative isolate hidden overflow-hidden text-white lg:flex lg:flex-col lg:justify-between lg:p-10">
         <SunriseScene className="absolute inset-0 -z-10 h-full w-full" />
-        <Link to="/" className="[&_span]:text-white"><Logo /></Link>
+        <Link to="/"><Logo onDark /></Link>
         <div className="max-w-md">
           <DoveIcon className="h-10 w-10 text-gold" />
           <blockquote className="mt-4 font-display text-3xl leading-snug drop-shadow-sm">“Come unto me, all ye that labour and are heavy laden, and I will give you rest.”</blockquote>
@@ -20,7 +20,7 @@ export function AuthShell({ title, subtitle, children, footer }: { title: string
       <div className="flex min-h-dvh flex-col">
         <header className="relative isolate overflow-hidden px-5 pt-5 pb-16 text-white lg:hidden">
           <SunriseScene className="absolute inset-0 -z-10 h-full w-full" />
-          <Link to="/" className="[&_span]:text-white"><Logo /></Link>
+          <Link to="/"><Logo onDark /></Link>
         </header>
         <main className="fade-in relative mx-auto -mt-10 flex w-full max-w-md flex-1 flex-col px-5 pb-16 lg:mt-0 lg:justify-center">
           <div className="card lg:border-0 lg:bg-transparent lg:p-0 lg:shadow-none">

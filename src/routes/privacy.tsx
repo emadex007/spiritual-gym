@@ -5,7 +5,7 @@ import { LegalPage } from '~/components/LegalPage'
 
 export const Route = createFileRoute('/privacy')({
   loader: () => getSiteSettings(),
-  head: () => ({ meta: [{ title: 'Privacy policy · SpiritualGym' }] }),
+  head: () => ({ meta: [{ title: 'Privacy policy · TheRenewGym' }] }),
   component: () => {
     const s = Route.useLoaderData()
     return <LegalPage title="Privacy policy" text={fillLegal(s.privacy_text?.trim() || DEFAULT_PRIVACY, s.contact_email)} />

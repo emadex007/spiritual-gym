@@ -4,11 +4,12 @@ import { getGiveConfig, startDonation } from '~/fns/give'
 import { Logo } from '~/components/Logo'
 import { SunriseScene } from '~/components/Art'
 import { FormError, errorText } from '~/components/AuthShell'
+import { LineIcon } from '~/components/LineIcon'
 import { formatMoney } from '~/lib/give'
 
 export const Route = createFileRoute('/give/')({
   loader: () => getGiveConfig(),
-  head: () => ({ meta: [{ title: 'Support SpiritualGym' }, { name: 'description', content: 'Help keep SpiritualGym free for everyone. Every gift, in any currency, is welcome.' }] }),
+  head: () => ({ meta: [{ title: 'Support TheRenewGym' }, { name: 'description', content: 'Help keep TheRenewGym free for everyone. Every gift, in any currency, is welcome.' }] }),
   component: Give,
 })
 
@@ -60,19 +61,19 @@ function Give() {
       <main className="mx-auto max-w-xl px-5 pb-16">
         <section className="relative isolate overflow-hidden rounded-[1.75rem] px-6 pt-7 pb-14 text-white shadow-lg">
           <SunriseScene className="absolute inset-0 -z-10 h-full w-full" />
-          <p className="text-xs font-semibold tracking-[0.14em] text-white/80 uppercase">Support the mission</p>
-          <h1 className="mt-1 font-display text-3xl font-semibold drop-shadow-sm">Keep SpiritualGym free for everyone</h1>
-          <p className="mt-2 max-w-md text-white/90">Your gift helps people everywhere build a steady walk with God — prayer, the Word, worship and community, at no cost. No amount is too small.</p>
+          <p className="text-on-photo text-xs font-semibold tracking-[0.14em] text-white/85 uppercase">Support the mission</p>
+          <h1 className="text-on-photo mt-1 font-display text-3xl font-semibold">Keep TheRenewGym free for everyone</h1>
+          <p className="text-on-photo mt-2 max-w-md text-white">Your gift helps people everywhere build a steady walk with God — prayer, the Word, worship and community, at no cost. No amount is too small.</p>
         </section>
 
         {testMode && currencies.length > 0 && (
-          <p className="mt-6 rounded-2xl bg-gold/20 px-4 py-3 text-sm font-semibold text-[#8a6310]">🧪 Test mode — no real money is taken. Use the provider’s test cards.</p>
+          <p className="mt-6 rounded-2xl bg-gold/20 px-4 py-3 text-sm font-semibold text-gold-ink"><LineIcon name="wrench" className="mr-1.5 inline h-4 w-4 -translate-y-px" />Test mode — no real money is taken. Use the provider’s test cards.</p>
         )}
         {currencies.length === 0 ? (
           <section className="card mt-6 text-center">
-            <p className="text-3xl" aria-hidden>🙏</p>
+            <LineIcon name="prayer" className="mx-auto h-9 w-9 text-accent" strokeWidth={1.5} />
             <p className="mt-2 font-semibold">Online giving is coming soon</p>
-            <p className="mt-1 text-sm text-muted">Thank you for wanting to support SpiritualGym. Please check back shortly.</p>
+            <p className="mt-1 text-sm text-muted">Thank you for wanting to support TheRenewGym. Please check back shortly.</p>
           </section>
         ) : (
           <form onSubmit={submit} className="card mt-6 space-y-5">
@@ -104,7 +105,7 @@ function Give() {
               {busy ? 'Opening secure checkout…' : `Give ${info && Number(amount) ? formatMoney(Number(amount), info.code) : ''}`}
             </button>
             <p className="text-center text-xs text-muted">
-              Secure payment by {info?.provider === 'paystack' ? 'Paystack' : 'Flutterwave'}. We never see your card details. Giving is always voluntary — every part of SpiritualGym stays free whether or not you give.
+              Secure payment by {info?.provider === 'paystack' ? 'Paystack' : 'Flutterwave'}. We never see your card details. Giving is always voluntary — every part of TheRenewGym stays free whether or not you give.
             </p>
           </form>
         )}

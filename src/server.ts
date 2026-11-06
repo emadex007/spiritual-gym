@@ -5,6 +5,8 @@ export { PrayerRoom } from '~/lib/prayer-room'
 export { PushDispatcher } from '~/lib/push-dispatcher'
 import { runCron } from '~/lib/cron'
 import { flutterwaveWebhook, paystackWebhook } from '~/lib/donations'
+import { unsubscribe } from '~/lib/weekly'
+import { BRAND_KEYS, brandCss, cleanBrand } from '~/lib/brand'
 
 const COOKIE = 'sg_session'
 const MAX_UPLOAD = 5 * 1024 * 1024 // 5 MB
@@ -53,9 +55,54 @@ export default {
       return new Response('body' in obj ? obj.body : null, { headers })
     }
 
+    // Brand colours (Admin → Branding) as a stylesheet, and the logo mark (an uploaded one, or the built-in "R")
+    if (url.pathname === '/brand.css' || url.pathname === '/brand/logo-mark' || url.pathname === '/brand/logo-mark-dark') {
+      const rows = await env.DB.prepare(`SELECT key, value FROM settings WHERE key IN (${BRAND_KEYS.map(() => '?').join(',')})`)
+        .bind(...BRAND_KEYS)
+        .all<{ key: string; value: string }>()
+        .then((r) => r.results)
+        .catch(() => [])
+      const brand = cleanBrand(Object.fromEntries(rows.map((r) => [r.key, r.value])))
+      const cache = { 'cache-control': 'public, max-age=120, stale-while-revalidate=600' }
+      if (url.pathname === '/brand.css') return new Response(brandCss(brand), { headers: { ...cache, 'content-type': 'text/css; charset=utf-8' } })
+      const dark = url.pathname.endsWith('-dark')
+      const key = dark ? brand.brand_mark_dark || brand.brand_mark : brand.brand_mark
+      if (key) {
+        const obj = await env.MEDIA.get(key)
+        if (obj) return new Response(obj.body, { headers: { ...cache, 'content-type': obj.httpMetadata?.contentType ?? 'image/png' } })
+      }
+      return new Response(null, { status: 302, headers: { ...cache, location: dark ? '/brand/mark-dark.png' : '/brand/mark.png' } })
+    }
+
+    // One-click unsubscribe from the weekly email
+    if (url.pathname === '/unsubscribe' && (request.method === 'GET' || request.method === 'POST')) return unsubscribe(request)
+
     // Payment webhooks (donations). Each is verified with the provider's signature, then re-checked with its API.
     if (url.pathname === '/api/webhooks/paystack' && request.method === 'POST') return paystackWebhook(request)
     if (url.pathname === '/api/webhooks/flutterwave' && request.method === 'POST') return flutterwaveWebhook(request)
+
+    // My book's PDF or cover picture  POST /api/book-file (multipart "file", "id", "kind" = pdf | cover). Owner (or an admin) only.
+    if (url.pathname === '/api/book-file' && request.method === 'POST') {
+      const user = await userFromCookie(request, env)
+      if (!user) return json({ error: 'Please sign in.' }, 401)
+      const form = await request.formData()
+      const file = form.get('file')
+      const id = String(form.get('id') ?? '')
+      const kind = form.get('kind') === 'cover' ? 'cover' : 'pdf'
+      if (!(file instanceof File)) return json({ error: 'No file received.' }, 400)
+      const book = await env.DB.prepare('SELECT pdf_key, cover_key, owner_id FROM books WHERE id = ?').bind(id).first<{ pdf_key: string | null; cover_key: string | null; owner_id: string | null }>()
+      if (!book) return json({ error: 'Book not found.' }, 404)
+      if (book.owner_id !== user.id && user.role !== 'admin') return json({ error: 'This isn’t your book.' }, 403)
+      if (kind === 'pdf' && file.type !== 'application/pdf') return json({ error: 'Please upload a PDF file.' }, 400)
+      if (kind === 'cover' && !IMAGE_TYPES[file.type]) return json({ error: 'The cover must be a JPG, PNG or WEBP picture.' }, 400)
+      if (file.size > (kind === 'pdf' ? 40 : 5) * 1024 * 1024) return json({ error: kind === 'pdf' ? 'The PDF must be 40 MB or smaller.' : 'The cover must be 5 MB or smaller.' }, 400)
+      const key = `books/${id}/${kind}-${crypto.randomUUID().slice(0, 8)}.${kind === 'pdf' ? 'pdf' : IMAGE_TYPES[file.type]}`
+      await env.MEDIA.put(key, file.stream(), { httpMetadata: { contentType: file.type } })
+      await env.DB.prepare(`UPDATE books SET ${kind === 'pdf' ? 'pdf_key = ?, size = ' + file.size : 'cover_key = ?'} WHERE id = ?`).bind(key, id).run()
+      const old = kind === 'pdf' ? book.pdf_key : book.cover_key
+      if (old) await env.MEDIA.delete(old)
+      return json({ key, url: `/media/${key}` })
+    }
 
     // Admin image upload:  POST /api/upload  (multipart field "file")
     if (url.pathname === '/api/upload' && request.method === 'POST') {
@@ -98,6 +145,31 @@ export default {
       return json({ key, url: `/media/${key}` })
     }
 
+    // My worship songs: upload the audio for one of my songs  POST /api/worship-audio (multipart "file" + "id")  ·  DELETE ?id=
+    if (url.pathname === '/api/worship-audio' && (request.method === 'POST' || request.method === 'DELETE')) {
+      const user = await userFromCookie(request, env)
+      if (!user) return json({ error: 'Please sign in.' }, 401)
+      const form = request.method === 'POST' ? await request.formData() : null
+      const id = String(form?.get('id') ?? url.searchParams.get('id') ?? '')
+      const song = await env.DB.prepare('SELECT media_key FROM worship_songs WHERE id = ? AND user_id = ?').bind(id, user.id).first<{ media_key: string | null }>()
+      if (!song) return json({ error: 'Song not found.' }, 404)
+      if (request.method === 'DELETE') {
+        await env.DB.prepare('UPDATE worship_songs SET media_key = NULL WHERE id = ?').bind(id).run()
+        if (song.media_key) await env.MEDIA.delete(song.media_key)
+        return json({ ok: true })
+      }
+      const file = form?.get('file')
+      if (!(file instanceof File)) return json({ error: 'No audio received.' }, 400)
+      const ext = AUDIO_TYPES[file.type]
+      if (!ext) return json({ error: 'Please choose an MP3, M4A, AAC or OGG audio file.' }, 400)
+      if (file.size > MAX_AUDIO) return json({ error: 'Audio must be 20 MB or smaller.' }, 400)
+      const key = `worship/${user.id}/${crypto.randomUUID()}.${ext}`
+      await env.MEDIA.put(key, file.stream(), { httpMetadata: { contentType: file.type } })
+      await env.DB.prepare('UPDATE worship_songs SET media_key = ? WHERE id = ?').bind(key, id).run()
+      if (song.media_key) await env.MEDIA.delete(song.media_key)
+      return json({ key, url: `/media/${key}` })
+    }
+
     // Profile photo:  POST /api/avatar (multipart "file", already resized in the browser)  ·  DELETE /api/avatar
     if (url.pathname === '/api/avatar' && (request.method === 'POST' || request.method === 'DELETE')) {
       const user = await userFromCookie(request, env)
@@ -125,29 +197,90 @@ export default {
     if (url.pathname === '/api/rooms/ice' && request.method === 'GET') {
       const user = await userFromCookie(request, env)
       if (!user) return json({ error: 'Please sign in.' }, 401)
-      return json({ iceServers: await iceServers(env) })
+      return json(await iceServers(env))
     }
 
-    // Live prayer: WebSocket signalling  /api/rooms/<groupId>/ws
+    // Meetings usage meter: each device reports its connection data every 30 seconds (see useMeeting)
+    if (url.pathname === '/api/meet-usage' && request.method === 'POST') {
+      const user = await userFromCookie(request, env)
+      if (!user) return json({ error: 'Please sign in.' }, 401)
+      const b = (await request.json().catch(() => null)) as { room?: string; relay?: number; direct?: number; seconds?: number } | null
+      const room = String(b?.room ?? '')
+      if (!/^(meet|group):[\w-]{1,64}$/.test(room)) return json({ error: 'Bad room.' }, 400)
+      const clamp = (n: unknown, max: number) => Math.max(0, Math.min(max, Math.round(Number(n) || 0)))
+      const relay = clamp(b?.relay, 2 * 1024 ** 3)
+      const direct = clamp(b?.direct, 2 * 1024 ** 3)
+      const seconds = clamp(b?.seconds, 600)
+      if (relay || direct || seconds) {
+        await env.DB.prepare(
+          `INSERT INTO meeting_usage (day, user_id, room, relay_bytes, direct_bytes, seconds) VALUES (?, ?, ?, ?, ?, ?)
+           ON CONFLICT(day, user_id, room) DO UPDATE SET relay_bytes = relay_bytes + excluded.relay_bytes, direct_bytes = direct_bytes + excluded.direct_bytes, seconds = seconds + excluded.seconds`,
+        )
+          .bind(new Date().toISOString().slice(0, 10), user.id, room, relay, direct, seconds)
+          .run()
+      }
+      return json({ ok: true })
+    }
+
+    // Church meetings: WebSocket signalling  /api/meet/<meetingId>/ws  (members of the church; church admins host)
+    const meet = url.pathname.match(/^\/api\/meet\/([\w-]{1,64})\/ws$/)
+    if (meet && request.method === 'GET') {
+      if (request.headers.get('Upgrade') !== 'websocket') return new Response('Expected WebSocket', { status: 426 })
+      const user = await userFromCookie(request, env)
+      if (!user) return new Response('Please sign in.', { status: 401 })
+      const m = await env.DB.prepare(
+        `SELECT mt.status, mt.starts_at, mt.duration_min, cm.role, c.status AS church_status FROM church_meetings mt JOIN churches c ON c.id = mt.church_id
+         LEFT JOIN church_members cm ON cm.church_id = mt.church_id AND cm.user_id = ? WHERE mt.id = ?`,
+      )
+        .bind(user.id, meet[1])
+        .first<{ status: string; starts_at: string; duration_min: number; role: string | null; church_status: string }>()
+      if (!m || m.church_status !== 'approved') return new Response('Meeting not found.', { status: 404 })
+      if (!m.role && user.role !== 'admin') return new Response('This meeting is for members of the church.', { status: 403 })
+      if (m.status === 'ended') return new Response('This meeting has ended.', { status: 410 })
+      // A meeting ends at its scheduled end time
+      const endsAt = Date.parse(m.starts_at) + m.duration_min * 60_000
+      if (Number.isFinite(endsAt) && endsAt < Date.now()) {
+        await env.DB.prepare(`UPDATE church_meetings SET status = 'ended', ended_at = datetime('now'), live_count = 0 WHERE id = ?`).bind(meet[1]).run()
+        return new Response('This meeting has ended.', { status: 410 })
+      }
+      const host = m.role === 'admin' || user.role === 'admin'
+      const adult = !!user.birth_year && new Date().getFullYear() - user.birth_year >= 18
+      const headers = new Headers(request.headers)
+      headers.set('x-user-id', user.id)
+      headers.set('x-user-name', encodeURIComponent(user.name.split(' ')[0].slice(0, 30)))
+      headers.set('x-user-avatar', encodeURIComponent(user.avatar_key ?? ''))
+      headers.set('x-meeting-id', meet[1])
+      headers.set('x-host', host ? '1' : '0')
+      headers.set('x-adult', adult ? '1' : '0')
+      headers.set('x-waiting', '1') // church meetings: the host lets people in
+      if (Number.isFinite(endsAt)) headers.set('x-ends-at', String(endsAt))
+      const stub = env.PRAYER_ROOMS.get(env.PRAYER_ROOMS.idFromName(`meet:${meet[1]}`))
+      return stub.fetch(new Request(request.url, { headers }))
+    }
+
+    // Community groups meeting live: WebSocket signalling  /api/rooms/<groupId>/ws
     const room = url.pathname.match(/^\/api\/rooms\/([\w-]{1,64})\/ws$/)
     if (room && request.method === 'GET') {
       if (request.headers.get('Upgrade') !== 'websocket') return new Response('Expected WebSocket', { status: 426 })
       const user = await userFromCookie(request, env)
       if (!user) return new Response('Please sign in.', { status: 401 })
-      if (!user.birth_year || new Date().getFullYear() - user.birth_year < 18) return new Response('Live prayer is for adults (18+).', { status: 403 })
+      if (!user.birth_year || new Date().getFullYear() - user.birth_year < 18) return new Response('Community meetings are for adults (18+).', { status: 403 })
       const groupId = room[1]
       const member = await env.DB.prepare(
-        `SELECT 1 AS ok FROM prayer_group_members m JOIN prayer_groups g ON g.id = m.group_id
+        `SELECT m.role FROM prayer_group_members m JOIN prayer_groups g ON g.id = m.group_id
          WHERE m.group_id = ? AND m.user_id = ? AND g.is_hidden = 0`,
       )
         .bind(groupId, user.id)
-        .first()
+        .first<{ role: string }>()
       if (!member) return new Response('Join the group first.', { status: 403 })
       const headers = new Headers(request.headers)
       headers.set('x-user-id', user.id)
       headers.set('x-user-name', encodeURIComponent(user.name.split(' ')[0].slice(0, 30)))
       headers.set('x-group-id', groupId)
       headers.set('x-user-avatar', encodeURIComponent(user.avatar_key ?? ''))
+      // The group leader (or a site admin) hosts: mute, camera off, remove, record, end. Community members are all adults.
+      headers.set('x-host', member.role === 'owner' || user.role === 'admin' ? '1' : '0')
+      headers.set('x-adult', '1')
       const stub = env.PRAYER_ROOMS.get(env.PRAYER_ROOMS.idFromName(groupId))
       return stub.fetch(new Request(request.url, { headers }))
     }
@@ -156,20 +289,31 @@ export default {
   },
 }
 
-async function iceServers(env: AppEnv): Promise<RTCIceServer[]> {
+/** STUN finds a direct path between two devices. TURN (Cloudflare Realtime) relays the call when a network blocks direct paths,
+ *  which is common on mobile data; without it some people stay on "connecting". Set TURN_KEY_ID + TURN_KEY_API_TOKEN to switch it on. */
+async function iceServers(env: AppEnv): Promise<{ iceServers: RTCIceServer[]; relay: boolean }> {
   const stun: RTCIceServer[] = [{ urls: ['stun:stun.cloudflare.com:3478', 'stun:stun.l.google.com:19302'] }]
-  if (!env.TURN_KEY_ID || !env.TURN_KEY_API_TOKEN) return stun
+  if (!env.TURN_KEY_ID || !env.TURN_KEY_API_TOKEN) return { iceServers: stun, relay: false }
   try {
-    const res = await fetch(`https://rtc.live.cloudflare.com/v1/turn/keys/${env.TURN_KEY_ID}/credentials/generate`, {
+    const res = await fetch(`https://rtc.live.cloudflare.com/v1/turn/keys/${env.TURN_KEY_ID}/credentials/generate-ice-servers`, {
       method: 'POST',
       headers: { authorization: `Bearer ${env.TURN_KEY_API_TOKEN}`, 'content-type': 'application/json' },
       body: JSON.stringify({ ttl: 86400 }),
     })
-    if (!res.ok) return stun
+    if (!res.ok) {
+      console.error('TURN credentials failed', res.status, await res.text().catch(() => ''))
+      return { iceServers: stun, relay: false }
+    }
     const data = (await res.json()) as { iceServers: RTCIceServer | RTCIceServer[] }
-    return [...stun, ...(Array.isArray(data.iceServers) ? data.iceServers : [data.iceServers])]
-  } catch {
-    return stun
+    // Browsers block port 53, so drop those addresses (they only slow connecting down)
+    const servers = (Array.isArray(data.iceServers) ? data.iceServers : [data.iceServers]).map((s) => ({
+      ...s,
+      urls: (Array.isArray(s.urls) ? s.urls : [s.urls]).filter((u) => !/:53(\?|$)/.test(u)),
+    }))
+    return { iceServers: [...stun, ...servers.filter((s) => s.urls.length)], relay: true }
+  } catch (e) {
+    console.error('TURN credentials failed', e)
+    return { iceServers: stun, relay: false }
   }
 }
 

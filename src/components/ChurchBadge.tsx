@@ -1,4 +1,5 @@
 import { mediaUrl } from '~/lib/util'
+import { LineIcon } from '~/components/LineIcon'
 
 const SIZES = { sm: 'h-11 w-11 text-base', md: 'h-14 w-14 text-xl', lg: 'h-20 w-20 text-3xl' }
 
@@ -15,7 +16,7 @@ export function ChurchBadge({ name, logo, color, size = 'sm' }: { name: string; 
     .join('')
   return (
     <span className={`flex shrink-0 items-center justify-center rounded-2xl font-display font-semibold text-white shadow-sm ${cls}`} style={{ background: color }} aria-label={name}>
-      {initials || '⛪'}
+      {initials || <LineIcon name="church" className="h-1/2 w-1/2" />}
     </span>
   )
 }

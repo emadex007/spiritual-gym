@@ -1,8 +1,10 @@
 import { useState } from 'react'
 import { createFileRoute, useRouter } from '@tanstack/react-router'
 import { deleteJournal, listJournal, saveJournal, type JournalItem } from '~/fns/journal'
-import { JOURNAL_PROMPTS } from '~/lib/content'
+import { JOURNAL_PROMPTS, VERSE_PROMPT } from '~/lib/content'
+import { ShareButton } from '~/components/ShareButton'
 import { FormError, errorText } from '~/components/AuthShell'
+import { LineIcon } from '~/components/LineIcon'
 
 export const Route = createFileRoute('/app/journal/')({
   loader: () => listJournal(),
@@ -124,7 +126,16 @@ function Entry({ item, onEdit }: { item: JournalItem; onEdit: () => void }) {
           {open ? 'Show less' : 'Read more'}
         </button>
       )}
-      {item.scripture && <p className="mt-3 text-sm text-muted">📖 {item.scripture}</p>}
+      {item.scripture && <p className="mt-3 text-sm text-muted"><LineIcon name="bookOpen" className="mr-1 inline h-4 w-4 -translate-y-px" />{item.scripture}</p>}
+      {item.prompt === VERSE_PROMPT && item.scripture && (() => {
+        const verse = item.body.split('\n\n')[0].replace(/^“|”$/g, '')
+        const [reference, translation] = [item.scripture.replace(/\s+(KJV|BSB|ASV|BBE|WEB)$/, ''), item.scripture.match(/(KJV|BSB|ASV|BBE|WEB)$/)?.[1] ?? 'KJV']
+        return (
+          <div className="mt-3">
+            <ShareButton className="inline-flex items-center gap-1.5 rounded-full bg-accent-soft px-4 py-2 text-sm font-semibold text-accent" card={{ kind: 'verse', text: verse, reference, translation }} text={`“${verse}” (${item.scripture})`} />
+          </div>
+        )
+      })()}
       <div className="mt-3 flex items-center justify-between text-xs text-muted">
         <span>{formatTime(item.created_at)}</span>
         {item.source === 'journal' && (

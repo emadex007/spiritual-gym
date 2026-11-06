@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link, createFileRoute } from '@tanstack/react-router'
 import { getAdminStats, getCommunityStats } from '~/fns/admin'
 import { PageHead, Stat } from '~/components/AdminUI'
+import { LineIcon } from '~/components/LineIcon'
 import { dayString } from '~/lib/util'
 
 export const Route = createFileRoute('/admin/')({
@@ -24,7 +25,7 @@ function Dashboard() {
 
   return (
     <>
-      <PageHead title={`Welcome, ${admin?.name.split(' ')[0] ?? 'Admin'}`} sub="How SpiritualGym is doing. Only totals are shown here; journals, check-ins and prayers stay private to each user." />
+      <PageHead title={`Welcome, ${admin?.name.split(' ')[0] ?? 'Admin'}`} sub="How TheRenewGym is doing. Only totals are shown here; journals, check-ins and prayers stay private to each user." />
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Stat label="Users" value={s.users} hint={`+${s.newWeek} this week`} />
@@ -37,8 +38,8 @@ function Dashboard() {
 
       <p className="mt-8 mb-3 font-semibold">Community & Bible</p>
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <Stat label="Prayer groups" value={s.community.groups} hint={`${s.community.postsWeek} posts this week`} color="bg-[#ebe8fd] text-[#5a4bd1]" />
-        <Stat label="Praying live now" value={s.community.liveNow} hint={`${s.community.liveWeek} live joins this week`} color="bg-red-50 text-red-600" />
+        <Stat label="Community groups" value={s.community.groups} hint={`${s.community.postsWeek} posts this week`} color="bg-[#ebe8fd] text-[#5a4bd1]" />
+        <Stat label="Live in groups now" value={s.community.liveNow} hint={`${s.community.liveWeek} live joins this week`} color="bg-red-50 text-red-600" />
         <Link to="/admin/reports" className="block">
           <Stat label="Open reports" value={s.community.openReports} hint={s.community.openReports ? 'Tap to review' : 'All clear'} color={s.community.openReports ? 'bg-orange-100 text-orange-700' : 'bg-sage-soft text-sage'} />
         </Link>
@@ -48,6 +49,14 @@ function Dashboard() {
           hint={s.community.bibleVerses ? `${s.community.bibleVerses.toLocaleString()} verses` : 'Run the Bible import (see README)'}
           color={s.community.bibleVerses ? 'bg-accent-soft text-accent' : 'bg-red-50 text-red-600'}
         />
+        <Link to="/admin/usage" className="block">
+          <Stat
+            label="Meetings relay this month"
+            value={`${s.community.relayGbMonth < 10 ? s.community.relayGbMonth.toFixed(2) : Math.round(s.community.relayGbMonth)} GB`}
+            hint={s.community.alertGb ? `Alert at ${s.community.alertGb} GB · tap for details` : 'Tap for details'}
+            color={s.community.alertGb && s.community.relayGbMonth >= s.community.alertGb * 0.8 ? 'bg-orange-100 text-orange-700' : 'bg-sage-soft text-sage'}
+          />
+        </Link>
       </div>
 
       <section className="card mt-6">
@@ -105,11 +114,11 @@ function Dashboard() {
         </section>
         <section className="card">
           <p className="font-semibold">Quick links</p>
-          <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
-            <Link to="/admin/settings" className="rounded-2xl bg-surface-2 p-3 font-medium hover:bg-accent-soft">🎨 Edit homepage</Link>
-            <Link to="/admin/workouts" className="rounded-2xl bg-surface-2 p-3 font-medium hover:bg-accent-soft">⏱️ Add a workout</Link>
-            <Link to="/admin/journeys" className="rounded-2xl bg-surface-2 p-3 font-medium hover:bg-accent-soft">🧭 Create a journey</Link>
-            <Link to="/admin/verses" className="rounded-2xl bg-surface-2 p-3 font-medium hover:bg-accent-soft">📖 Verses of the day</Link>
+          <div className="mt-3 grid grid-cols-1 gap-2 text-sm sm:grid-cols-2 md:grid-cols-1 xl:grid-cols-2">
+            <Link to="/admin/settings" className="flex items-center gap-2 rounded-2xl bg-surface-2 p-3 font-medium hover:bg-accent-soft"><LineIcon name="brush" className="h-4 w-4 shrink-0 text-accent" />Edit homepage</Link>
+            <Link to="/admin/workouts" className="flex items-center gap-2 rounded-2xl bg-surface-2 p-3 font-medium hover:bg-accent-soft"><LineIcon name="clock" className="h-4 w-4 shrink-0 text-accent" />Add a workout</Link>
+            <Link to="/admin/journeys" className="flex items-center gap-2 rounded-2xl bg-surface-2 p-3 font-medium hover:bg-accent-soft"><LineIcon name="compass" className="h-4 w-4 shrink-0 text-accent" />Create a journey</Link>
+            <Link to="/admin/verses" className="flex items-center gap-2 rounded-2xl bg-surface-2 p-3 font-medium hover:bg-accent-soft"><LineIcon name="bookOpen" className="h-4 w-4 shrink-0 text-accent" />Verses of the day</Link>
           </div>
         </section>
       </div>

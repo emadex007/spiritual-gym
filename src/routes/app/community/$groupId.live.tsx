@@ -1,135 +1,97 @@
 import { useState } from 'react'
 import { Link, createFileRoute } from '@tanstack/react-router'
 import { getGroup } from '~/fns/community'
-import { purposeOf } from '~/lib/content'
-import { useLivePrayer } from '~/hooks/useLivePrayer'
-import { HandsIcon, SunriseScene } from '~/components/Art'
-import { Avatar } from '~/components/Avatar'
+import { CAMERA_LIMIT, LIVE_ROOM_LIMIT, groupKind, groupLook } from '~/lib/content'
+import { useMeeting } from '~/hooks/useMeeting'
+import { MeetingShell, shareInvite } from '~/components/MeetingRoom'
+import { SunriseScene } from '~/components/Art'
 import { nextStart, relativeStart } from '~/lib/schedule'
+import { Glyph, LineIcon } from '~/components/LineIcon'
 
 export const Route = createFileRoute('/app/community/$groupId/live')({
   loader: ({ params }) => getGroup({ data: params.groupId }),
-  component: LivePrayer,
+  component: GroupLive,
 })
 
-function LivePrayer() {
+/** A community group meeting live: voice for everyone, cameras, chat, raised hands; the group leader hosts and can record */
+function GroupLive() {
   const d = Route.useLoaderData()
   const g = d.group
-  const p = purposeOf(g.purpose)
-  const live = useLivePrayer(g.id)
-  const [showRequests, setShowRequests] = useState(false)
-  const requests = d.posts.filter((x) => x.kind === 'request').slice(0, 10)
-  const inRoom = live.status === 'live' || live.status === 'connecting'
+  const look = groupLook(g)
+  const gk = groupKind(g.kind)
+  const isPrayer = gk.key === 'prayer'
+  const meet = useMeeting(`/api/rooms/${g.id}/ws`)
+  const [camera, setCamera] = useState(false)
+  const posts = d.posts.filter((x) => (isPrayer ? x.kind === 'request' : ['note', 'announcement', 'question'].includes(x.kind))).slice(0, 10)
+  const next = d.schedules.map((s) => ({ s, t: nextStart(s) })).filter((x) => x.t != null).sort((a, b) => a.t! - b.t!)[0]
 
+  const notes = {
+    label: isPrayer ? 'What we’re praying for' : 'Notes and questions',
+    content: posts.length ? (
+      <ul className="space-y-2">
+        {posts.map((r) => (
+          <li key={r.id} className="rounded-2xl bg-surface-2 px-4 py-3 text-sm whitespace-pre-wrap">
+            <span className="font-semibold">{r.author.split(' ')[0]}:</span> {r.body}
+          </li>
+        ))}
+      </ul>
+    ) : (
+      <p className="py-8 text-center text-sm text-muted">Nothing posted yet. Post on the group’s wall and it shows here.</p>
+    ),
+  }
+
+  const ended = meet.status === 'ended'
   return (
-    <div className="relative isolate flex min-h-dvh flex-col text-white" style={{ background: 'linear-gradient(180deg,#1b2750 0%,#2e2573 45%,#12203a 100%)' }}>
-      {!inRoom && <SunriseScene className="pointer-events-none absolute inset-x-0 bottom-0 -z-10 h-[40%] w-full opacity-60" />}
-      <header className="mx-auto flex w-full max-w-xl items-center justify-between px-5 py-4">
-        <Link
-          to="/app/community/$groupId"
-          params={{ groupId: g.id }}
-          onClick={() => live.leave()}
-          className="rounded-full bg-white/10 px-3 py-1.5 text-sm font-semibold hover:bg-white/15"
-        >
-          ← {inRoom ? 'Leave' : 'Back'}
-        </Link>
-        <p className="truncate px-3 text-sm font-medium text-white/80">{p.emoji} {g.name}</p>
-        <span className="w-16" />
-      </header>
-
-      <main className="mx-auto flex w-full max-w-xl flex-1 flex-col px-5 pb-8">
-        {!inRoom ? (
-          <div className="fade-in flex flex-1 flex-col justify-center py-8 text-center">
-            <span className="mx-auto flex h-20 w-20 items-center justify-center rounded-3xl bg-white/10">
-              <HandsIcon className="h-10 w-10 text-gold" />
-            </span>
-            <h1 className="mt-6 font-display text-4xl font-semibold">Live prayer</h1>
-            <p className="mx-auto mt-3 max-w-sm text-white/75">
-              {g.live_count > 0 ? `${g.live_count} ${g.live_count === 1 ? 'person is' : 'people are'} praying right now.` : 'No one is praying yet. You can start, and others will join.'}
-            </p>
-            {(() => {
-              const next = d.schedules.map((s) => ({ s, t: nextStart(s) })).filter((x) => x.t != null).sort((a, b) => a.t! - b.t!)[0]
-              return next ? (
-                <p className="mx-auto mt-4 inline-block rounded-full bg-white/10 px-4 py-1.5 text-sm">⏰ {next.s.title}: {relativeStart(next.t!, next.s.duration_min)}</p>
-              ) : null
-            })()}
-            <ul className="mx-auto mt-6 max-w-sm space-y-2 text-left text-sm text-white/80">
-              <li>🎙️ Your microphone will be on. You can mute any time.</li>
-              <li>🎧 Headphones help others hear you clearly.</li>
-              <li>🤍 Pray with kindness. Never share bank or contact details.</li>
-              <li>👥 Up to 12 people can pray live together.</li>
-            </ul>
-            {live.status === 'full' && <p className="mt-6 rounded-2xl bg-white/10 px-4 py-3 text-sm">This prayer room is full right now. Please try again shortly, or pray along using the requests below.</p>}
-            {live.error && <p className="mt-6 rounded-2xl bg-red-500/20 px-4 py-3 text-sm text-red-100">{live.error}</p>}
-            <button type="button" onClick={live.join} className="btn-gold mx-auto mt-8 w-full max-w-xs py-4 text-base">
-              🎙️ {g.live_count > 0 ? 'Join live prayer' : 'Start live prayer'}
-            </button>
-          </div>
-        ) : (
-          <div className="fade-in flex flex-1 flex-col py-4">
-            <p className="text-center text-xs font-semibold tracking-[0.14em] text-gold uppercase">
-              {live.status === 'connecting' ? 'Connecting…' : <><span className="mr-1 inline-block h-2 w-2 animate-pulse rounded-full bg-red-400" /> Live · {live.peers.length + 1} praying</>}
-            </p>
-
-            <div className="mt-8 grid grid-cols-3 gap-5 sm:grid-cols-4">
-              <Person name="You" avatar={d.meAvatar} speaking={live.meSpeaking} muted={live.muted} connected />
-              {live.peers.map((peer) => (
-                <Person key={peer.id} name={peer.name} avatar={peer.avatar} speaking={peer.speaking} muted={peer.muted} connected={peer.connected} />
-              ))}
-            </div>
-            {live.peers.length === 0 && live.status === 'live' && (
-              <p className="mt-8 text-center text-sm text-white/70">You’re the first one here. Begin praying and others can join you. Invite members from the group page.</p>
-            )}
-
-            <div className="mt-8">
-              <button type="button" onClick={() => setShowRequests(!showRequests)} className="w-full rounded-2xl bg-white/10 px-4 py-3 text-left text-sm font-semibold">
-                🙏 What we’re praying for ({requests.length}) <span className="float-right">{showRequests ? '▲' : '▼'}</span>
+    <MeetingShell
+      meet={meet}
+      title={g.name}
+      emoji={look.emoji}
+      me={{ name: d.meName, avatar: d.meAvatar }}
+      back={<Link to="/app/community/$groupId" params={{ groupId: g.id }} className="flex h-9 items-center rounded-full bg-white/10 px-3 text-sm font-semibold hover:bg-white/15">← Back</Link>}
+      invite={() => shareInvite(g.name, `Join “${g.name}” live on TheRenewGym${g.invite_code ? ` (invite code ${g.invite_code})` : ''}:`, `${location.origin}/app/community/${g.id}/live`)}
+      roomExtra={notes}
+      lobby={
+        <main className="fade-in relative isolate mx-auto flex w-full max-w-md flex-1 flex-col justify-center px-5 py-8 text-center">
+          <SunriseScene className="pointer-events-none fixed inset-x-0 bottom-0 -z-10 h-[40%] w-full opacity-50" />
+          <span className="mx-auto flex h-20 w-20 items-center justify-center rounded-3xl bg-white/10 text-gold" aria-hidden><Glyph e={look.emoji} className="h-9 w-9" /></span>
+          <p className="mt-5 text-xs font-semibold tracking-[0.14em] text-gold uppercase">{gk.live}</p>
+          <h1 className="mt-1 font-display text-4xl font-semibold leading-tight">{g.name}</h1>
+          <p className="mx-auto mt-3 max-w-sm text-white/75">
+            {ended
+              ? 'The leader ended the meeting.'
+              : g.live_count > 0
+                ? `${g.live_count} ${g.live_count === 1 ? 'person is' : 'people are'} ${gk.doing} right now.`
+                : 'No one is here yet. You can start, and others will join.'}
+          </p>
+          {next && <p className="mx-auto mt-4 inline-block rounded-full bg-white/10 px-4 py-1.5 text-sm"><LineIcon name="clock" className="mr-1.5 inline h-4 w-4 -translate-y-px" />{next.s.title}: {relativeStart(next.t!, next.s.duration_min)}</p>}
+          {meet.status === 'denied' && <p className="mt-5 rounded-2xl bg-white/10 px-4 py-3 text-sm">The host didn’t let you in this time.</p>}
+          {meet.status === 'ended' && meet.endReason === 'time' && <p className="mt-5 rounded-2xl bg-white/10 px-4 py-3 text-sm">The meeting has ended: its time is up.</p>}
+          {meet.status === 'removed' && <p className="mt-5 rounded-2xl bg-white/10 px-4 py-3 text-sm">The leader removed you from this meeting.</p>}
+          {meet.status === 'full' && <p className="mt-5 rounded-2xl bg-white/10 px-4 py-3 text-sm">It’s full ({LIVE_ROOM_LIMIT} people). Please try again a little later.</p>}
+          {meet.error && <p className="mt-5 rounded-2xl bg-red-500/20 px-4 py-3 text-sm">{meet.error}</p>}
+          {d.isMember ? (
+            <>
+              <ul className="mx-auto mt-6 space-y-2 text-left text-sm text-white/80">
+                <li className="flex gap-2.5"><LineIcon name="mic" className="mt-0.5 h-4 w-4 shrink-0 text-gold" /><span>Everyone can talk. Mute yourself when you’re not speaking.</span></li>
+                <li className="flex gap-2.5"><LineIcon name="camera" className="mt-0.5 h-4 w-4 shrink-0 text-gold" /><span>Cameras are optional, up to {CAMERA_LIMIT} at once. Chat and raise your hand.</span></li>
+                <li className="flex gap-2.5"><LineIcon name="presentation" className="mt-0.5 h-4 w-4 shrink-0 text-gold" /><span>Share your screen or show slides and pictures.</span></li>
+                <li className="flex gap-2.5"><LineIcon name="headphones" className="mt-0.5 h-4 w-4 shrink-0 text-gold" /><span>Headphones help others hear you clearly.</span></li>
+                <li className="flex gap-2.5"><LineIcon name="heart" className="mt-0.5 h-4 w-4 shrink-0 text-gold" /><span>Be kind. Never share bank or contact details. Up to {LIVE_ROOM_LIMIT} people.</span></li>
+              </ul>
+              <label className="mx-auto mt-5 flex cursor-pointer items-center gap-3 rounded-2xl bg-white/10 px-4 py-3 text-sm">
+                <input type="checkbox" className="h-5 w-5 accent-[#d4a64a]" checked={camera} onChange={(e) => setCamera(e.target.checked)} />
+                Turn my camera on when I join
+              </label>
+              <button type="button" className="btn-gold mt-6 w-full py-4 text-base" disabled={meet.status === 'connecting'} onClick={() => meet.join({ camera })}>
+                {meet.status === 'connecting' ? 'Joining…' : g.live_count > 0 ? 'Join now' : 'Start now'}
               </button>
-              {showRequests && (
-                <ul className="mt-2 max-h-64 space-y-2 overflow-y-auto">
-                  {requests.length === 0 && <li className="px-2 text-sm text-white/60">No requests posted yet.</li>}
-                  {requests.map((r) => (
-                    <li key={r.id} className="rounded-2xl bg-white/5 px-4 py-3 text-sm">
-                      <span className="font-semibold">{r.author.split(' ')[0]}:</span> <span className="text-white/85">{r.body}</span>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-
-            <div className="mt-auto flex items-center justify-center gap-6 pt-10">
-              <button
-                type="button"
-                onClick={live.toggleMute}
-                aria-pressed={live.muted}
-                className={`flex h-16 w-16 items-center justify-center rounded-full text-2xl transition ${live.muted ? 'bg-white text-navy' : 'bg-white/15'}`}
-                aria-label={live.muted ? 'Unmute' : 'Mute'}
-              >
-                {live.muted ? '🔇' : '🎙️'}
-              </button>
-              <button type="button" onClick={live.leave} className="flex h-16 items-center justify-center rounded-full bg-red-500 px-8 font-semibold">
-                Leave
-              </button>
-            </div>
-            <p className="mt-3 text-center text-xs text-white/50">{live.muted ? 'You are muted' : 'Others can hear you'}</p>
-          </div>
-        )}
-      </main>
-    </div>
-  )
-}
-
-function Person({ name, avatar, speaking, muted, connected }: { name: string; avatar?: string | null; speaking: boolean; muted: boolean; connected: boolean }) {
-  return (
-    <div className="flex flex-col items-center gap-2">
-      <div className={`relative rounded-full p-1 transition ${speaking ? 'bg-gold shadow-[0_0_24px_rgba(212,169,74,0.7)]' : 'bg-white/10'}`}>
-        <div className={connected ? '' : 'opacity-50'}>
-          <Avatar name={name === 'You' ? 'Y' : name} src={avatar || null} size="lg" />
-        </div>
-        {muted && <span className="absolute -right-1 -bottom-1 flex h-6 w-6 items-center justify-center rounded-full bg-white text-xs">🔇</span>}
-      </div>
-      <p className="max-w-[5.5rem] truncate text-sm">{name}</p>
-      {!connected && <p className="-mt-1.5 text-[10px] text-white/50">connecting…</p>}
-    </div>
+              {d.isOwner && <p className="mt-3 text-xs text-white/60">You lead this group: you can mute people, turn cameras off, remove someone, record and end the meeting.</p>}
+            </>
+          ) : (
+            <Link to="/app/community/$groupId" params={{ groupId: g.id }} className="btn-gold mt-6 w-full py-4 text-base">Join the group first</Link>
+          )}
+        </main>
+      }
+    />
   )
 }

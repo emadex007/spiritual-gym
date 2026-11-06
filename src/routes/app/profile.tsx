@@ -11,7 +11,9 @@ import { InstallApp } from '~/components/InstallApp'
 import { PastorToggle } from '~/components/PastorToggle'
 import { NotificationSettings } from '~/components/NotificationSettings'
 import { TrophyCabinet } from '~/components/TrophyCabinet'
+import { IconBadge, LineIcon } from '~/components/LineIcon'
 import { getMyAwards } from '~/fns/awards'
+import { replayTour } from '~/fns/home'
 
 export const Route = createFileRoute('/app/profile')({
   loader: async () => {
@@ -24,7 +26,7 @@ export const Route = createFileRoute('/app/profile')({
 function Profile() {
   const p = Route.useLoaderData()
   const router = useRouter()
-  const [form, setForm] = useState({ name: p.name, dailyMinutes: p.dailyMinutes, level: p.level, favoriteVerse: p.favoriteVerse, includeTongues: p.includeTongues })
+  const [form, setForm] = useState({ name: p.name, dailyMinutes: p.dailyMinutes, level: p.level, favoriteVerse: p.favoriteVerse })
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -112,7 +114,7 @@ function Profile() {
           <p className="label">Training level</p>
           <div className="grid grid-cols-2 gap-2">
             {Object.entries(LEVELS).map(([k, v]) => (
-              <button key={k} type="button" className={`option !py-3 ${form.level === k ? 'option-on' : ''}`} onClick={() => { setForm({ ...form, level: k }); setSaved(false) }}>
+              <button key={k} type="button" className={`option !py-3 flex-wrap gap-x-2 gap-y-0.5 ${form.level === k ? 'option-on' : ''}`} onClick={() => { setForm({ ...form, level: k }); setSaved(false) }}>
                 <span>{v.label}</span>
                 <span className="text-xs font-normal text-muted">{v.range}</span>
               </button>
@@ -120,13 +122,6 @@ function Profile() {
           </div>
           <p className="mt-2 text-xs text-muted">You can move between levels any time. Recovery Mode is never a step down.</p>
         </div>
-        <label className="flex cursor-pointer items-start justify-between gap-4 rounded-2xl border border-line p-4">
-          <span>
-            <span className="block font-medium">Include praying in tongues</span>
-            <span className="mt-0.5 block text-xs text-muted">Adds “Praying in the Spirit” to workouts. Switch off to pray in your own words instead.</span>
-          </span>
-          <input type="checkbox" className="mt-1 h-5 w-5 accent-[#4f7a63]" checked={form.includeTongues} onChange={(e) => { setForm({ ...form, includeTongues: e.target.checked }); setSaved(false) }} />
-        </label>
         <div>
           <label className="label" htmlFor="fav">Favorite Scripture</label>
           <input id="fav" className="input" placeholder="e.g. Psalm 23:1" value={form.favoriteVerse} onChange={(e) => { setForm({ ...form, favoriteVerse: e.target.value }); setSaved(false) }} />
@@ -141,12 +136,12 @@ function Profile() {
       <div className="mt-5"><InstallApp /></div>
       <div className="mt-5 grid gap-3 sm:grid-cols-2">
         <Link to="/app/church" className="card flex items-center gap-3 !p-4 transition hover:border-accent">
-          <span className="text-2xl" aria-hidden>⛪</span>
+          <IconBadge name="church" />
           <span><span className="block font-semibold">My church</span><span className="text-xs text-muted">Join with a code, or register your church</span></span>
         </Link>
         <a href="/give" className="card flex items-center gap-3 !p-4 transition hover:border-accent">
-          <span className="text-2xl" aria-hidden>💛</span>
-          <span><span className="block font-semibold">Support SpiritualGym</span><span className="text-xs text-muted">Help keep it free for everyone</span></span>
+          <IconBadge name="heart" />
+          <span><span className="block font-semibold">Support TheRenewGym</span><span className="text-xs text-muted">Help keep it free for everyone</span></span>
         </a>
       </div>
 
@@ -160,6 +155,20 @@ function Profile() {
         <p className="mt-2 mb-3 text-sm text-muted">Auto matches your phone’s light or dark mode.</p>
         <ThemeSwitch />
       </section>
+
+      <button
+        type="button"
+        className="card mt-5 flex w-full items-center gap-3 !p-4 text-left transition hover:border-accent"
+        onClick={async () => {
+          await replayTour()
+          await router.navigate({ to: '/app' })
+          await router.invalidate()
+        }}
+      >
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-accent-soft/70 text-accent" aria-hidden><LineIcon name="compass" className="h-5 w-5" /></span>
+        <span className="flex-1"><span className="block font-semibold">Show me around again</span><span className="text-xs text-muted">The short welcome tour: your workout, church and groups, Bible and books</span></span>
+        <span className="text-accent" aria-hidden>→</span>
+      </button>
 
       <section className="card mt-5">
         <p className="eyebrow">Privacy</p>
@@ -177,8 +186,8 @@ function Profile() {
       </section>
 
       {p.supportText && (
-        <section className="mt-5 rounded-3xl p-5" style={{ background: 'linear-gradient(135deg,#e3eefc,#ebe8fd)' }}>
-          <p className="font-semibold text-[#12203a]">Need someone right now?</p>
+        <section className="on-light mt-5 rounded-3xl p-5" style={{ background: 'linear-gradient(135deg,#e3eefc,#ebe8fd)' }}>
+          <p className="font-semibold text-navy">Need someone right now?</p>
           <p className="mt-1 text-sm whitespace-pre-wrap text-[#5b6477]">{p.supportText}</p>
         </section>
       )}

@@ -25,7 +25,7 @@ export async function requireChurchMember(churchId: string): Promise<{ user: Ses
   return { user, role: m.role }
 }
 
-/** A pastor/leader who manages the church (SpiritualGym admins can also manage any church) */
+/** A pastor/leader who manages the church (TheRenewGym admins can also manage any church) */
 export async function requireChurchAdmin(churchId: string) {
   const user = await requireUser()
   const m = await membership(churchId, user.id)

@@ -73,7 +73,7 @@ function Onboarding() {
       <div className="relative isolate overflow-hidden text-white">
         <SunriseScene className="absolute inset-0 -z-10 h-full w-full" />
         <header className="mx-auto flex w-full max-w-xl items-center justify-between px-5 py-5">
-          <span className="[&_span]:text-white"><Logo /></span>
+          <Logo onDark />
           <span className="rounded-full bg-white/15 px-3 py-1 text-sm backdrop-blur">
             {step} of {TOTAL}
           </span>

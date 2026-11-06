@@ -103,6 +103,6 @@ export async function requireCommunityUser() {
   const user = await requireUser()
   const a = communityAccess(user)
   if (a === 'unknown') throw new Error('Please confirm your year of birth first: open Community, and it will ask you once.')
-  if (a === 'underage') throw new Error('This part of SpiritualGym is for adults (18+).')
+  if (a === 'underage') throw new Error('This part of TheRenewGym is for adults (18+).')
   return user
 }

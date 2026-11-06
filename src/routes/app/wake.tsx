@@ -5,6 +5,7 @@ import { firstName } from '~/lib/util'
 import { ringWakeBells, speakAll, speechSupported, unlockSpeech } from '~/lib/audio'
 import { WeeklyScene } from '~/components/WeeklyScene'
 import { ShareButton } from '~/components/ShareButton'
+import { LineIcon } from '~/components/LineIcon'
 
 export const Route = createFileRoute('/app/wake')({
   loader: () => getWake(),
@@ -166,7 +167,7 @@ function Wake() {
           <Link to="/app" className="rounded-full bg-white/15 px-4 py-2 text-sm font-semibold backdrop-blur" onClick={stopAll}>
             ← Home
           </Link>
-          <span className="text-sm text-white/70">⏰ Wake-up</span>
+          <span className="text-sm text-white/70"><LineIcon name="alarm" className="mr-1 inline h-4 w-4 -translate-y-px" />Wake-up</span>
         </div>
 
         <div className="mt-10 text-center">
@@ -176,7 +177,7 @@ function Wake() {
 
         {ringing ? (
           <div className="mt-10 flex flex-1 flex-col items-center text-center">
-            <p className="animate-pulse text-6xl" aria-hidden>🔔</p>
+            <LineIcon name="bell" className="h-16 w-16 animate-pulse text-gold" strokeWidth={1.5} />
             <p className="mt-6 min-h-24 font-display text-2xl leading-snug drop-shadow">{line || `Wake up, ${first}.`}</p>
             <div className="mt-auto grid w-full gap-3 pt-8">
               <Link to="/app" onClick={stopAll} className="btn-gold w-full py-4 text-base">
@@ -195,7 +196,7 @@ function Wake() {
         ) : (
           <>
             <button className="mx-auto mt-10 flex h-40 w-40 flex-col items-center justify-center rounded-full bg-gold text-navy shadow-2xl shadow-gold/30 transition active:scale-95" onClick={() => ring(false)}>
-              <span className="text-5xl" aria-hidden>🔔</span>
+              <LineIcon name="bell" className="h-12 w-12" strokeWidth={1.5} />
               <span className="mt-1 text-sm font-bold">Wake me up</span>
             </button>
             <p className="mt-3 text-center text-sm text-white/75">Tap to hear your wake-up word, spoken aloud.</p>
@@ -206,7 +207,7 @@ function Wake() {
                 <p className="mt-2 font-display text-lg leading-snug">“{word.text}”</p>
                 <p className="mt-1 text-sm text-white/70">— {word.reference}</p>
                 <p className="mt-3 rounded-2xl bg-white/10 px-4 py-3 text-sm"><b className="text-gold">I declare:</b> {word.declaration}</p>
-                {word.prayer && <p className="mt-2 rounded-2xl bg-white/5 px-4 py-3 text-sm italic"><b className="not-italic text-gold">🙏 Prayer:</b> {word.prayer}</p>}
+                {word.prayer && <p className="mt-2 rounded-2xl bg-white/5 px-4 py-3 text-sm italic"><b className="not-italic text-gold"><LineIcon name="prayer" className="mr-1 inline h-4 w-4 -translate-y-px" />Prayer:</b> {word.prayer}</p>}
                 <div className="mt-3">
                   <ShareButton
                     card={{ kind: 'word', heading: 'Today’s word', text: word.text, reference: word.reference, declaration: word.declaration }}
@@ -222,7 +223,7 @@ function Wake() {
               {armed ? (
                 <>
                   <p className="mt-1 text-sm text-white/80">
-                    Set for <b className="text-gold">{time}</b>. Keep SpiritualGym open on this screen, plugged in with the volume up. The bells and voice will wake you.
+                    Set for <b className="text-gold">{time}</b>. Keep TheRenewGym open on this screen, plugged in with the volume up. The bells and voice will wake you.
                   </p>
                   <button className="mt-4 w-full rounded-full bg-white/15 py-3 text-sm font-semibold" onClick={disarm}>
                     Turn alarm off
@@ -230,7 +231,7 @@ function Wake() {
                 </>
               ) : (
                 <>
-                  <p className="mt-1 text-sm text-white/75">Leave this screen open overnight and SpiritualGym will ring bells and speak a word from God over you.</p>
+                  <p className="mt-1 text-sm text-white/75">Leave this screen open overnight and TheRenewGym will ring bells and speak a word from God over you.</p>
                   <div className="mt-4 flex gap-3">
                     <input type="time" value={time} onChange={(e) => setTime(e.target.value)} className="flex-1 rounded-2xl border border-white/20 bg-white/10 px-4 py-3 text-lg text-white [color-scheme:dark]" />
                     <button className="btn-gold" onClick={arm}>

@@ -3,6 +3,7 @@ import { Link, createFileRoute, useRouter } from '@tanstack/react-router'
 import { listBooks, searchBible } from '~/fns/bible'
 import { bookSlug } from '~/lib/bible'
 import { BibleIcon } from '~/components/Art'
+import { LineIcon } from '~/components/LineIcon'
 
 export const Route = createFileRoute('/app/bible/')({
   loader: () => listBooks(),
@@ -62,9 +63,9 @@ function BibleHome() {
 
   return (
     <main className="fade-in mx-auto max-w-2xl px-5 pt-6 md:pt-10">
-      <section className="relative overflow-hidden rounded-[1.75rem] p-6 text-[#12203a]" style={{ background: 'linear-gradient(135deg,#f8ecd0,#fdebd8)' }}>
-        <BibleIcon className="absolute -right-5 -bottom-6 h-36 w-36 text-[#c9971f]/20" />
-        <p className="text-xs font-semibold tracking-[0.14em] text-[#8a6310] uppercase">Holy Bible · KJV, BSB, ASV, BBE</p>
+      <section className="on-light relative overflow-hidden rounded-[1.75rem] p-6 text-navy" style={{ background: 'linear-gradient(135deg,var(--gold-tint),var(--gold-tint-2))' }}>
+        <BibleIcon className="absolute -right-5 -bottom-6 h-36 w-36 text-gold-mid/20" />
+        <p className="text-xs font-semibold tracking-[0.14em] text-gold-ink uppercase">Holy Bible · KJV, BSB, ASV, BBE</p>
         <h1 className="mt-1 font-display text-3xl font-semibold">Read the Word</h1>
         <div className="mt-4 flex flex-wrap gap-2">
           {last && (
@@ -72,17 +73,18 @@ function BibleHome() {
               Continue: {last.name} {last.chapter} →
             </Link>
           )}
-          <Link to="/app/plans" className="inline-flex items-center gap-2 rounded-full bg-white px-4 py-2 text-sm font-semibold text-[#8a6310]">📅 Reading plans</Link>
+          <Link to="/app/plans" className="inline-flex items-center gap-2 rounded-full bg-white px-4 py-2 text-sm font-semibold text-gold-ink"><LineIcon name="calendar" className="h-4 w-4" />Reading plans</Link>
+          <Link to="/app/understand" className="inline-flex items-center gap-2 rounded-full bg-white px-4 py-2 text-sm font-semibold text-gold-ink"><LineIcon name="lightbulb" className="h-4 w-4" />Understand a verse</Link>
         </div>
         <form onSubmit={search} className="relative mt-5">
           <input
-            className="w-full rounded-2xl border border-[#e4dccb] bg-white px-4 py-3.5 pr-24 text-base text-[#12203a] outline-none placeholder:text-[#8a8f9c] focus:border-[#c9971f]"
+            className="w-full rounded-2xl border border-[#e4dccb] bg-white px-4 py-3.5 pr-24 text-base text-navy outline-none placeholder:text-[#8a8f9c] focus:border-gold-mid"
             placeholder="Search the KJV or go to “John 3:16”"
             value={q}
             onChange={(e) => { setQ(e.target.value); if (!e.target.value) setHits(null) }}
             aria-label="Search the Bible"
           />
-          <button className="absolute top-1.5 right-1.5 rounded-xl bg-[#c9971f] px-4 py-2 text-sm font-semibold text-white" disabled={searching}>
+          <button className="absolute top-1.5 right-1.5 rounded-xl bg-gold-mid px-4 py-2 text-sm font-semibold text-white" disabled={searching}>
             {searching ? '…' : 'Search'}
           </button>
         </form>

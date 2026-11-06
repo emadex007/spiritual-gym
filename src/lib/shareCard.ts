@@ -4,6 +4,7 @@ export type CardInput =
   | { kind: 'verse'; text: string; reference: string; translation?: string }
   | { kind: 'medal'; title: string; subtitle: string; emoji: string; color: string; name?: string }
 
+const GOLD = () => brandColor('--brand-gold', '#e3b648')
 const W = 1080
 const H = 1350
 
@@ -69,7 +70,7 @@ function background(ctx: CanvasRenderingContext2D) {
   ctx.lineTo(W, H)
   ctx.lineTo(0, H)
   ctx.fill()
-  ctx.fillStyle = '#12203a'
+  ctx.fillStyle = brandColor('--brand-navy', '#002e54')
   ctx.beginPath()
   ctx.moveTo(0, H - 90)
   ctx.bezierCurveTo(300, H - 120, 600, H - 70, W, H - 100)
@@ -77,7 +78,7 @@ function background(ctx: CanvasRenderingContext2D) {
   ctx.lineTo(0, H)
   ctx.fill()
   // small cross on the hill
-  ctx.strokeStyle = '#f6d38e'
+  ctx.strokeStyle = GOLD()
   ctx.lineWidth = 7
   ctx.lineCap = 'round'
   ctx.beginPath()
@@ -88,11 +89,48 @@ function background(ctx: CanvasRenderingContext2D) {
   ctx.stroke()
 }
 
-function footer(ctx: CanvasRenderingContext2D) {
-  ctx.fillStyle = 'rgba(255,255,255,0.9)'
-  ctx.font = '600 30px Inter, system-ui, sans-serif'
+/** The brand colours currently in use (Admin → Branding), read from the page */
+function brandColor(name: '--brand-gold' | '--brand-navy', fallback: string) {
+  try {
+    return getComputedStyle(document.documentElement).getPropertyValue(name).trim() || fallback
+  } catch {
+    return fallback
+  }
+}
+
+function loadImage(src: string) {
+  return new Promise<HTMLImageElement | null>((resolve) => {
+    const img = new Image()
+    img.onload = () => resolve(img)
+    img.onerror = () => resolve(null)
+    img.src = src
+  })
+}
+
+/** Footer: the TheRenewGym mark and wordmark ("Renew" in gold), with the tagline */
+async function footer(ctx: CanvasRenderingContext2D) {
+  const gold = brandColor('--brand-gold', '#e3b648')
+  const mark = await loadImage('/brand/logo-mark-dark')
+  ctx.font = '700 40px Poppins, Inter, system-ui, sans-serif'
+  const parts: [string, string][] = [['The', '#ffffff'], ['Renew', gold], ['Gym', '#ffffff']]
+  const textW = parts.reduce((a, [t]) => a + ctx.measureText(t).width, 0)
+  const markW = mark ? 54 : 0
+  let x = (W - (markW + (mark ? 14 : 0) + textW)) / 2
+  const y = H - 70
+  if (mark) {
+    ctx.drawImage(mark, x, y - 42, 54, 54)
+    x += 68
+  }
+  ctx.textAlign = 'left'
+  for (const [t, c] of parts) {
+    ctx.fillStyle = c
+    ctx.fillText(t, x, y)
+    x += ctx.measureText(t).width
+  }
+  ctx.fillStyle = 'rgba(255,255,255,0.8)'
+  ctx.font = '500 24px Inter, system-ui, sans-serif'
   ctx.textAlign = 'center'
-  ctx.fillText('SpiritualGym · Train your walk', W / 2, H - 36)
+  ctx.fillText('Train Your Faith. Grow in Grace. Walk Together.', W / 2, H - 26)
 }
 
 /** Uses the picture at the top of the page (this week's painted scene or header photo) as the card's background */
@@ -201,7 +239,7 @@ export async function drawCard(input: CardInput): Promise<Blob> {
     ctx.textBaseline = 'middle'
     ctx.fillText(input.emoji, cx, cy + 8)
     ctx.textBaseline = 'alphabetic'
-    ctx.fillStyle = '#f6d38e'
+    ctx.fillStyle = GOLD()
     ctx.font = '700 34px Inter, system-ui, sans-serif'
     ctx.fillText((input.name ? `${input.name.toUpperCase()} EARNED` : 'MEDAL EARNED'), W / 2, 740)
     ctx.fillStyle = '#ffffff'
@@ -212,7 +250,7 @@ export async function drawCard(input: CardInput): Promise<Blob> {
     wrap(ctx, input.subtitle, 860).slice(0, 3).forEach((l, i) => ctx.fillText(l, W / 2, 840 + t.lines.length * t.px * 1.15 + 30 + i * 48))
   } else {
     const top = 150
-    ctx.fillStyle = '#f6d38e'
+    ctx.fillStyle = GOLD()
     ctx.font = '700 32px Inter, system-ui, sans-serif'
     ctx.fillText(input.kind === 'word' ? input.heading.toUpperCase() : 'VERSE OF THE DAY', W / 2, top)
     ctx.fillStyle = '#ffffff'
@@ -226,7 +264,7 @@ export async function drawCard(input: CardInput): Promise<Blob> {
       ctx.fillText(l, W / 2, y)
       y += q.px * 1.3
     })
-    ctx.fillStyle = '#f6d38e'
+    ctx.fillStyle = GOLD()
     ctx.font = '600 38px Inter, system-ui, sans-serif'
     ctx.fillText(`— ${input.reference}${input.kind === 'verse' && input.translation ? ` (${input.translation})` : input.kind === 'word' ? ' (KJV)' : ''}`, W / 2, y + 20)
     if (input.kind === 'word' && input.declaration) {
@@ -238,7 +276,7 @@ export async function drawCard(input: CardInput): Promise<Blob> {
       ctx.beginPath()
       ctx.roundRect(x0, y - 20, W - 2 * x0, boxH, 36)
       ctx.fill()
-      ctx.fillStyle = '#f6d38e'
+      ctx.fillStyle = GOLD()
       ctx.font = '700 26px Inter, system-ui, sans-serif'
       ctx.fillText('I DECLARE', W / 2, y + 30)
       ctx.fillStyle = '#ffffff'
@@ -246,6 +284,6 @@ export async function drawCard(input: CardInput): Promise<Blob> {
       d.lines.forEach((l, i) => ctx.fillText(l, W / 2, y + 40 + (i + 1) * d.px * 1.35))
     }
   }
-  footer(ctx)
+  await footer(ctx)
   return await new Promise<Blob>((resolve, reject) => canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('Could not create image'))), 'image/png'))
 }

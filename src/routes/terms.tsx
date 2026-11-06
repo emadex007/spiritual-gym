@@ -5,7 +5,7 @@ import { LegalPage } from '~/components/LegalPage'
 
 export const Route = createFileRoute('/terms')({
   loader: () => getSiteSettings(),
-  head: () => ({ meta: [{ title: 'Terms of use · SpiritualGym' }] }),
+  head: () => ({ meta: [{ title: 'Terms of use · TheRenewGym' }] }),
   component: () => {
     const s = Route.useLoaderData()
     return <LegalPage title="Terms of use" text={fillLegal(s.terms_text?.trim() || DEFAULT_TERMS, s.contact_email)} />

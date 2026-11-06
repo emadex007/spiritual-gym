@@ -23,9 +23,9 @@ function CommunityGate() {
       </span>
       {access === 'unknown' ? <ConfirmAge /> : (
         <>
-          <h1 className="mt-5 font-display text-3xl font-semibold">Prayer groups are for adults</h1>
+          <h1 className="mt-5 font-display text-3xl font-semibold">Community groups are for adults</h1>
           <p className="mt-3 text-muted">
-            To keep everyone safe, prayer groups and live prayer are for people aged 18 and over. You can still use workouts, journeys, the Bible, your journal and Scripture memory.
+            To keep everyone safe, community groups and their live meetings are for people aged 18 and over. You can still use workouts, journeys, the Bible, your journal and Scripture memory.
           </p>
           <Link to="/app/bible" className="btn-primary mt-6">Open the Bible</Link>
         </>
@@ -57,7 +57,7 @@ function ConfirmAge() {
   return (
     <>
       <h1 className="mt-5 font-display text-3xl font-semibold">One quick question</h1>
-      <p className="mt-3 text-muted">Prayer groups and live prayer are for adults (18+). Please confirm your year of birth. You’ll only be asked once.</p>
+      <p className="mt-3 text-muted">Community groups and live meetings are for adults (18+). Please confirm your year of birth. You’ll only be asked once.</p>
       <select className="input mt-6" value={year} onChange={(e) => setYear(e.target.value)} aria-label="Year of birth">
         <option value="">Year of birth…</option>
         {Array.from({ length: 100 }, (_, i) => thisYear - 10 - i).map((y) => (

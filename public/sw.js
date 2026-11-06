@@ -1,6 +1,6 @@
-// SpiritualGym service worker: installable app + offline fallback.
+// TheRenewGym service worker: installable app + offline fallback.
 // Never caches private data: server functions (/_serverFn), /api and signed-in pages always go to the network.
-const VERSION = 'sg-v4'
+const VERSION = 'sg-v6'
 const STATIC = `${VERSION}-static`
 const PRECACHE = ['/offline.html', '/icons/icon-192.png', '/manifest.webmanifest']
 
@@ -30,7 +30,7 @@ self.addEventListener('fetch', (e) => {
   }
 
   // Build files (hashed names), Bible books, icons and uploaded images never change: cache first
-  if (/^\/(assets|bible|icons|media)\//.test(url.pathname) || url.pathname === '/favicon.svg') {
+  if (/^\/(assets|bible|icons|media)\//.test(url.pathname) || url.pathname === '/favicon.png') {
     e.respondWith(
       caches.open(STATIC).then(async (cache) => {
         const hit = await cache.match(req)
@@ -49,9 +49,9 @@ self.addEventListener('push', (e) => {
   try {
     data = e.data ? e.data.json() : {}
   } catch {
-    data = { title: 'SpiritualGym', body: e.data ? e.data.text() : '' }
+    data = { title: 'TheRenewGym', body: e.data ? e.data.text() : '' }
   }
-  const title = data.title || 'SpiritualGym'
+  const title = data.title || 'TheRenewGym'
   e.waitUntil(
     self.registration.showNotification(title, {
       body: data.body || '',

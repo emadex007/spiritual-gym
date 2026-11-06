@@ -2,13 +2,14 @@ import { useEffect } from 'react'
 import { Link, createFileRoute } from '@tanstack/react-router'
 import { listNotifications, markAllRead } from '~/fns/notifications'
 import { timeAgo } from '~/components/Avatar'
+import { IconBadge } from '~/components/LineIcon'
 
 export const Route = createFileRoute('/app/notifications')({
   loader: () => listNotifications(),
   component: Notifications,
 })
 
-const ICON: Record<string, string> = { prayed: '🙏', reply: '💬', schedule: '⏰', reminder: '🌅', walk: '🤝', announcement: '📣', church: '⛪', admin: '🛡️', gift: '💛', word: '🌅', plan: '📅', fast: '🕊️', testimony: '🎉' }
+const ICON: Record<string, string> = { prayed: 'prayer', reply: 'chat', schedule: 'alarm', reminder: 'sunrise', walk: 'handshake', announcement: 'megaphone', church: 'church', admin: 'shield', gift: 'heart', word: 'sunrise', plan: 'calendar', fast: 'dove', testimony: 'sparkles' }
 
 function Notifications() {
   const items = Route.useLoaderData()
@@ -24,7 +25,7 @@ function Notifications() {
       </div>
       {items.length === 0 ? (
         <div className="card mt-6 text-center">
-          <p className="text-4xl" aria-hidden>🔔</p>
+          <IconBadge name="bell" size="lg" className="mx-auto" />
           <p className="mt-3 font-semibold">Nothing yet</p>
           <p className="mt-1 text-sm text-muted">When someone prays for you, replies, or a group prayer time is coming up, you’ll see it here.</p>
         </div>
@@ -33,7 +34,7 @@ function Notifications() {
           {items.map((n) => {
             const inner = (
               <div className={`card flex gap-3 !p-4 ${n.read_at ? '' : 'border-accent/50 bg-accent-soft/40'}`}>
-                <span className="text-2xl" aria-hidden>{ICON[n.kind] ?? '🔔'}</span>
+                <IconBadge name={ICON[n.kind] ?? 'bell'} />
                 <div className="min-w-0 flex-1">
                   <p className="font-semibold">{n.title}</p>
                   {n.body && <p className="mt-0.5 text-sm text-muted">{n.body}</p>}

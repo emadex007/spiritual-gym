@@ -7,6 +7,8 @@ import { ReportDialog } from '~/components/ReportDialog'
 import { timeAgo } from '~/components/Avatar'
 import { errorText } from '~/components/AuthShell'
 import { programKind } from '~/lib/content'
+import { ChurchMeetings } from '~/components/ChurchMeetings'
+import { Glyph, LineIcon } from '~/components/LineIcon'
 
 export const Route = createFileRoute('/app/church/$id/')({
   loader: ({ params }) => getChurch({ data: params.id }),
@@ -49,8 +51,8 @@ function ChurchHome() {
   return (
     <main className="stagger mx-auto max-w-2xl px-5 pt-6 pb-12 md:pt-10">
       <Link to="/app/church" className="text-sm font-semibold text-accent">← Church</Link>
-      <section className="relative mt-3 overflow-hidden rounded-[1.75rem] p-6 text-white" style={{ background: `linear-gradient(135deg, ${c.color}, #12203a)` }}>
-        <span className="absolute -right-3 -bottom-6 text-9xl opacity-10" aria-hidden>⛪</span>
+      <section className="relative mt-3 overflow-hidden rounded-[1.75rem] p-6 text-white" style={{ background: `linear-gradient(135deg, ${c.color}, var(--brand-navy))` }}>
+        <LineIcon name="church" className="absolute -right-4 -bottom-6 h-40 w-40 opacity-10" strokeWidth={1.25} />
         <div className="flex items-center gap-4">
           <ChurchBadge name={c.name} logo={c.logo_key} color={c.color} size="md" />
           <div className="min-w-0">
@@ -70,6 +72,8 @@ function ChurchHome() {
 
       {error && <p className="mt-4 rounded-2xl bg-red-500/10 px-4 py-3 text-sm text-red-600">{error}</p>}
 
+      <ChurchMeetings churchId={c.id} />
+
       {d.programs.length > 0 && (
         <section className="mt-6">
           <p className="eyebrow">Programs</p>
@@ -79,7 +83,7 @@ function ChurchHome() {
               return (
                 <div key={p.id} className="card !p-4">
                   <div className="flex items-start gap-3">
-                    <span className="text-3xl" aria-hidden>{k.emoji}</span>
+                    <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-accent-soft/70 text-accent" aria-hidden><Glyph e={k.emoji} className="h-6 w-6" /></span>
                     <div className="min-w-0 flex-1">
                       <p className="text-xs font-semibold text-accent uppercase">{k.label} · {p.days} day{p.days === 1 ? '' : 's'}</p>
                       <p className="font-display text-lg font-semibold">{p.title}</p>
@@ -91,7 +95,7 @@ function ChurchHome() {
                     {p.my_status === 'active' ? (
                       <Link to="/app" className="btn-ghost !py-2">✓ In progress — continue on Home</Link>
                     ) : p.my_status === 'completed' ? (
-                      <span className="text-sm font-semibold text-sage">🏅 Completed</span>
+                      <span className="text-sm font-semibold text-sage"><LineIcon name="badgeCheck" className="mr-1 inline h-4 w-4 -translate-y-px" />Completed</span>
                     ) : (
                       <button className="btn-primary !py-2.5" disabled={busy === p.slug} onClick={() => startProgram(p.slug, p.title)}>
                         {busy === p.slug ? 'Starting…' : p.my_status === 'paused' ? 'Resume from the start' : 'Join this program'}
@@ -114,7 +118,7 @@ function ChurchHome() {
               return (
                 <div key={p.id} className="card flex flex-wrap items-center justify-between gap-3 !p-4">
                   <div>
-                    <p className="font-semibold">📅 {p.title}</p>
+                    <p className="font-semibold"><LineIcon name="calendar" className="mr-1.5 inline h-4 w-4 -translate-y-px text-accent" />{p.title}</p>
                     <p className="text-xs text-muted">
                       {future ? 'Starts' : 'Started'} {new Date(p.start_date + 'T12:00:00Z').toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })} · {p.days} days · {p.readers} reading
                     </p>
@@ -142,7 +146,7 @@ function ChurchHome() {
               const shown = open === p.id || !long ? p.body : p.body.slice(0, 260) + '…'
               return (
                 <article key={p.id} className="card !p-4">
-                  <p className="text-xs text-muted">{p.is_pinned ? '📌 Pinned · ' : ''}{p.author.split(' ')[0]} · {timeAgo(p.created_at)}</p>
+                  <p className="text-xs text-muted">{p.is_pinned ? 'Pinned · ' : ''}{p.author.split(' ')[0]} · {timeAgo(p.created_at)}</p>
                   <h2 className="mt-1 font-semibold">{p.title}</h2>
                   <p className="mt-1 text-sm whitespace-pre-line">{shown}</p>
                   {long && <button className="mt-1 text-sm font-semibold text-accent" onClick={() => setOpen(open === p.id ? null : p.id)}>{open === p.id ? 'Show less' : 'Read more'}</button>}

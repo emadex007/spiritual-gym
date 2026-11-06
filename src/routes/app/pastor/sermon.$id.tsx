@@ -2,8 +2,11 @@ import { useRef, useState } from 'react'
 import { Link, createFileRoute, useRouter } from '@tanstack/react-router'
 import { deleteSermon, getSermon, saveSermon, suggestOutline, writeSermon } from '~/fns/pastor'
 import { FullSermon } from '~/components/FullSermon'
+import { SermonStudio } from '~/components/SermonStudio'
+import { cornerName } from '~/lib/content'
 import { lookupVerse } from '~/fns/bible'
 import { FormError, errorText } from '~/components/AuthShell'
+import { LineIcon } from '~/components/LineIcon'
 
 export const Route = createFileRoute('/app/pastor/sermon/$id')({
   loader: ({ params }) => getSermon({ data: params.id }),
@@ -38,7 +41,7 @@ CLOSING / ALTAR CALL / PRAYER
 - `
 
 function SermonEditor() {
-  const { sermon, aiReady, churchName } = Route.useLoaderData()
+  const { sermon, aiReady, churchName, role } = Route.useLoaderData()
   const router = useRouter()
   const [f, setF] = useState({
     id: sermon?.id,
@@ -55,6 +58,7 @@ function SermonEditor() {
   const [saved, setSaved] = useState(false)
   const [ref, setRef] = useState('')
   const [suggestion, setSuggestion] = useState<string | null>(null)
+  const [view, setView] = useState<'write' | 'read'>(sermon?.outline && /^SERMON TITLE:/m.test(sermon.outline) ? 'read' : 'write')
   const area = useRef<HTMLTextAreaElement>(null)
   const set = (k: keyof typeof f) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     setF({ ...f, [k]: e.target.value })
@@ -118,7 +122,7 @@ function SermonEditor() {
   return (
     <main className="fade-in mx-auto max-w-3xl px-5 pt-6 pb-16 md:pt-10">
       <div className="flex items-center justify-between gap-3">
-        <Link to="/app/pastor" className="text-sm font-semibold text-accent">← Pastor Mode</Link>
+        <Link to="/app/pastor" className="text-sm font-semibold text-accent">← {cornerName(role)}</Link>
         <span className="text-xs text-muted">{saved ? '✓ Saved' : 'Private to you'}</span>
       </div>
       <input className="mt-3 w-full bg-transparent font-display text-3xl font-semibold outline-none placeholder:text-muted/50" placeholder="Sermon title or topic" value={f.title} onChange={set('title')} maxLength={120} />
@@ -129,10 +133,10 @@ function SermonEditor() {
         <label className="block"><span className="label">Where</span><input className="input" list="venues" placeholder="Sunday service" value={f.venue} onChange={set('venue')} maxLength={80} /><datalist id="venues">{['Sunday service', 'Midweek service', 'Youth meeting', 'Workers’ meeting', 'Crusade', 'Funeral', 'Wedding'].map((v) => <option key={v} value={v} />)}</datalist></label>
         <label className="block"><span className="label">Stage</span>
           <select className="input" value={f.status} onChange={set('status')}>
-            <option value="idea">💡 Idea</option>
-            <option value="drafting">✍️ Drafting</option>
-            <option value="ready">✅ Ready to preach</option>
-            <option value="preached">🎤 Preached</option>
+            <option value="idea">Idea</option>
+            <option value="drafting">Drafting</option>
+            <option value="ready">Ready to preach</option>
+            <option value="preached">Preached</option>
           </select>
         </label>
       </div>
@@ -142,7 +146,7 @@ function SermonEditor() {
         <label className="block flex-1"><span className="label">Add a verse (KJV)</span><input className="input" placeholder="e.g. Romans 8:28" value={ref} onChange={(e) => setRef(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && ref.trim() && addVerse()} /></label>
         <button className="btn-ghost" disabled={!ref.trim()} onClick={addVerse}>Insert</button>
         {!f.outline.trim() && <button className="btn-ghost" onClick={() => { setF({ ...f, outline: TEMPLATE }); setSaved(false) }}>Use outline template</button>}
-        {aiReady && <button className="btn-ghost" disabled={busy === 'ai'} onClick={suggest}>{busy === 'ai' ? 'Thinking…' : '✨ Suggest an outline'}</button>}
+        {aiReady && <button className="btn-ghost" disabled={busy === 'ai'} onClick={suggest}>{busy === 'ai' ? 'Thinking…' : <><LineIcon name="sparkles" className="h-4 w-4" />Suggest an outline</>}</button>}
       </div>
 
       {aiReady && (
@@ -155,6 +159,7 @@ function SermonEditor() {
           write={(o) => writeSermon({ data: { title: f.title, scripture: f.scripture, bigIdea: f.bigIdea, ...o } })}
           onUse={(text, aiTitle) => {
             setF({ ...f, title: f.title.trim() || (aiTitle ?? '').slice(0, 120), outline: f.outline.trim() ? `${f.outline}\n\n${text}` : text })
+            setView('read')
             setSaved(false)
           }}
         />
@@ -171,10 +176,26 @@ function SermonEditor() {
         </section>
       )}
 
-      <label className="mt-4 block">
-        <span className="label">Notes & outline</span>
-        <textarea ref={area} className="input min-h-[50vh] font-[inherit] leading-relaxed" value={f.outline} onChange={set('outline')} maxLength={80000} placeholder="Write freely: points, stories, Scriptures, what God is showing you…" />
-      </label>
+      <div className="mt-4 flex items-center justify-between gap-2">
+        <span className="label !mb-0">Notes & outline</span>
+        <div className="flex gap-1 rounded-full bg-surface-2 p-1 text-sm">
+          <button type="button" className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 ${view === 'write' ? 'bg-surface font-semibold shadow-sm' : 'text-muted'}`} onClick={() => setView('write')}><LineIcon name="pen" className="h-4 w-4" />Write</button>
+          <button type="button" disabled={!f.outline.trim()} className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 ${view === 'read' ? 'bg-surface font-semibold shadow-sm' : 'text-muted'}`} onClick={() => setView('read')}><LineIcon name="bookOpen" className="h-4 w-4" />Read & adjust</button>
+        </div>
+      </div>
+      {view === 'read' && f.outline.trim() ? (
+        <div className="mt-2">
+          <SermonStudio
+            text={f.outline}
+            title={f.title}
+            aiReady={aiReady}
+            onText={(t, newTitle) => { setF({ ...f, outline: t, title: newTitle ? newTitle.slice(0, 120) : f.title }); setSaved(false) }}
+          />
+          {!saved && <p className="mt-2 text-xs text-muted">Changes are in your notes. Tap Save sermon to keep them.</p>}
+        </div>
+      ) : (
+        <textarea ref={area} className="input mt-2 min-h-[50vh] font-[inherit] leading-relaxed" value={f.outline} onChange={set('outline')} maxLength={80000} placeholder="Write freely: points, stories, Scriptures, what God is showing you…" />
+      )}
 
       <FormError message={error} />
       <div className="sticky bottom-20 mt-4 flex flex-wrap gap-2 rounded-full bg-bg/90 p-2 backdrop-blur md:bottom-4">

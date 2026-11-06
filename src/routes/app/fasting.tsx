@@ -6,6 +6,7 @@ import { AwardCelebration } from '~/components/AwardCelebration'
 import { ListenButton } from '~/components/ListenButton'
 import { WeeklyScene } from '~/components/WeeklyScene'
 import { FormError, errorText } from '~/components/AuthShell'
+import { LineIcon, Glyph, GlyphBadge } from '~/components/LineIcon'
 import type { AwardDef } from '~/lib/awards'
 
 export const Route = createFileRoute('/app/fasting')({
@@ -28,8 +29,8 @@ function Fasting() {
           <ul className="mt-3 space-y-2">
             {d.history.map((f) => (
               <li key={f.id} className="flex items-center justify-between gap-3 rounded-2xl bg-surface-2 px-4 py-3 text-sm">
-                <span>{fastKind(f.kind).emoji} <b>{f.title}</b> <span className="text-muted">· {f.hours ? `${f.hours} hours` : `${f.days} day${f.days === 1 ? '' : 's'}`}</span></span>
-                <span className={f.status === 'completed' ? 'font-semibold text-sage' : 'text-muted'}>{f.status === 'completed' ? '🏅 Completed' : 'Stopped'}</span>
+                <span><Glyph e={fastKind(f.kind).emoji} className="mr-1 inline h-4 w-4 -translate-y-px text-accent" /><b>{f.title}</b> <span className="text-muted">· {f.hours ? `${f.hours} hours` : `${f.days} day${f.days === 1 ? '' : 's'}`}</span></span>
+                <span className={f.status === 'completed' ? 'font-semibold text-sage' : 'text-muted'}>{f.status === 'completed' ? <><LineIcon name="trophy" className="mr-1 inline h-4 w-4 -translate-y-px" />Completed</> : 'Stopped'}</span>
               </li>
             ))}
           </ul>
@@ -83,7 +84,7 @@ function StartFast({ minor }: { minor: boolean }) {
         {FAST_KINDS.filter((f) => !(minor && f.adultsOnly)).map((f) => (
           <button key={f.key} type="button" onClick={() => { setKind(f.key); setHours(HOUR_CHOICES[f.key as 'full']?.[1] ?? 24); setDays(f.key === 'daniel' ? 21 : 3) }} className={`option ${kind === f.key ? 'option-on' : ''}`}>
             <span className="flex items-center gap-3 text-left">
-              <span className="text-3xl" aria-hidden>{f.emoji}</span>
+              <GlyphBadge e={f.emoji} />
               <span><span className="block font-semibold">{f.title}</span><span className="block text-sm font-normal text-muted">{f.short}</span></span>
             </span>
           </button>
@@ -121,7 +122,7 @@ function StartFast({ minor }: { minor: boolean }) {
           <label className="block"><span className="label">Name your fast <span className="text-muted">(optional)</span></span><input className="input" placeholder={k.title} value={title} onChange={(e) => setTitle(e.target.value)} maxLength={80} /></label>
           <label className="block"><span className="label">What are you seeking God for? <span className="text-muted">(private)</span></span><textarea className="input" rows={2} placeholder="e.g. direction for my career, my family, a closer walk with God" value={intention} onChange={(e) => setIntention(e.target.value)} maxLength={600} /></label>
           <div className="rounded-2xl bg-gold/15 p-4 text-sm">
-            <p className="font-semibold">🩺 Before you begin</p>
+            <p className="font-semibold"><LineIcon name="shield" className="mr-1 inline h-4 w-4 -translate-y-px" />Before you begin</p>
             <p className="mt-1 text-ink/80">{HEALTH_NOTE}</p>
             <label className="mt-3 flex items-center gap-2 font-medium"><input type="checkbox" checked={agree} onChange={(e) => setAgree(e.target.checked)} className="h-4 w-4" /> I understand, and I’ll fast wisely.</label>
           </div>
@@ -165,20 +166,20 @@ function ActiveFast({ d, onWon }: { d: Data; onWon: (a: AwardDef[]) => void }) {
     }
   }
 
-  const ringColor = st.phase === 'fasting' ? '#d4a94a' : '#4f7a63'
+  const ringColor = st.phase === 'fasting' ? 'var(--brand-gold)' : '#4f7a63'
   const r = 92
   const c = 2 * Math.PI * r
   return (
     <>
-      <section className="relative overflow-hidden rounded-[1.75rem] p-6 text-white shadow-lg" style={{ background: 'linear-gradient(150deg,#12203a 0%,#3a2f86 60%,#6f5ce6 100%)' }}>
-        <p className="text-xs font-semibold tracking-[0.14em] text-gold uppercase">{k.emoji} {k.title}</p>
+      <section className="relative overflow-hidden rounded-[1.75rem] p-6 text-white shadow-lg" style={{ background: 'linear-gradient(150deg,var(--brand-navy) 0%,#3a2f86 60%,#6f5ce6 100%)' }}>
+        <p className="text-xs font-semibold tracking-[0.14em] text-gold uppercase"><Glyph e={k.emoji} className="mr-1 inline h-3.5 w-3.5 -translate-y-px" />{k.title}</p>
         <h1 className="mt-1 font-display text-2xl font-semibold">{f.title}</h1>
         <p className="text-sm text-white/70">Day {st.day} of {st.totalDays}{f.daily_start ? ` · fasting ${f.daily_start}–${f.daily_end}` : ''}</p>
 
         <div className="relative mx-auto my-6 flex h-56 w-56 items-center justify-center">
           <svg viewBox="0 0 200 200" className="absolute inset-0 -rotate-90" aria-hidden>
             <circle cx="100" cy="100" r={r} fill="none" stroke="rgba(255,255,255,.12)" strokeWidth="10" />
-            <circle cx="100" cy="100" r={r} fill="none" stroke={ringColor} strokeWidth="10" strokeLinecap="round" strokeDasharray={c} strokeDashoffset={c * (1 - st.progress)} style={{ transition: 'stroke-dashoffset 1s linear' }} />
+            <circle cx="100" cy="100" r={r} fill="none" strokeWidth="10" strokeLinecap="round" strokeDasharray={c} strokeDashoffset={c * (1 - st.progress)} style={{ stroke: ringColor, transition: 'stroke-dashoffset 1s linear' }} />
           </svg>
           <div className="text-center">
             {st.target ? (
@@ -207,10 +208,10 @@ function ActiveFast({ d, onWon }: { d: Data; onWon: (a: AwardDef[]) => void }) {
           <h2 className="mt-1 font-display text-xl font-semibold">{d.guide.title}</h2>
           <blockquote className="mt-3 rounded-2xl bg-gold/15 px-4 py-3">
             <p className="font-display text-lg leading-snug">“{d.guide.text}”</p>
-            <p className="mt-1 text-xs font-semibold text-[#8a6310] dark:text-gold">{d.guide.reference} · KJV</p>
+            <p className="mt-1 text-xs font-semibold text-gold-ink dark:text-gold">{d.guide.reference} · KJV</p>
           </blockquote>
           <p className="mt-3 text-muted">{d.guide.reflection}</p>
-          <p className="mt-4 text-sm font-semibold">🙏 Prayer points</p>
+          <p className="mt-4 text-sm font-semibold"><LineIcon name="prayer" className="mr-1 inline h-4 w-4 -translate-y-px" />Prayer points</p>
           <ol className="mt-2 list-decimal space-y-1.5 pl-5">
             {d.guide.points.map((p) => <li key={p}>{p}</li>)}
           </ol>
@@ -234,7 +235,7 @@ function ActiveFast({ d, onWon }: { d: Data; onWon: (a: AwardDef[]) => void }) {
         )}
         {canFinish && (
           <button className="btn-gold w-full py-4" disabled={busy} onClick={() => run(async () => { const r = await finishFast({ data: { id: f.id, outcome: 'completed' } }); if (r.awards?.length) onWon(r.awards) })}>
-            🎉 Complete my fast
+            <LineIcon name="trophy" className="h-5 w-5" />Complete my fast
           </button>
         )}
         <FormError message={error} />

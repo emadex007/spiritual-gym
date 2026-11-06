@@ -23,7 +23,7 @@ function Growth() {
         <Stat label="Plans started" value={started} />
         <Stat label="Plans finished" value={finished} color="bg-sage-soft text-sage" />
         <Stat label="Reading circles" value={s.circles} hint={`${s.notes} notes shared`} />
-        <Stat label="Medals won" value={medals} color="bg-gold/20 text-[#8a6310]" />
+        <Stat label="Medals won" value={medals} color="bg-gold/20 text-gold-ink" />
       </div>
 
       <section className="card mt-5">

@@ -132,10 +132,39 @@ export const PRAYER_PURPOSES = [
 
 export const purposeOf = (key: string) => PRAYER_PURPOSES.find((p) => p.key === key) ?? PRAYER_PURPOSES[0]
 
+/** What a community group is for. Prayer groups also pick a prayer topic (PRAYER_PURPOSES); every group can meet live. */
+export const GROUP_KINDS = [
+  { key: 'prayer', label: 'Prayer group', emoji: '🙏', focus: 'prayer', live: 'Live prayer', doing: 'praying', wall: 'Prayer wall', hint: 'Gather people to pray for something that matters.' },
+  { key: 'bible_study', label: 'Bible study', emoji: '📖', focus: 'bible', live: 'Live Bible study', doing: 'studying', wall: 'Study wall', hint: 'Read and study the Word together, chapter by chapter.' },
+  { key: 'fellowship', label: 'Fellowship / cell', emoji: '🤝', focus: 'growth', live: 'Live fellowship', doing: 'in fellowship', wall: 'Fellowship wall', hint: 'A house fellowship, cell or home group.' },
+  { key: 'worship', label: 'Worship & choir', emoji: '🎶', focus: 'worship', live: 'Live worship', doing: 'worshipping', wall: 'Wall', hint: 'Praise nights, choir and music team.' },
+  { key: 'youth', label: 'Youth', emoji: '🌱', focus: 'growth', live: 'Meet live', doing: 'meeting', wall: 'Wall', hint: 'Young people growing in faith together.' },
+  { key: 'students', label: 'Students & campus', emoji: '🎓', focus: 'memory', live: 'Meet live', doing: 'meeting', wall: 'Wall', hint: 'Campus fellowship and students.' },
+  { key: 'women', label: 'Women', emoji: '🌸', focus: 'gratitude', live: 'Meet live', doing: 'meeting', wall: 'Wall', hint: 'Women’s fellowship.' },
+  { key: 'men', label: 'Men', emoji: '🛡️', focus: 'consistency', live: 'Meet live', doing: 'meeting', wall: 'Wall', hint: 'Men’s fellowship.' },
+  { key: 'marriage', label: 'Marriage & family', emoji: '💍', focus: 'worship', live: 'Meet live', doing: 'meeting', wall: 'Wall', hint: 'Couples, parents and families.' },
+  { key: 'singles', label: 'Singles', emoji: '💛', focus: 'gratitude', live: 'Meet live', doing: 'meeting', wall: 'Wall', hint: 'Singles growing in God together.' },
+  { key: 'discipleship', label: 'New believers & discipleship', emoji: '🌿', focus: 'bible', live: 'Live class', doing: 'in class', wall: 'Class wall', hint: 'Foundation class, discipleship and mentoring.' },
+  { key: 'evangelism', label: 'Evangelism & outreach', emoji: '📣', focus: 'fasting', live: 'Meet live', doing: 'meeting', wall: 'Wall', hint: 'Plan outreach and share testimonies from the field.' },
+  { key: 'workers', label: 'Ministry & workers', emoji: '🛠️', focus: 'consistency', live: 'Meet live', doing: 'meeting', wall: 'Wall', hint: 'Ushers, media, children’s church and other teams.' },
+  { key: 'other', label: 'Other', emoji: '✨', focus: 'growth', live: 'Meet live', doing: 'meeting', wall: 'Wall', hint: 'Any other Christian gathering.' },
+] as const
+export const groupKind = (key?: string | null) => GROUP_KINDS.find((k) => k.key === key) ?? GROUP_KINDS[0]
+/** How a group looks: prayer groups show their prayer topic, other groups their kind */
+export const groupLook = (g: { kind?: string | null; purpose: string }) => {
+  const k = groupKind(g.kind)
+  if (k.key !== 'prayer') return { emoji: k.emoji, label: k.label, focus: k.focus as string }
+  const p = purposeOf(g.purpose)
+  return { emoji: p.emoji, label: p.label, focus: p.focus as string }
+}
+
 export const POST_KINDS = [
   { key: 'request', label: 'Prayer request', emoji: '🙏' },
   { key: 'testimony', label: 'Testimony', emoji: '🎉' },
   { key: 'encouragement', label: 'Encouragement', emoji: '💬' },
+  { key: 'question', label: 'Question', emoji: '❓' },
+  { key: 'note', label: 'Notes / lesson', emoji: '📝' },
+  { key: 'announcement', label: 'Announcement', emoji: '📢' },
 ] as const
 
 export const REPORT_REASONS = ['Inappropriate or offensive', 'Harassment or bullying', 'Spam or selling', 'Asking for money', 'Someone may be in danger', 'Other'] as const
@@ -209,3 +238,111 @@ export const testimonyCategory = (k: string) => TESTIMONY_CATEGORIES.find((c) =>
 export const SERMON_AUDIENCES = ['General congregation', 'Youths', 'Teens', 'Children', 'Workers', 'Leaders', 'Men', 'Women', 'Couples', 'New believers'] as const
 export const SERMON_SERVICES = ['Sunday service', 'Bible study', 'Midweek service', 'Communion service', 'Thanksgiving service', 'Vigil / night of prayer', 'Revival / crusade', 'Youth meeting', 'Workers’ meeting', 'Funeral / memorial', 'Wedding'] as const
 export const SERMON_MINUTES = [30, 45, 60] as const
+
+/** When "praying in tongues" is switched off, those steps become personal prayer (used on the server and on the workout screen).
+ *  If that lands next to a Prayer step, the two join into one longer prayer time. */
+export function adaptSteps<T extends { kind: string; label: string; guidance?: string | null; seconds?: number }>(steps: T[], tongues: boolean): T[] {
+  if (tongues) return steps
+  const out: T[] = []
+  for (const s of steps) {
+    const fromTongues = s.kind === 'tongues'
+    const cur = fromTongues ? { ...s, kind: 'prayer', label: 'Prayer', guidance: 'Pray from your heart in your own words. Let the Holy Spirit help you pray (Romans 8:26).' } : s
+    const prev = out[out.length - 1] as (T & { _t?: boolean }) | undefined
+    if (prev && prev.kind === 'prayer' && cur.kind === 'prayer' && prev.label !== 'Opening prayer' && (fromTongues || prev._t) && typeof prev.seconds === 'number' && typeof cur.seconds === 'number') {
+      const keep = fromTongues ? prev : cur
+      out[out.length - 1] = { ...keep, seconds: prev.seconds + cur.seconds }
+      continue
+    }
+    out.push(fromTongues ? ({ ...cur, _t: true } as T) : cur)
+  }
+  return out
+}
+
+// ---------- Ministry titles (Pastor Mode becomes "<title>'s Corner") ----------
+export const MINISTRY_ROLES = [
+  { key: 'Pastor', emoji: '⛪' },
+  { key: 'Apostle', emoji: '🌍' },
+  { key: 'Prophet', emoji: '🔥' },
+  { key: 'Evangelist', emoji: '📣' },
+  { key: 'Teacher', emoji: '📖' },
+  { key: 'Bishop', emoji: '✝️' },
+  { key: 'Reverend', emoji: '✝️' },
+  { key: 'Minister', emoji: '🙏' },
+  { key: 'Elder', emoji: '🫒' },
+  { key: 'Deacon', emoji: '🤝' },
+  { key: 'Deaconess', emoji: '🤝' },
+  { key: 'Missionary', emoji: '✈️' },
+  { key: 'Worship Leader', emoji: '🎶' },
+  { key: 'Youth Leader', emoji: '🌱' },
+  { key: 'Church Worker', emoji: '🙌' },
+] as const
+/** Keep a chosen title tidy: one from the list, or the person's own (letters and spaces, up to 30) */
+export function cleanRole(v: unknown) {
+  const t = String(v ?? '').replace(/[^\p{L}\s'-]/gu, '').replace(/\s+/g, ' ').trim().slice(0, 30)
+  if (!t) return 'Minister'
+  const known = MINISTRY_ROLES.find((r) => r.key.toLowerCase() === t.toLowerCase())
+  return known ? known.key : t.replace(/\b\p{L}/gu, (c) => c.toUpperCase())
+}
+export const roleEmoji = (role?: string | null) => MINISTRY_ROLES.find((r) => r.key === role)?.emoji ?? '🙏'
+/** "Pastor's Corner", "Apostle's Corner" */
+export const cornerName = (role?: string | null) => `${role || 'Minister'}’s Corner`
+
+// ---------- Church meetings ----------
+export const MEETING_KINDS = [
+  { key: 'prayer', label: 'Prayer meeting', emoji: '🙏' },
+  { key: 'bible_study', label: 'Bible study', emoji: '📖' },
+  { key: 'service', label: 'Service', emoji: '⛪' },
+  { key: 'vigil', label: 'Night vigil', emoji: '🌙' },
+  { key: 'worship', label: 'Praise & worship', emoji: '🎶' },
+  { key: 'choir', label: 'Choir rehearsal', emoji: '🎤' },
+  { key: 'workers', label: 'Workers’ meeting', emoji: '🤝' },
+  { key: 'youth', label: 'Youth meeting', emoji: '🌱' },
+  { key: 'women', label: 'Women’s meeting', emoji: '🌸' },
+  { key: 'men', label: 'Men’s meeting', emoji: '🛡️' },
+  { key: 'children', label: 'Children’s church', emoji: '🧒' },
+  { key: 'discipleship', label: 'Foundation / discipleship class', emoji: '🌿' },
+  { key: 'counselling', label: 'Counselling / marriage class', emoji: '💍' },
+  { key: 'evangelism', label: 'Evangelism & outreach', emoji: '📣' },
+  { key: 'conference', label: 'Conference / special program', emoji: '🎉' },
+  { key: 'other', label: 'Meeting', emoji: '🗓️' },
+] as const
+export const meetingKind = (k?: string | null) => MEETING_KINDS.find((m) => m.key === k) ?? MEETING_KINDS[MEETING_KINDS.length - 1]
+/** People in one meeting, and cameras on at once (voice and video go phone-to-phone, so this keeps everyone's data and battery comfortable) */
+export const MEETING_LIMIT = 12
+/** "Fri 3 Oct, 7:00 pm" in the reader's own time zone */
+export const meetingTime = (iso: string) => new Date(iso).toLocaleString(undefined, { weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })
+export const CAMERA_LIMIT = 4
+
+// ---------- Bible: coloured verses and saved verses ----------
+/** Colours for marking verses. cls works on light and dark backgrounds. */
+export const VERSE_COLORS = [
+  { key: 'yellow', label: 'Yellow', swatch: '#f5d547', cls: 'bg-yellow-300/45 dark:bg-yellow-400/25' },
+  { key: 'green', label: 'Green', swatch: '#6fcf7c', cls: 'bg-green-300/45 dark:bg-green-400/25' },
+  { key: 'blue', label: 'Blue', swatch: '#6bb8f2', cls: 'bg-sky-300/45 dark:bg-sky-400/25' },
+  { key: 'pink', label: 'Pink', swatch: '#f28bb8', cls: 'bg-pink-300/45 dark:bg-pink-400/25' },
+  { key: 'purple', label: 'Purple', swatch: '#a98bf2', cls: 'bg-violet-300/45 dark:bg-violet-400/25' },
+] as const
+export const verseColor = (k?: string | null) => VERSE_COLORS.find((c) => c.key === k)
+/** The journal heading for verses saved from the Bible */
+export const VERSE_PROMPT = '⭐ A verse I love'
+
+// ---------- Live captions in meetings ----------
+/** Languages the speaker can talk in (speech recognition) */
+export const SPEECH_LANGS = [
+  { key: 'en-NG', label: 'English (Nigeria)' },
+  { key: 'en-US', label: 'English (US)' },
+  { key: 'en-GB', label: 'English (UK)' },
+  { key: 'fr-FR', label: 'French' },
+  { key: 'yo-NG', label: 'Yoruba' },
+  { key: 'ig-NG', label: 'Igbo' },
+  { key: 'ha-NG', label: 'Hausa' },
+] as const
+/** Languages captions can be translated into */
+export const CAPTION_LANGS = [
+  { key: 'en', label: 'English' },
+  { key: 'yo', label: 'Yoruba' },
+  { key: 'ig', label: 'Igbo' },
+  { key: 'ha', label: 'Hausa' },
+  { key: 'pcm', label: 'Nigerian Pidgin' },
+  { key: 'fr', label: 'French' },
+] as const

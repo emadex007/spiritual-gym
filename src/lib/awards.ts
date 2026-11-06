@@ -24,6 +24,10 @@ export const AWARDS: AwardDef[] = [
   { key: 'fast_7', title: 'Seven Days Seeking', subtitle: 'Completed a fast of 7 days or more', emoji: '🌾', tier: 'gold' },
   { key: 'fast_21', title: 'Daniel’s Devotion', subtitle: 'Completed a fast of 21 days or more', emoji: '🦁', tier: 'special' },
   { key: 'testimony_shared', title: 'Overcomer', subtitle: 'Shared a testimony of what God did', emoji: '🎉', tier: 'silver' },
+  { key: 'quiz_first', title: 'Bible Quizzer', subtitle: 'Played your first daily Bible quiz', emoji: '🧠', tier: 'bronze' },
+  { key: 'quiz_perfect', title: 'Perfect Score', subtitle: 'Got every question right', emoji: '💯', tier: 'silver' },
+  { key: 'quiz_streak_7', title: 'Seven-Day Scholar', subtitle: 'Played the daily quiz 7 days in a row', emoji: '📚', tier: 'gold' },
+  { key: 'games_25', title: 'Word Warrior', subtitle: 'Played 25 Bible games', emoji: '⚔️', tier: 'silver' },
 ]
 
 export const awardByKey = (k: string) => AWARDS.find((a) => a.key === k)

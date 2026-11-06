@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link, createFileRoute, useRouter } from '@tanstack/react-router'
 import { myChurches } from '~/fns/church'
 import { ChurchBadge } from '~/components/ChurchBadge'
+import { LineIcon } from '~/components/LineIcon'
 
 export const Route = createFileRoute('/app/church/')({
   loader: () => myChurches(),
@@ -21,8 +22,8 @@ function Churches() {
 
   return (
     <main className="stagger mx-auto max-w-2xl px-5 pt-6 pb-10 md:pt-10">
-      <section className="relative overflow-hidden rounded-[1.75rem] p-6 text-[#12203a]" style={{ background: 'linear-gradient(135deg,#e1f1e6,#e3eefc)' }}>
-        <span className="absolute -right-2 -bottom-4 text-8xl opacity-15" aria-hidden>⛪</span>
+      <section className="on-light relative overflow-hidden rounded-[1.75rem] p-6 text-navy" style={{ background: 'linear-gradient(135deg,#e1f1e6,#e3eefc)' }}>
+        <LineIcon name="church" className="absolute -right-3 -bottom-4 h-32 w-32 opacity-15" strokeWidth={1.25} />
         <p className="text-xs font-semibold tracking-[0.14em] text-[#3f7a5a] uppercase">Church</p>
         <h1 className="mt-1 font-display text-3xl font-semibold">Grow together with your church</h1>
         <p className="mt-2 max-w-md text-sm text-[#5b6477]">Join your church’s prayer challenges, fasting programs and Bible plans. Your journal and personal data always stay private.</p>
@@ -46,7 +47,7 @@ function Churches() {
 
       <section className="card mt-6">
         <p className="font-semibold">Join your church</p>
-        <p className="mt-1 text-sm text-muted">Ask your church for its SpiritualGym code, or tap the invite link they share.</p>
+        <p className="mt-1 text-sm text-muted">Ask your church for its TheRenewGym code, or tap the invite link they share.</p>
         <form onSubmit={go} className="mt-3 flex gap-2">
           <input className="input flex-1 font-mono uppercase tracking-widest" placeholder="Church code" value={code} onChange={(e) => setCode(e.target.value)} maxLength={12} />
           <button className="btn-primary" disabled={code.replace(/[^a-z0-9]/gi, '').length < 5}>Join</button>

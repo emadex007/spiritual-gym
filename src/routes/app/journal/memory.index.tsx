@@ -4,6 +4,7 @@ import { addMemory, listMemory } from '~/fns/memory'
 import { lookupVerse } from '~/fns/bible'
 import { MASTERY_LABELS, MEMORY_CATEGORIES } from '~/lib/content'
 import { FormError, errorText } from '~/components/AuthShell'
+import { Glyph } from '~/components/LineIcon'
 
 export const Route = createFileRoute('/app/journal/memory/')({
   loader: () => listMemory(),
@@ -92,7 +93,7 @@ function MemoryList() {
             const learnt = library.filter((l) => l.category === c.key && mine.has(l.reference)).length
             return (
               <button key={c.key} type="button" onClick={() => setCat(c.key)} className={`chip shrink-0 !py-2 text-xs ${cat === c.key ? 'chip-on' : ''}`}>
-                {c.emoji} {c.label} <span className="opacity-60">{learnt ? `${learnt}/${n}` : n}</span>
+                <Glyph e={c.emoji} className="mr-1 inline h-3.5 w-3.5 -translate-y-px" />{c.label} <span className="opacity-60">{learnt ? `${learnt}/${n}` : n}</span>
               </button>
             )
           })}

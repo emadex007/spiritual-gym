@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link, createFileRoute, useRouter } from '@tanstack/react-router'
 import { requestChurch } from '~/fns/church'
 import { FormError, errorText } from '~/components/AuthShell'
+import { IconBadge } from '~/components/LineIcon'
 
 export const Route = createFileRoute('/app/church/new')({
   component: NewChurch,
@@ -32,9 +33,9 @@ function NewChurch() {
   if (done)
     return (
       <main className="fade-in mx-auto max-w-md px-5 pt-14 text-center">
-        <p className="text-5xl" aria-hidden>⛪</p>
+        <IconBadge name="church" size="lg" className="mx-auto" />
         <h1 className="mt-4 font-display text-3xl font-semibold">Request sent</h1>
-        <p className="mt-3 text-muted">Thank you. We check every church before it goes live, to keep SpiritualGym safe. You’ll get a notification once {f.name} is approved.</p>
+        <p className="mt-3 text-muted">Thank you. We check every church before it goes live, to keep TheRenewGym safe. You’ll get a notification once {f.name} is approved.</p>
         <button className="btn-primary mt-6" onClick={() => router.navigate({ to: '/app/church' })}>Done</button>
       </main>
     )
@@ -60,7 +61,7 @@ function NewChurch() {
         <label className="block"><span className="label">Website or social page <span className="text-muted">(optional, helps us verify)</span></span><input className="input" value={f.website} onChange={set('website')} /></label>
         <p className="rounded-2xl bg-surface-2 px-4 py-3 text-xs text-muted">
           Church admins can post announcements and create programs. They can see members’ names, but never anyone’s journal, prayers or personal spiritual data.
-          Churches must not use SpiritualGym to ask members for money.
+          Churches must not use TheRenewGym to ask members for money.
         </p>
         <FormError message={error} />
         <button className="btn-primary w-full" disabled={busy}>{busy ? 'Sending…' : 'Send for approval'}</button>

@@ -26,9 +26,4 @@ export async function includeTongues(userId: string) {
   return (p?.include_tongues ?? 1) === 1
 }
 
-export function adaptSteps<T extends { kind: string; label: string; guidance?: string | null }>(steps: T[], tongues: boolean): T[] {
-  if (tongues) return steps
-  return steps.map((s) =>
-    s.kind === 'tongues' ? { ...s, kind: 'prayer', label: 'Prayer', guidance: 'Pray from your heart in your own words. Let the Holy Spirit help you pray (Romans 8:26).' } : s,
-  )
-}
+export { adaptSteps } from '~/lib/content'

@@ -3,7 +3,7 @@ import { db } from '~/lib/env'
 import { awardByKey, type AwardDef } from '~/lib/awards'
 import { dayString } from '~/lib/util'
 
-export type AwardEvent = 'workout' | 'journey' | 'reading' | 'plan' | 'memory' | 'prayer' | 'walk' | 'fast' | 'testimony'
+export type AwardEvent = 'workout' | 'journey' | 'reading' | 'plan' | 'memory' | 'prayer' | 'walk' | 'fast' | 'testimony' | 'game'
 
 async function grant(userId: string, keys: string[]): Promise<AwardDef[]> {
   const won: AwardDef[] = []
@@ -32,7 +32,7 @@ async function streak(userId: string) {
   return n
 }
 
-export async function checkAwards(userId: string, event: AwardEvent, extra: { planKey?: string; fastDays?: number } = {}): Promise<AwardDef[]> {
+export async function checkAwards(userId: string, event: AwardEvent, extra: { planKey?: string; fastDays?: number; perfect?: boolean; daily?: boolean } = {}): Promise<AwardDef[]> {
   try {
     const keys: string[] = []
     if (event === 'workout' || event === 'journey') {
@@ -63,6 +63,23 @@ export async function checkAwards(userId: string, event: AwardEvent, extra: { pl
       if ((extra.fastDays ?? 0) >= 21) keys.push('fast_21')
     }
     if (event === 'testimony') keys.push('testimony_shared')
+    if (event === 'game') {
+      if (extra.perfect) keys.push('quiz_perfect')
+      const g = await db().prepare('SELECT COUNT(*) AS n FROM game_results WHERE user_id = ?').bind(userId).first<{ n: number }>()
+      if ((g?.n ?? 0) >= 25) keys.push('games_25')
+      if (extra.daily) {
+        keys.push('quiz_first')
+        const { results } = await db().prepare(`SELECT DISTINCT day FROM game_results WHERE user_id = ? AND kind = 'daily' ORDER BY day DESC LIMIT 10`).bind(userId).all<{ day: string }>()
+        const days = new Set(results.map((r) => r.day))
+        let d = new Date(dayString() + 'T00:00:00Z')
+        let n = 0
+        while (days.has(d.toISOString().slice(0, 10))) {
+          n++
+          d = new Date(d.getTime() - 86_400_000)
+        }
+        if (n >= 7) keys.push('quiz_streak_7')
+      }
+    }
     return await grant(userId, keys)
   } catch {
     return [] // medals must never break the main action

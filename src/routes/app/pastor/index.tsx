@@ -1,8 +1,11 @@
 import { useState } from 'react'
 import { Link, createFileRoute, useRouter } from '@tanstack/react-router'
-import { getPastor, intercessionAction, menteeAction, saveIntercession, saveMentee, saveTask, setPastorMode, taskAction } from '~/fns/pastor'
+import { getPastor, intercessionAction, menteeAction, saveIntercession, saveMentee, saveTask, setMinistryRole, setPastorMode, taskAction } from '~/fns/pastor'
+import { RolePicker, cornerTagline } from '~/components/RolePicker'
+import { cornerName, roleEmoji } from '~/lib/content'
 import { WeeklyScene } from '~/components/WeeklyScene'
 import { FormError, errorText } from '~/components/AuthShell'
+import { LineIcon, Glyph, GlyphBadge } from '~/components/LineIcon'
 
 export const Route = createFileRoute('/app/pastor/')({
   loader: () => getPastor(),
@@ -11,10 +14,10 @@ export const Route = createFileRoute('/app/pastor/')({
 
 type D = Extract<Awaited<ReturnType<typeof getPastor>>, { enabled: true }>
 const TABS = [
-  ['sermons', '📜 Sermons'],
-  ['intercession', '🙏 Intercession'],
-  ['tasks', '📋 Pastoral tasks'],
-  ['leaders', '🌱 Leaders'],
+  ['sermons', 'Sermons', 'scroll'],
+  ['intercession', 'Intercession', 'prayer'],
+  ['tasks', 'Ministry tasks', 'file'],
+  ['leaders', 'Leaders', 'sprout'],
 ] as const
 type Tab = (typeof TABS)[number][0]
 const niceDate = (d: string) => new Date(d + 'T12:00:00Z').toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })
@@ -23,29 +26,47 @@ function Pastor() {
   const d = Route.useLoaderData()
   const router = useRouter()
   const [tab, setTab] = useState<Tab>('sermons')
+  const [role, setRole] = useState(d.role ?? 'Pastor')
+  const [editRole, setEditRole] = useState(false)
   if (!d.enabled)
     return (
       <main className="mx-auto max-w-md px-5 pt-14 text-center">
-        <p className="text-5xl" aria-hidden>⛪</p>
-        <h1 className="mt-4 font-display text-3xl font-semibold">Pastor Mode</h1>
-        <p className="mt-3 text-muted">For ministers and church workers: sermon preparation, intercession, pastoral tasks and leadership development, kept apart from your own time with God.</p>
-        <button className="btn-primary mt-6" onClick={async () => { try { await setPastorMode({ data: { on: true } }); await router.invalidate() } catch (e) { alert(errorText(e)) } }}>Turn on Pastor Mode</button>
+        <div className="flex justify-center"><GlyphBadge e={roleEmoji(role)} size="lg" /></div>
+        <h1 className="mt-4 font-display text-3xl font-semibold">{cornerName(role.trim() || 'Minister')}</h1>
+        <p className="mt-3 text-muted">For everyone who serves: sermon and teaching preparation, intercession, ministry tasks and raising leaders, kept apart from your own time with God.</p>
+        <p className="mt-6 text-left text-sm font-semibold">What is your calling or title?</p>
+        <div className="mt-2 text-left"><RolePicker value={role} onChange={setRole} /></div>
+        <button className="btn-primary mt-6" disabled={!role.trim()} onClick={async () => { try { await setPastorMode({ data: { on: true, role } }); await router.invalidate() } catch (e) { alert(errorText(e)) } }}>Open my {cornerName(role.trim() || 'Minister')}</button>
       </main>
     )
+  const [headline, verse] = cornerTagline(d.role)
   return (
     <main className="fade-in mx-auto max-w-2xl px-5 pt-6 pb-12 md:pt-10">
       <section className="relative isolate overflow-hidden rounded-[1.75rem] px-6 pt-6 pb-10 text-white shadow-lg">
         <WeeklyScene day={20} className="absolute inset-0 -z-10 h-full w-full" />
         <div className="absolute inset-0 -z-10 bg-gradient-to-b from-black/55 to-black/15" />
-        <p className="text-xs font-semibold tracking-[0.14em] text-white/80 uppercase">Pastor Mode</p>
-        <h1 className="mt-1 font-display text-3xl font-semibold drop-shadow">Shepherd, first a sheep.</h1>
-        <p className="mt-1 max-w-md text-sm text-white/85">“Take heed therefore unto yourselves, and to all the flock.” Acts 20:28</p>
+        <p className="flex items-center gap-2 text-xs font-semibold tracking-[0.14em] text-white/80 uppercase">
+          <Glyph e={roleEmoji(d.role)} className="h-4 w-4" /> {cornerName(d.role)}
+          <button type="button" className="rounded-full bg-white/15 px-2 py-0.5 text-[10px] tracking-normal normal-case hover:bg-white/25" onClick={() => { setRole(d.role); setEditRole(!editRole) }}>Change title</button>
+        </p>
+        <h1 className="mt-1 font-display text-3xl font-semibold drop-shadow">{headline}</h1>
+        <p className="mt-1 max-w-md text-sm text-white/85">{verse}</p>
       </section>
+      {editRole && (
+        <section className="card fade-in mt-4 space-y-3">
+          <p className="font-semibold">Your calling or title</p>
+          <RolePicker value={role} onChange={setRole} />
+          <div className="flex gap-2">
+            <button className="btn-primary !py-2" disabled={!role.trim()} onClick={async () => { await setMinistryRole({ data: { role } }); setEditRole(false); await router.invalidate() }}>Save</button>
+            <button className="btn-ghost !py-2" onClick={() => setEditRole(false)}>Cancel</button>
+          </div>
+        </section>
+      )}
 
       <Balance d={d} />
 
       <nav className="-mx-5 mt-6 flex gap-2 overflow-x-auto px-5 pb-1">
-        {TABS.map(([k, label]) => <button key={k} className={`chip shrink-0 !py-2 ${tab === k ? 'chip-on' : ''}`} onClick={() => setTab(k)}>{label}</button>)}
+        {TABS.map(([k, label, icon]) => <button key={k} className={`chip inline-flex shrink-0 items-center gap-1.5 !py-2 ${tab === k ? 'chip-on' : ''}`} onClick={() => setTab(k)}><LineIcon name={icon} className="h-4 w-4" />{label}</button>)}
       </nav>
       <div className="mt-4">
         {tab === 'sermons' && <Sermons d={d} />}
@@ -53,7 +74,7 @@ function Pastor() {
         {tab === 'tasks' && <Tasks d={d} />}
         {tab === 'leaders' && <Leaders d={d} />}
       </div>
-      <p className="mt-10 text-center text-xs text-muted">Everything in Pastor Mode is private to you. <button className="underline" onClick={async () => { if (confirm('Turn off Pastor Mode? Your notes stay saved.')) { await setPastorMode({ data: { on: false } }); await router.invalidate() } }}>Turn off Pastor Mode</button></p>
+      <p className="mt-10 text-center text-xs text-muted">Everything in your {cornerName(d.role)} is private to you. <button className="underline" onClick={async () => { if (confirm(`Turn off your ${cornerName(d.role)}? Your notes stay saved.`)) { await setPastorMode({ data: { on: false } }); await router.invalidate() } }}>Turn it off</button></p>
     </main>
   )
 }
@@ -65,14 +86,14 @@ function Balance({ d }: { d: D }) {
   return (
     <section className="mt-5">
       <div className="grid grid-cols-2 gap-3">
-        <div className="rounded-3xl p-4" style={{ background: 'linear-gradient(135deg,#e1f1e6,#eaf4ee)' }}>
+        <div className="on-light rounded-3xl p-4" style={{ background: 'linear-gradient(135deg,#e1f1e6,#eaf4ee)' }}>
           <p className="text-xs font-semibold tracking-[0.12em] text-[#3f7a5a] uppercase">Personal communion</p>
-          <p className="mt-1 font-display text-3xl font-semibold text-[#12203a]">{b.communionToday}<span className="text-base"> min</span></p>
+          <p className="mt-1 font-display text-3xl font-semibold text-navy">{b.communionToday}<span className="text-base"> min</span></p>
           <p className="text-xs text-[#5b6477]">with God today · {b.communionDays}/7 days this week</p>
         </div>
-        <div className="rounded-3xl p-4" style={{ background: 'linear-gradient(135deg,#f8ecd0,#fbf3e2)' }}>
-          <p className="text-xs font-semibold tracking-[0.12em] text-[#8a6310] uppercase">Ministry activity</p>
-          <p className="mt-1 font-display text-3xl font-semibold text-[#12203a]">{b.ministryToday}</p>
+        <div className="on-light rounded-3xl p-4" style={{ background: 'linear-gradient(135deg,var(--gold-tint),#fbf3e2)' }}>
+          <p className="text-xs font-semibold tracking-[0.12em] text-gold-ink uppercase">Ministry activity</p>
+          <p className="mt-1 font-display text-3xl font-semibold text-navy">{b.ministryToday}</p>
           <p className="text-xs text-[#5b6477]">acts of service today · {b.ministryWeek} this week</p>
         </div>
       </div>
@@ -110,7 +131,7 @@ function useAct() {
   return { busy, error, run }
 }
 
-const STATUS: Record<string, string> = { idea: '💡 Idea', drafting: '✍️ Drafting', ready: '✅ Ready', preached: '🎤 Preached' }
+const STATUS: Record<string, string> = { idea: 'Idea', drafting: 'Drafting', ready: 'Ready', preached: 'Preached' }
 
 function Sermons({ d }: { d: D }) {
   const upcoming = d.sermons.filter((s) => s.status !== 'preached' && (!s.preach_on || s.preach_on >= d.today))
@@ -167,7 +188,7 @@ function Intercession({ d }: { d: D }) {
         <FormError message={a.error} />
         <button className="btn-primary" disabled={a.busy || !f.name.trim()} onClick={async () => { if (await a.run(() => saveIntercession({ data: f }))) setF({ ...f, name: '', need: '' }) }}>Add</button>
       </section>
-      {active.length > 0 && <button className={`w-full ${praying ? 'btn-ghost' : 'btn-gold'}`} onClick={() => setPraying(!praying)}>{praying ? 'Done praying' : `🙏 Pray through my list (${active.length})`}</button>}
+      {active.length > 0 && <button className={`w-full ${praying ? 'btn-ghost' : 'btn-gold'}`} onClick={() => setPraying(!praying)}>{praying ? 'Done praying' : <><LineIcon name="prayer" className="h-4 w-4" />Pray through my list ({active.length})</>}</button>}
       {groups.map((g) => (
         <section key={g}>
           <p className="eyebrow">{g}</p>
@@ -183,12 +204,12 @@ function Intercession({ d }: { d: D }) {
                   {prayedToday(i) ? (
                     <span className="shrink-0 text-sm font-semibold text-sage">✓ Today</span>
                   ) : (
-                    <button className="btn-ghost shrink-0 !px-4 !py-2" disabled={a.busy} onClick={() => a.run(() => intercessionAction({ data: { id: i.id, action: 'prayed' } }))}>🙏 Prayed</button>
+                    <button className="btn-ghost shrink-0 !px-4 !py-2" disabled={a.busy} onClick={() => a.run(() => intercessionAction({ data: { id: i.id, action: 'prayed' } }))}><LineIcon name="prayer" className="h-4 w-4" />Prayed</button>
                   )}
                 </div>
                 {!praying && (
                   <div className="mt-2 flex gap-4 text-xs font-semibold text-muted">
-                    <button onClick={() => a.run(() => intercessionAction({ data: { id: i.id, action: 'answered' } }))}>Mark answered 🙌</button>
+                    <button onClick={() => a.run(() => intercessionAction({ data: { id: i.id, action: 'answered' } }))} className="inline-flex items-center gap-1"><LineIcon name="sparkles" className="h-3.5 w-3.5" />Mark answered</button>
                     <button onClick={() => confirm('Remove from your list?') && a.run(() => intercessionAction({ data: { id: i.id, action: 'delete' } }))}>Remove</button>
                   </div>
                 )}
@@ -199,7 +220,7 @@ function Intercession({ d }: { d: D }) {
       ))}
       {answered.length > 0 && (
         <section>
-          <p className="eyebrow">Answered (last 30 days) 🙌</p>
+          <p className="eyebrow"><LineIcon name="sparkles" className="mr-1 inline h-3.5 w-3.5 -translate-y-px" />Answered (last 30 days)</p>
           <ul className="mt-2 space-y-1 text-sm">
             {answered.map((i) => <li key={i.id} className="flex justify-between rounded-xl bg-sage-soft px-3 py-2 text-sage"><span>{i.name}</span><button className="text-xs underline" onClick={() => a.run(() => intercessionAction({ data: { id: i.id, action: 'reopen' } }))}>Reopen</button></li>)}
           </ul>
@@ -209,7 +230,8 @@ function Intercession({ d }: { d: D }) {
   )
 }
 
-const KINDS: Record<string, string> = { visit: '🏠 Visit', call: '📞 Call', counsel: '💬 Counsel', meeting: '👥 Meeting', admin: '🗂️ Admin', other: '📌 Other' }
+const KINDS: Record<string, string> = { visit: 'Visit', call: 'Call', counsel: 'Counsel', meeting: 'Meeting', admin: 'Admin', other: 'Other' }
+const KIND_ICON: Record<string, string> = { visit: 'home', call: 'headphones', counsel: 'chatHeart', meeting: 'users', admin: 'folder', other: 'mapPin' }
 
 function Tasks({ d }: { d: D }) {
   const a = useAct()
@@ -221,7 +243,7 @@ function Tasks({ d }: { d: D }) {
       <section className="card space-y-3">
         <p className="font-semibold">New pastoral task</p>
         <div className="flex flex-wrap gap-2">
-          {Object.entries(KINDS).map(([k, l]) => <button key={k} className={`chip !py-1.5 text-xs ${f.kind === k ? 'chip-on' : ''}`} onClick={() => setF({ ...f, kind: k })}>{l}</button>)}
+          {Object.entries(KINDS).map(([k, l]) => <button key={k} className={`chip inline-flex items-center gap-1.5 !py-1.5 text-xs ${f.kind === k ? 'chip-on' : ''}`} onClick={() => setF({ ...f, kind: k })}><LineIcon name={KIND_ICON[k]} className="h-3.5 w-3.5" />{l}</button>)}
         </div>
         <input className="input" placeholder="What, e.g. Visit Mama Grace in hospital" value={f.title} onChange={(e) => setF({ ...f, title: e.target.value })} maxLength={150} />
         <div className="grid grid-cols-2 gap-2">
@@ -232,7 +254,7 @@ function Tasks({ d }: { d: D }) {
         <button className="btn-primary" disabled={a.busy || !f.title.trim()} onClick={async () => { if (await a.run(() => saveTask({ data: f }))) setF({ ...f, title: '', person: '', dueOn: '' }) }}>Add task</button>
       </section>
       <ul className="space-y-2">
-        {open.length === 0 && <p className="text-sm text-muted">No open tasks. 🙌</p>}
+        {open.length === 0 && <p className="text-sm text-muted"><LineIcon name="check" className="mr-1 inline h-4 w-4 -translate-y-px" />No open tasks.</p>}
         {open.map((t) => {
           const late = t.due_on && t.due_on < d.today
           return (
@@ -286,7 +308,7 @@ function Leaders({ d }: { d: D }) {
           <div className="flex items-start justify-between gap-3">
             <div>
               <p className="font-semibold">{m.name} {m.role && <span className="text-sm font-normal text-muted">· {m.role}</span>}</p>
-              {m.focus && <p className="text-sm">🌱 {m.focus}</p>}
+              {m.focus && <p className="text-sm"><LineIcon name="sprout" className="mr-1 inline h-4 w-4 -translate-y-px text-accent" />{m.focus}</p>}
               <p className="mt-1 text-xs text-muted">{m.next_meet_on ? `Next meeting ${niceDate(m.next_meet_on)}` : 'No meeting planned'}{m.last_met_on ? ` · last met ${niceDate(m.last_met_on)}` : ''}</p>
             </div>
             <button className="btn-ghost shrink-0 !px-3 !py-1.5 text-xs" disabled={a.busy} onClick={() => a.run(() => menteeAction({ data: { id: m.id, action: 'met' } }))}>✓ Met today</button>

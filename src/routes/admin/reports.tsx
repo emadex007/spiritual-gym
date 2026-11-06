@@ -1,6 +1,7 @@
 import { createFileRoute, useRouter } from '@tanstack/react-router'
 import { adminListReports, adminResolveReport } from '~/fns/admin'
 import { PageHead } from '~/components/AdminUI'
+import { LineIcon } from '~/components/LineIcon'
 
 export const Route = createFileRoute('/admin/reports')({
   loader: () => adminListReports(),
@@ -21,7 +22,7 @@ function Reports() {
   return (
     <>
       <PageHead title="Reports" sub="Things members have flagged. Hide content that breaks the rules; dismiss reports that don’t. Reports mentioning danger should be handled first." />
-      {open.length === 0 && <p className="card text-muted">🎉 No open reports.</p>}
+      {open.length === 0 && <p className="card flex items-center gap-2 text-muted"><LineIcon name="check" className="h-5 w-5 text-sage" />No open reports.</p>}
       <div className="space-y-3">
         {open.map((r) => {
           const urgent = r.reason.startsWith('Someone may be in danger')

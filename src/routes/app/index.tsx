@@ -1,11 +1,13 @@
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { Link, createFileRoute, useRouter } from '@tanstack/react-router'
 import { getHome, saveCheckin } from '~/fns/home'
 import { getSiteSettings } from '~/fns/site'
-import { MOODS, STEP_LABELS } from '~/lib/content'
+import { MOODS, STEP_LABELS, cornerName, roleEmoji } from '~/lib/content'
+import { UnderstandSheet } from '~/components/UnderstandSheet'
 import { firstName, greeting, mediaUrl } from '~/lib/util'
 import { bookSlug } from '~/lib/bible'
-import { CheckIcon, PlayIcon } from '~/components/Icons'
+import { PlayIcon } from '~/components/Icons'
+import { Glyph, LineIcon } from '~/components/LineIcon'
 import { Avatar } from '~/components/Avatar'
 import { InstallApp } from '~/components/InstallApp'
 import { NotificationBell } from '~/components/NotificationBell'
@@ -14,8 +16,9 @@ import { ListenButton } from '~/components/ListenButton'
 import { DevotionIcon } from '~/components/Art'
 import { AwardCelebration } from '~/components/AwardCelebration'
 import { awardByKey } from '~/lib/awards'
-import { BibleIcon, DoveIcon, HandsIcon, HeartIcon, JourneyCover, LampIcon, MOOD_STYLE, STEP_STYLE, stepStyle } from '~/components/Art'
+import { DoveIcon, HandsIcon, MOOD_STYLE, STEP_STYLE, stepStyle } from '~/components/Art'
 import { WeeklyScene, sceneFor, sceneForDay } from '~/components/WeeklyScene'
+import { WelcomeTour } from '~/components/WelcomeTour'
 
 export const Route = createFileRoute('/app/')({
   loader: async () => {
@@ -30,15 +33,27 @@ const kindLabel = (k: string) => (k === 'scripture' ? 'Bible' : STEP_LABELS[k])
 
 function Home() {
   const { h, site } = Route.useLoaderData()
+  const [understand, setUnderstand] = useState(false)
+  const [tour, setTour] = useState(h.showTour)
+  // One "Today's word": the daily devotion, or the verse of the day when no devotion is set for today
+  const word = h.devotion
+    ? { ...h.devotion, translation: 'KJV' }
+    : h.verse
+      ? { text: h.verse.text, reference: h.verse.reference, translation: h.verse.translation, reflection: null as string | null, declaration: null as string | null, prayer: null as string | null }
+      : null
   const journeyPct = h.journey ? Math.round((h.journey.completed / h.journey.days) * 100) : 0
   const dayNo = h.journey ? Math.min(h.journey.days, h.journey.done_today ? h.journey.completed : h.journey.completed + 1) : 0
 
   return (
     <main className="stagger mx-auto max-w-2xl px-5 pt-5 md:pt-10">
-      <AwardCelebration awards={h.unseenAwards.map(awardByKey).filter((a) => !!a)} name={firstName(h.name)} />
+      {tour ? (
+        <WelcomeTour name={firstName(h.name)} minutes={h.dailyMinutes} workoutSlug={h.workout?.slug} onDone={() => setTour(false)} />
+      ) : (
+        <AwardCelebration awards={h.unseenAwards.map(awardByKey).filter((a) => !!a)} name={firstName(h.name)} />
+      )}
       {site.announcement && (
         <div className="mb-4 flex items-center gap-3 rounded-2xl bg-gold/20 px-4 py-3 text-sm font-medium">
-          <span aria-hidden>📣</span> {site.announcement}
+          <LineIcon name="megaphone" className="h-5 w-5 shrink-0 text-gold-ink" /> {site.announcement}
         </div>
       )}
 
@@ -63,15 +78,15 @@ function Home() {
             <Avatar name={h.name} src={h.avatar} />
           </Link>
         </div>
-        <p className="text-sm text-white/75">{new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'Africa/Lagos' })}</p>
-        <h1 className="mt-1 font-display text-3xl font-semibold tracking-tight drop-shadow-sm">
+        <p className="text-on-photo pr-24 text-sm text-white/85">{new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'Africa/Lagos' })}</p>
+        <h1 className="mt-1 pr-20 font-display text-3xl font-semibold tracking-tight break-words text-on-photo sm:pr-24">
           {greeting()}, {firstName(h.name)}.
         </h1>
-        <p className="mt-1 max-w-sm text-white/85">{site.home_message || 'One prayer. One Scripture. One day at a time.'}</p>
+        <p className="text-on-photo mt-1 max-w-sm text-white/90">{site.home_message || 'One prayer. One Scripture. One day at a time.'}</p>
       </section>
 
       {h.recovery && (
-        <section className="card relative mt-5 overflow-hidden border-0 text-[#12203a]" style={{ background: 'linear-gradient(135deg,#e1f1e6,#e3eefc)' }}>
+        <section className="on-light card relative mt-5 overflow-hidden border-0 text-navy" style={{ background: 'linear-gradient(135deg,#e1f1e6,#e3eefc)' }}>
           <DoveIcon className="absolute -right-4 -bottom-4 h-32 w-32 text-[#4f8fe0]/15" />
           <p className="text-xs font-semibold tracking-[0.14em] text-[#3f7a5a] uppercase">Recovery Mode</p>
           <p className="mt-2 font-display text-2xl font-semibold">Welcome back.</p>
@@ -82,70 +97,11 @@ function Home() {
         </section>
       )}
 
-      <CheckIn current={h.checkin} />
+      <CheckIn current={h.checkin} tuck={!h.recovery} />
 
-      {h.pastor && (
-        h.pastor.ministryToday > 0 && h.todayMinutes === 0 ? (
-          <Link to="/app/workout/$slug" params={{ slug: 'reset-10' }} className="mt-5 block rounded-[1.75rem] bg-navy p-5 text-white shadow-lg">
-            <p className="text-xs font-semibold tracking-[0.14em] text-gold uppercase">Pastor Mode</p>
-            <p className="mt-1 font-display text-lg font-semibold">You’ve spent time serving today. Have you had time to simply be with God?</p>
-            <span className="btn-gold mt-3">Take 10 minutes with God</span>
-          </Link>
-        ) : (
-          <Link to="/app/pastor" className="card mt-5 flex items-center gap-3 !p-4 transition hover:border-accent">
-            <span className="text-2xl" aria-hidden>⛪</span>
-            <span className="flex-1"><span className="block font-semibold">Pastor Mode</span><span className="text-xs text-muted">Sermons, intercession, pastoral tasks, leaders</span></span>
-            <span className="text-accent">→</span>
-          </Link>
-        )
-      )}
-
-      <Link to="/app/coach" className="relative mt-5 flex items-center gap-4 overflow-hidden rounded-[1.75rem] p-5 text-white shadow-lg shadow-[#3a2f86]/20 transition active:scale-[0.99]" style={{ background: 'linear-gradient(135deg,#4f8fe0 0%,#6f5ce6 100%)' }}>
-        <DoveIcon className="absolute -right-3 -bottom-4 h-28 w-28 text-white/15" />
-        <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-white/20 text-2xl" aria-hidden>🕊️</span>
-        <span className="relative">
-          <span className="block font-display text-lg font-semibold">Talk to your coach</span>
-          <span className="block text-sm text-white/85">Share what’s on your heart. Get Scripture, prayer and a next step.</span>
-        </span>
-      </Link>
-
-      {h.devotion && (
-        <section className="relative mt-5 overflow-hidden rounded-[1.75rem] p-6 text-white shadow-lg shadow-[#5a2a04]/20" style={{ background: 'linear-gradient(140deg,#5a2a04 0%,#b45309 55%,#e0a526 100%)' }}>
-          <div className="relative -mx-6 -mt-6 mb-5 h-44 overflow-hidden">
-            <WeeklyScene day={h.header.day} data-share-scene="" className="absolute inset-0 h-full w-full" />
-            <div className="absolute inset-x-0 bottom-0 h-16" style={{ background: 'linear-gradient(180deg,transparent,#5a2a04)' }} />
-            <p className="absolute bottom-2 left-6 text-[11px] font-medium text-white/85">{sceneForDay(h.header.day).name} · {sceneForDay(h.header.day).ref}</p>
-          </div>
-          <DevotionIcon className="absolute -right-5 -bottom-5 h-36 w-36 text-white/10" />
-          <p className="text-xs font-semibold tracking-[0.14em] text-[#fde7b0] uppercase">Today’s word</p>
-          <blockquote className="relative mt-3 font-display text-xl leading-snug">“{h.devotion.text}”</blockquote>
-          <p className="mt-2 text-sm font-semibold text-[#fde7b0]">{h.devotion.reference} · KJV</p>
-          <p className="relative mt-3 text-sm text-white/85">{h.devotion.reflection}</p>
-          <div className="relative mt-4 rounded-2xl bg-white/15 p-4 backdrop-blur-sm">
-            <p className="text-xs font-bold tracking-[0.14em] text-[#fde7b0] uppercase">🗣️ I declare</p>
-            <p className="mt-1 font-semibold">{h.devotion.declaration}</p>
-          </div>
-          {h.devotion.prayer && (
-            <div className="relative mt-3 rounded-2xl bg-black/15 p-4">
-              <p className="text-xs font-bold tracking-[0.14em] text-[#fde7b0] uppercase">🙏 Today’s prayer</p>
-              <p className="mt-1 text-sm leading-relaxed text-white/95 italic">{h.devotion.prayer}</p>
-            </div>
-          )}
-          <div className="relative mt-4 flex flex-wrap gap-2">
-            <ListenButton lines={[`${h.devotion.reference}. ${h.devotion.text}`, `I declare: ${h.devotion.declaration}`, ...(h.devotion.prayer ? [`Let us pray. ${h.devotion.prayer}`] : [])]} />
-            <ShareButton
-              className="inline-flex items-center gap-1.5 rounded-full bg-white px-4 py-2 text-sm font-semibold text-[#5a2a04]"
-              card={{ kind: 'word', heading: 'Today’s word', text: h.devotion.text, reference: h.devotion.reference, declaration: h.devotion.declaration }}
-              text={`“${h.devotion.text}” (${h.devotion.reference})\n\nI declare: ${h.devotion.declaration}${h.devotion.prayer ? `\n\nPrayer: ${h.devotion.prayer}` : ''}`}
-            />
-          </div>
-        </section>
-      )}
-
-      <InstallApp variant="banner" />
-
+      <SectionTitle>Today</SectionTitle>
       {h.workout && (
-        <section className="relative mt-5 overflow-hidden rounded-[1.75rem] p-6 text-white shadow-lg shadow-[#2e2573]/20" style={{ background: 'linear-gradient(140deg,#1b2750 0%,#3a2f86 55%,#6f5ce6 100%)' }}>
+        <section className="relative mt-3 overflow-hidden rounded-[1.75rem] p-6 text-white shadow-lg shadow-[#2e2573]/20" style={{ background: 'linear-gradient(140deg,var(--brand-navy-2) 0%,#3a2f86 55%,#6f5ce6 100%)' }}>
           <HandsIcon className="absolute -top-4 -right-4 h-36 w-36 text-white/10" />
           <p className="text-xs font-semibold tracking-[0.14em] text-gold uppercase">Today’s workout · {h.workout.minutes} min</p>
           <p className="mt-2 font-display text-2xl font-semibold">{h.workout.title}</p>
@@ -166,159 +122,93 @@ function Home() {
               )
             })}
           </div>
-          <Link to="/app/workout/$slug" params={{ slug: h.workout.slug }} className="btn-gold mt-6 w-full sm:w-auto">
+          <div className="mt-5 flex items-center justify-between gap-3 rounded-2xl bg-white/10 px-4 py-2.5 text-sm">
+            <span>Today so far</span>
+            <span className="font-semibold">{h.todayMinutes} / {h.dailyMinutes} min</span>
+          </div>
+          <Link to="/app/workout/$slug" params={{ slug: h.workout.slug }} className="btn-gold mt-4 w-full sm:w-auto">
             <PlayIcon /> START
           </Link>
         </section>
       )}
 
-      {h.journey && (
-        <section className="card mt-5 overflow-hidden !p-0">
-          <JourneyCover focus={h.journey.focus} className="h-24" />
-          <div className="p-5">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <p className="eyebrow">Your journey</p>
-                <p className="mt-1 font-display text-xl font-semibold">{h.journey.title}</p>
-              </div>
-              <p className="shrink-0 rounded-full bg-accent-soft px-3 py-1 text-sm font-semibold text-accent">
-                Day {dayNo}/{h.journey.days}
-              </p>
+      {word && (
+        <section className="relative mt-5 overflow-hidden rounded-[1.75rem] p-6 text-white shadow-lg shadow-[#5a2a04]/20" style={{ background: 'linear-gradient(140deg,#5a2a04 0%,#b45309 55%,#e0a526 100%)' }}>
+          <div className="relative -mx-6 -mt-6 mb-5 h-44 overflow-hidden">
+            <WeeklyScene day={h.header.day} data-share-scene="" className="absolute inset-0 h-full w-full" />
+            <div className="absolute inset-x-0 bottom-0 h-16" style={{ background: 'linear-gradient(180deg,transparent,#5a2a04)' }} />
+            <p className="absolute bottom-2 left-6 text-[11px] font-medium text-white/85">{sceneForDay(h.header.day).name} · {sceneForDay(h.header.day).ref}</p>
+          </div>
+          <DevotionIcon className="absolute -right-5 -bottom-5 h-36 w-36 text-white/10" />
+          <p className="text-xs font-semibold tracking-[0.14em] text-[#fde7b0] uppercase">Today’s word</p>
+          <blockquote className="relative mt-3 font-display text-xl leading-snug">“{word.text}”</blockquote>
+          <p className="mt-2 text-sm font-semibold text-[#fde7b0]">{word.reference} · {word.translation}</p>
+          {word.reflection && <p className="relative mt-3 text-sm text-white/85">{word.reflection}</p>}
+          {word.declaration && (
+            <div className="relative mt-4 rounded-2xl bg-white/15 p-4 backdrop-blur-sm">
+              <p className="text-xs font-bold tracking-[0.14em] text-[#fde7b0] uppercase"><LineIcon name="megaphone" className="mr-1 inline h-3.5 w-3.5 -translate-y-px" />I declare</p>
+              <p className="mt-1 font-semibold">{word.declaration}</p>
             </div>
-            <div className="mt-4 h-2.5 rounded-full bg-surface-2" role="progressbar" aria-valuenow={journeyPct} aria-valuemin={0} aria-valuemax={100} aria-label="Journey completion">
-              <div className="bar-grow h-2.5 rounded-full transition-all" style={{ width: `${journeyPct}%`, background: 'linear-gradient(90deg,#c9971f,#e98a2b)' }} />
+          )}
+          {word.prayer && (
+            <div className="relative mt-3 rounded-2xl bg-black/15 p-4">
+              <p className="text-xs font-bold tracking-[0.14em] text-[#fde7b0] uppercase"><LineIcon name="prayer" className="mr-1 inline h-3.5 w-3.5 -translate-y-px" />Today’s prayer</p>
+              <p className="mt-1 text-sm leading-relaxed text-white/95 italic">{word.prayer}</p>
             </div>
-            <p className="mt-2 text-xs text-muted">{journeyPct}% of this journey completed</p>
-            {h.journey.today && (
-              <div className="mt-4 rounded-2xl p-4" style={{ background: STEP_STYLE.scripture.soft }}>
-                <div className="flex items-center gap-2">
-                  {h.journey.done_today && (
-                    <span className="flex h-5 w-5 items-center justify-center rounded-full bg-sage text-white">
-                      <CheckIcon className="h-3.5 w-3.5" />
-                    </span>
-                  )}
-                  <p className="font-semibold text-[#12203a]">{h.journey.today.title}</p>
-                </div>
-                {h.journey.today.scripture && (
-                  <p className="mt-1 inline-flex items-center gap-1.5 text-sm font-medium text-[#8a6310]">
-                    <BibleIcon className="h-4 w-4" /> {h.journey.today.scripture}
-                  </p>
-                )}
-                {h.journey.today.prompt && <p className="mt-2 text-sm text-[#5b6477]">{h.journey.today.prompt}</p>}
-                <p className="mt-2 text-xs text-[#5b6477]">
-                  {h.journey.done_today ? 'Completed today. See you tomorrow.' : `Suggested: ${h.journey.today.minutes} minutes. Any workout today completes this day.`}
-                </p>
-              </div>
-            )}
+          )}
+          <div className="relative mt-4 flex flex-wrap gap-2">
+            <ListenButton lines={[`${word.reference}. ${word.text}`, ...(word.declaration ? [`I declare: ${word.declaration}`] : []), ...(word.prayer ? [`Let us pray. ${word.prayer}`] : [])]} />
+            <ShareButton
+              className="inline-flex items-center gap-1.5 rounded-full bg-white px-4 py-2 text-sm font-semibold text-[#5a2a04]"
+              card={{ kind: 'word', heading: 'Today’s word', text: word.text, reference: word.reference, declaration: word.declaration ?? undefined }}
+              text={`“${word.text}” (${word.reference})${word.declaration ? `\n\nI declare: ${word.declaration}` : ''}${word.prayer ? `\n\nPrayer: ${word.prayer}` : ''}`}
+            />
+            <button type="button" onClick={() => setUnderstand(true)} className="inline-flex items-center gap-1.5 rounded-full bg-white/20 px-4 py-2 text-sm font-semibold text-white backdrop-blur">
+              <LineIcon name="lightbulb" className="h-4 w-4" /> Understand this verse
+            </button>
           </div>
         </section>
       )}
+      {understand && word && <UnderstandSheet reference={word.reference} onClose={() => setUnderstand(false)} />}
 
-      <section className="card mt-5">
-        <div className="flex items-baseline justify-between">
-          <p className="eyebrow">Today</p>
-          <p className="text-sm font-medium text-muted">
-            {h.todayMinutes} / {h.dailyMinutes} min
-          </p>
-        </div>
-        <ul className="mt-2 divide-y divide-line">
-          {TODAY_KINDS.map((k) => {
-            const m = Math.round(h.todayByKind[k] ?? 0)
-            const st = STEP_STYLE[k]
-            return (
-              <li key={k} className="flex items-center gap-3 py-3">
-                <span className="flex h-9 w-9 items-center justify-center rounded-xl" style={{ background: st.soft, color: st.color }}>
-                  <st.Icon className="h-5 w-5" />
-                </span>
-                <span className="flex-1 font-medium">{kindLabel(k)}</span>
-                {m > 0 ? (
-                  <span className="flex items-center gap-1.5 text-sm font-semibold" style={{ color: st.color }}>
-                    <CheckIcon className="h-4 w-4" /> {m} min
-                  </span>
-                ) : (
-                  <span className="text-sm text-muted">Not yet</span>
-                )}
-              </li>
-            )
-          })}
-          <li className="flex items-center gap-3 py-3">
-            <span className="flex h-9 w-9 items-center justify-center rounded-xl" style={{ background: STEP_STYLE.reflection.soft, color: STEP_STYLE.reflection.color }}>
-              <LampIcon className="h-5 w-5" />
-            </span>
-            <span className="flex-1 font-medium">Scripture memory</span>
-            <Link to="/app/journal/memory" className="text-sm font-semibold text-accent">
-              {h.memory.total === 0
-                ? 'Add a verse →'
-                : h.memory.practicedToday > 0
-                  ? `✓ ${h.memory.practicedToday} verse${h.memory.practicedToday > 1 ? 's' : ''}`
-                  : h.memory.due > 0
-                    ? `${h.memory.due} to review →`
-                    : 'All caught up'}
-            </Link>
-          </li>
-        </ul>
-      </section>
+      <InstallApp variant="banner" />
 
-      {h.verse && (
-        <section className="relative mt-5 overflow-hidden rounded-[1.75rem] p-6" style={{ background: 'linear-gradient(135deg,#f8ecd0,#fdebd8)' }}>
-          <BibleIcon className="absolute -right-5 -bottom-5 h-32 w-32 text-[#c9971f]/15" />
-          <p className="text-xs font-semibold tracking-[0.14em] text-[#8a6310] uppercase">Verse of the day</p>
-          <blockquote className="relative mt-3 font-display text-xl leading-snug text-[#12203a]">“{h.verse.text}”</blockquote>
-          <p className="mt-3 text-sm font-semibold text-[#8a6310]">
-            {h.verse.reference} · {h.verse.translation}
-          </p>
-          <div className="relative mt-4">
-            <ShareButton card={{ kind: 'verse', text: h.verse.text, reference: h.verse.reference, translation: h.verse.translation }} text={`“${h.verse.text}” (${h.verse.reference} ${h.verse.translation})`} />
-          </div>
-        </section>
-      )}
-
-      {h.activePlan && (
-        <section className="card mt-5 !p-4">
-          <div className="flex items-center justify-between gap-3">
-            <div className="min-w-0">
-              <p className="eyebrow">📅 {h.activePlan.caughtUp ? 'You’re up to date' : 'Continue your Bible plan'}</p>
-              <p className="mt-1 truncate font-semibold">Day {h.activePlan.day} · {h.activePlan.label}</p>
-              <p className="text-xs text-muted">{h.activePlan.title} · {h.activePlan.pct}% read</p>
-            </div>
-            {h.activePlan.caughtUp ? (
-              <Link to="/app/plans/$id" params={{ id: h.activePlan.id }} className="btn-ghost shrink-0 !py-2">Open</Link>
-            ) : (
-              <Link
-                to="/app/bible/$book/$chapter"
-                params={{ book: bookSlug(h.activePlan.book), chapter: String(h.activePlan.chapter) }}
-                search={{ plan: h.activePlan.id, day: h.activePlan.day, pk: h.activePlan.planKey }}
-                className="btn-primary shrink-0 !py-2.5"
-              >
-                Read →
-              </Link>
-            )}
-          </div>
-          <div className="mt-3 h-1.5 rounded-full bg-surface-2"><div className="bar-grow h-1.5 rounded-full" style={{ width: `${h.activePlan.pct}%`, background: 'linear-gradient(90deg,#c9971f,#e98a2b)' }} /></div>
-        </section>
-      )}
-
-      <div className="mt-5 grid grid-cols-3 gap-3">
-        {(
-          [
-          { to: '/app/plans', emoji: '📅', title: 'Reading plans', sub: 'Read with friends' },
-          { to: '/app/fasting', emoji: '🕊️', title: 'Fasting', sub: 'Fast & pray' },
-          { to: '/app/testimonies', emoji: '🎉', title: 'Testimonies', sub: 'What God did' },
-          { to: '/app/church', emoji: '⛪', title: 'My church', sub: 'Programs & plans' },
-          { to: '/app/wake', emoji: '⏰', title: 'Wake-up', sub: 'Bells + a word' },
-          { to: '/app/journal/memory', emoji: '💎', title: 'Memory verses', sub: 'Hide the Word' },
-          ] as const
-        ).map((t) => (
-          <Link key={t.to} to={t.to} className="card flex flex-col items-center gap-1 !p-3 text-center transition hover:border-accent">
-            <span className="text-2xl" aria-hidden>{t.emoji}</span>
-            <span className="text-sm leading-tight font-semibold">{t.title}</span>
-            <span className="hidden text-xs text-muted sm:block">{t.sub}</span>
+      <Continue h={h} dayNo={dayNo} journeyPct={journeyPct} />
+      {h.pastor && (
+        h.pastor.ministryToday > 0 && h.todayMinutes === 0 ? (
+          <Link to="/app/workout/$slug" params={{ slug: 'reset-10' }} className="mt-3 block rounded-[1.75rem] bg-navy p-5 text-white shadow-lg">
+            <p className="text-xs font-semibold tracking-[0.14em] text-gold uppercase">{cornerName(h.pastor.role)}</p>
+            <p className="mt-1 font-display text-lg font-semibold">You’ve spent time serving today. Have you had time to simply be with God?</p>
+            <span className="btn-gold mt-3">Take 10 minutes with God</span>
           </Link>
-        ))}
-      </div>
+        ) : (
+          <Link to="/app/pastor" className="card mt-3 flex items-center gap-3 !p-4 transition hover:border-accent">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-accent-soft/70 text-accent" aria-hidden><Glyph e={roleEmoji(h.pastor.role)} className="h-5 w-5" /></span>
+            <span className="flex-1"><span className="block font-semibold">{cornerName(h.pastor.role)}</span><span className="text-xs text-muted">Sermons, intercession, ministry tasks, leaders</span></span>
+            <span className="text-accent">→</span>
+          </Link>
+        )
+      )}
 
-      <section className="card mt-5">
-        <p className="eyebrow">Consistency</p>
+
+      <SectionTitle>Explore</SectionTitle>
+      {EXPLORE.map((g) => (
+        <section key={g.title} className="mt-3 first-of-type:mt-3">
+          <p className="mb-2 text-sm font-semibold text-muted">{g.title}</p>
+          <div className="grid grid-cols-3 gap-2.5 sm:grid-cols-6">
+            {g.items.map((t) => (
+              <Link key={t.to} to={t.to} className="card flex flex-col items-center gap-1.5 !px-2 !py-3 text-center transition hover:-translate-y-0.5 hover:border-accent">
+                <span className="flex h-11 w-11 items-center justify-center rounded-2xl" style={{ background: g.tint, color: g.ink }} aria-hidden><Glyph e={t.emoji} className="h-[22px] w-[22px]" /></span>
+                <span className="text-[13px] leading-tight font-semibold">{t.title}</span>
+              </Link>
+            ))}
+          </div>
+        </section>
+      ))}
+
+      <SectionTitle>Your progress</SectionTitle>
+      <section className="card mt-3">
+        <p className="text-sm text-muted">Sessions that included each part, since you started</p>
         {h.totalSessions === 0 ? (
           <p className="mt-2 text-muted">Your completed sessions will show here. One step at a time.</p>
         ) : (
@@ -337,21 +227,123 @@ function Home() {
         )}
       </section>
 
-      <section className="relative mt-5 mb-6 overflow-hidden rounded-[1.75rem] p-6" style={{ background: 'linear-gradient(135deg,#fce6ec,#ebe8fd)' }}>
-        <HeartIcon className="absolute -right-3 -bottom-3 h-28 w-28 text-[#e05a7a]/15" />
-        <p className="text-xs font-semibold tracking-[0.14em] text-[#b8375a] uppercase">Walk with me</p>
-        <p className="mt-2 font-semibold text-[#12203a]">Invite a friend to encourage each other daily</p>
-        <p className="mt-1 max-w-sm text-sm text-[#5b6477]">See “completed today”, send a word of encouragement. Your journal stays private.</p>
-        <div className="mt-4 flex flex-wrap gap-2">
-          <Link to="/app/walk" className="inline-flex rounded-full bg-[#e05a7a] px-4 py-2 text-sm font-semibold text-white">Walk with me →</Link>
-          <Link to="/app/community" className="inline-flex rounded-full bg-white/70 px-4 py-2 text-sm font-semibold text-[#b8375a]">Pray together</Link>
-        </div>
-      </section>
+      <div className="h-8" />
     </main>
   )
 }
 
-function CheckIn({ current }: { current: { mood: string; note: string | null } | null }) {
+/** Big, quiet section headings so each part of Home is easy to find */
+function SectionTitle({ children }: { children: ReactNode }) {
+  return <h2 className="mt-9 mb-1 font-display text-2xl font-semibold tracking-tight">{children}</h2>
+}
+
+/** Everything in the app, grouped (instead of a long scattered page) */
+const EXPLORE = [
+  {
+    title: 'The Word',
+    tint: 'var(--gold-tint)',
+    ink: '#7a5c1c',
+    items: [
+      { to: '/app/bible', emoji: '📖', title: 'Bible' },
+      { to: '/app/plans', emoji: '📅', title: 'Reading plans' },
+      { to: '/app/books', emoji: '📚', title: 'Books' },
+      { to: '/app/journal/memory', emoji: '💎', title: 'Memory verses' },
+      { to: '/app/understand', emoji: '💡', title: 'Understand' },
+      { to: '/app/games', emoji: '🧠', title: 'Bible games' },
+    ],
+  },
+  {
+    title: 'Prayer & worship',
+    tint: '#ebe8fd',
+    ink: '#5141a8',
+    items: [
+      { to: '/app/journal/prayer', emoji: '🙏', title: 'Prayer list' },
+      { to: '/app/journal/worship', emoji: '🎶', title: 'My songs' },
+      { to: '/app/fasting', emoji: '🕊️', title: 'Fasting' },
+      { to: '/app/coach', emoji: '💬', title: 'Coach' },
+      { to: '/app/wake', emoji: '⏰', title: 'Wake-up' },
+      { to: '/app/journal', emoji: '📝', title: 'Journal' },
+    ],
+  },
+  {
+    title: 'Together',
+    tint: '#e1f1e6',
+    ink: '#2c6a43',
+    items: [
+      { to: '/app/church', emoji: '⛪', title: 'My church' },
+      { to: '/app/community', emoji: '🤝', title: 'Community' },
+      { to: '/app/walk', emoji: '👫', title: 'Walk with me' },
+      { to: '/app/testimonies', emoji: '🎉', title: 'Testimonies' },
+      { to: '/app/train', emoji: '🏋️', title: 'All workouts' },
+      { to: '/app/notifications', emoji: '🔔', title: 'Notifications' },
+    ],
+  },
+] as const
+
+type HomeData = ReturnType<typeof Route.useLoaderData>['h']
+
+/** "Pick up where you left off": journey, Bible plan, book and memory verses as short rows in one card */
+function Continue({ h, dayNo, journeyPct }: { h: HomeData; dayNo: number; journeyPct: number }) {
+  const rows: { key: string; icon: ReactNode; title: string; sub: string; pct?: number; action: ReactNode }[] = []
+  if (h.journey)
+    rows.push({
+      key: 'journey',
+      icon: <LineIcon name="compass" className="h-5 w-5" />,
+      title: h.journey.today ? h.journey.today.title : h.journey.title,
+      sub: `${h.journey.title} · day ${dayNo} of ${h.journey.days}${h.journey.today?.scripture ? ` · ${h.journey.today.scripture}` : ''}${h.journey.done_today ? ' · ✓ done today' : ''}`,
+      pct: journeyPct,
+      action: null,
+    })
+  if (h.activePlan)
+    rows.push({
+      key: 'plan',
+      icon: <LineIcon name="calendar" className="h-5 w-5" />,
+      title: `Day ${h.activePlan.day} · ${h.activePlan.label}`,
+      sub: `${h.activePlan.title}${h.activePlan.caughtUp ? ' · up to date' : ''}`,
+      pct: h.activePlan.pct,
+      action: h.activePlan.caughtUp ? (
+        <Link to="/app/plans/$id" params={{ id: h.activePlan.id }} className="btn-ghost !px-3 !py-1.5 text-sm">Open</Link>
+      ) : (
+        <Link to="/app/bible/$book/$chapter" params={{ book: bookSlug(h.activePlan.book), chapter: String(h.activePlan.chapter) }} search={{ plan: h.activePlan.id, day: h.activePlan.day, pk: h.activePlan.planKey }} className="btn-primary !px-4 !py-1.5 text-sm">Read</Link>
+      ),
+    })
+  if (h.book)
+    rows.push({
+      key: 'book',
+      icon: <LineIcon name="library" className="h-5 w-5" />,
+      title: h.book.title,
+      sub: `Book · day ${h.book.day} of ${h.book.days}`,
+      pct: Math.round((h.book.done / h.book.days) * 100),
+      action: <Link to="/app/books/$id/read" params={{ id: h.book.id }} search={{ day: h.book.day }} className="btn-primary !px-4 !py-1.5 text-sm">Read</Link>,
+    })
+  rows.push({
+    key: 'memory',
+    icon: <LineIcon name="gem" className="h-5 w-5" />,
+    title: 'Memory verses',
+    sub: h.memory.total === 0 ? 'Hide God’s Word in your heart' : h.memory.practicedToday > 0 ? `✓ ${h.memory.practicedToday} practised today` : h.memory.due > 0 ? `${h.memory.due} to review today` : 'All caught up',
+    action: <Link to="/app/journal/memory" className="btn-ghost !px-3 !py-1.5 text-sm">{h.memory.total === 0 ? 'Add' : h.memory.due > 0 ? 'Review' : 'Open'}</Link>,
+  })
+  return (
+    <section className="card mt-3 !p-0">
+      <p className="px-4 pt-4 text-xs font-semibold tracking-[0.14em] text-accent uppercase">Continue</p>
+      <ul className="divide-y divide-line">
+        {rows.map((r) => (
+          <li key={r.key} className="flex items-center gap-3 px-4 py-3">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-accent-soft/70 text-accent" aria-hidden>{r.icon}</span>
+            <div className="min-w-0 flex-1">
+              <p className="truncate font-semibold">{r.title}</p>
+              <p className="truncate text-xs text-muted">{r.sub}</p>
+              {r.pct !== undefined && <div className="mt-1.5 h-1 rounded-full bg-surface-2"><div className="h-1 rounded-full" style={{ width: `${r.pct}%`, background: 'linear-gradient(90deg,var(--gold-mid),#e98a2b)' }} /></div>}
+            </div>
+            {r.action && <div className="shrink-0">{r.action}</div>}
+          </li>
+        ))}
+      </ul>
+    </section>
+  )
+}
+
+function CheckIn({ current, tuck = true }: { current: { mood: string; note: string | null } | null; tuck?: boolean }) {
   const router = useRouter()
   const [mood, setMood] = useState(current?.mood ?? null)
   const [note, setNote] = useState(current?.note ?? '')
@@ -383,7 +375,7 @@ function CheckIn({ current }: { current: { mood: string; note: string | null } |
   }
 
   return (
-    <section className="card relative z-10 -mt-12 mx-2">
+    <section className={`card relative z-10 ${tuck ? '-mt-12 mx-2' : 'mt-5'}`}>
       <p className="font-display text-lg font-semibold">How are you today?</p>
       <div className="mt-3 grid grid-cols-3 gap-2 sm:grid-cols-6">
         {MOODS.map((m) => {
@@ -399,7 +391,7 @@ function CheckIn({ current }: { current: { mood: string; note: string | null } |
               className="flex flex-col items-center gap-1 rounded-2xl border-2 px-1 py-2.5 text-xs font-semibold transition"
               style={{ background: on ? st.soft : 'transparent', borderColor: on ? st.color : 'var(--line)', color: on ? st.color : 'var(--ink)' }}
             >
-              <span className="text-2xl leading-none" aria-hidden>{st.emoji}</span>
+              <span className="flex h-9 w-9 items-center justify-center rounded-xl" style={{ background: on ? 'transparent' : st.soft, color: st.color }} aria-hidden><LineIcon name={st.icon} className="h-[22px] w-[22px]" /></span>
               {m.label}
             </button>
           )

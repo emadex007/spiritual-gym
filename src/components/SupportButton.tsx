@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { LineIcon } from '~/components/LineIcon'
 
 const KEY = 'sg-support-hidden-until'
 
@@ -22,7 +23,7 @@ export function SupportFloat({ bottom = 'bottom-[5.5rem]' }: { bottom?: string }
   return (
     <div className={`fade-in fixed right-3 z-20 flex items-center rounded-full bg-gold text-navy shadow-lg shadow-black/15 ${bottom}`} style={{ marginBottom: 'env(safe-area-inset-bottom)' }}>
       <a href="/give" className="flex items-center gap-1.5 py-2 pr-1 pl-3.5 text-[13px] font-semibold">
-        <span aria-hidden className="support-beat">💛</span> Support
+        <span aria-hidden className="support-beat inline-flex"><LineIcon name="heart" className="h-4 w-4" /></span> Support
       </a>
       <button type="button" onClick={hide} aria-label="Hide for a week" className="flex h-8 w-7 items-center justify-center rounded-full text-navy/60 hover:text-navy">
         ×
@@ -34,8 +35,11 @@ export function SupportFloat({ bottom = 'bottom-[5.5rem]' }: { bottom?: string }
 /** Sidebar version for computers */
 export function SupportLink() {
   return (
-    <a href="/give" className="flex items-center gap-2 rounded-2xl bg-gold/20 px-3 py-2.5 text-sm font-semibold text-[#8a6310] transition hover:bg-gold/30 dark:text-gold">
-      <span aria-hidden className="support-beat">💛</span> Support SpiritualGym
+    <a
+      href="/give"
+      className="support-link flex items-center gap-2 rounded-2xl px-3 py-2.5 text-sm font-semibold text-gold-ink transition dark:text-gold"
+    >
+      <span aria-hidden className="support-beat inline-flex"><LineIcon name="heart" className="h-4 w-4" /></span> Support TheRenewGym
     </a>
   )
 }

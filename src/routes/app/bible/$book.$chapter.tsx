@@ -1,21 +1,30 @@
 import { useEffect, useState } from 'react'
-import { Link, createFileRoute, notFound } from '@tanstack/react-router'
+import { Link, createFileRoute, notFound, useNavigate } from '@tanstack/react-router'
 import { getChapter } from '~/fns/bible'
 import { addMemory } from '~/fns/memory'
+import { getVerseMarks, saveVerseToJournal, setVerseMarks } from '~/fns/verses'
+import { VERSE_COLORS, verseColor } from '~/lib/content'
 import { TRANSLATIONS, bookFromSlug, bookSlug, formatReference, type TranslationCode } from '~/lib/bible'
 import { ShareButton } from '~/components/ShareButton'
+import { ChapterSheet, UnderstandSheet } from '~/components/UnderstandSheet'
+import { ListenBar } from '~/components/ListenBar'
+import { ChapterQuizSheet } from '~/components/Games'
+import { getChapterQuiz, saveGameResult } from '~/fns/games'
 import { PlanReadingBar, dayChapters, type PlanSearch } from '~/components/PlanReadingBar'
+import { LineIcon, IconBadge } from '~/components/LineIcon'
 
 export const Route = createFileRoute('/app/bible/$book/$chapter')({
-  validateSearch: (s: { plan?: unknown; day?: unknown; pk?: unknown }): PlanSearch => ({
+  validateSearch: (s: { plan?: unknown; day?: unknown; pk?: unknown; listen?: unknown }): PlanSearch & { listen?: number } => ({
+    listen: Number(s.listen) === 1 ? 1 : undefined,
     plan: typeof s.plan === 'string' ? s.plan : undefined,
     day: Number(s.day) > 0 ? Number(s.day) : undefined,
     pk: typeof s.pk === 'string' ? s.pk : undefined,
   }),
-  loader: ({ params }) => {
+  loader: async ({ params }) => {
     const book = bookFromSlug(params.book)
     if (!book) throw notFound()
-    return getChapter({ data: { book, chapter: Number(params.chapter) } })
+    const [ch, marks] = await Promise.all([getChapter({ data: { book, chapter: Number(params.chapter) } }), getVerseMarks({ data: { book, chapter: Number(params.chapter) } }).catch(() => [])])
+    return { ...ch, marks }
   },
   component: Reader,
 })
@@ -26,7 +35,9 @@ const SIZES = ['text-base', 'text-lg', 'text-xl', 'text-2xl']
 const bookCache = new Map<string, Record<string, [number, string][]>>()
 
 function Reader() {
-  const { book, chapter, verses: kjv, prev, next } = Route.useLoaderData()
+  const { book, chapter, verses: kjv, prev, next, marks: savedMarks } = Route.useLoaderData()
+  const [marks, setMarks] = useState<Record<number, string>>({})
+  useEffect(() => setMarks(Object.fromEntries(savedMarks.map((m) => [m.verse, m.color]))), [savedMarks])
   const search = Route.useSearch()
   const inPlan = !!search.plan && dayChapters(search.pk, search.day).some((c) => c.book === book.id && c.chapter === chapter)
   const keep = (b: number, c: number) => (inPlan && dayChapters(search.pk, search.day).some((x) => x.book === b && x.chapter === c) ? search : {})
@@ -37,6 +48,16 @@ function Reader() {
   const [other, setOther] = useState<{ key: string; verses: { verse: number; text: string }[] } | null>(null)
   const [loadingTr, setLoadingTr] = useState(false)
   const [retry, setRetry] = useState(0)
+  const [understand, setUnderstand] = useState<string | null>(null)
+  const [chapterOpen, setChapterOpen] = useState(false)
+  const [quizOpen, setQuizOpen] = useState(false)
+  const [listen, setListen] = useState(false)
+  const [speaking, setSpeaking] = useState<number | null>(null)
+  const navigate = useNavigate()
+  // Arrived from "keep listening" at the end of the previous chapter
+  useEffect(() => {
+    setListen(!!search.listen)
+  }, [book.id, chapter])
 
   // Remember the chosen translation on this device
   useEffect(() => {
@@ -127,6 +148,28 @@ function Reader() {
       setMsg('Couldn’t copy on this device')
     }
   }
+  async function colour(color: string | null) {
+    const vs = [...selected]
+    setMarks((m) => {
+      const n = { ...m }
+      for (const v of vs) {
+        if (color) n[v] = color
+        else delete n[v]
+      }
+      return n
+    })
+    setSelected([])
+    setVerseMarks({ data: { book: book.id, chapter, verses: vs, color } }).catch(() => setMsg('Couldn’t save the colour. Try again.'))
+  }
+  async function saveToJournal() {
+    if (!contiguous) return setMsg('Choose verses next to each other to save')
+    try {
+      await saveVerseToJournal({ data: { reference: ref, text, translation: trLabel } })
+      setMsg('Saved to your journal ✓')
+    } catch {
+      setMsg('Couldn’t save. Try again.')
+    }
+  }
   async function memorize() {
     if (!contiguous) return setMsg('Choose verses next to each other to memorise')
     try {
@@ -175,27 +218,48 @@ function Reader() {
         </p>
       )}
 
-      <article className={`mt-8 font-display leading-[1.85] ${SIZES[size]}`}>
+      <button type="button" onClick={() => setChapterOpen(true)} className="mt-4 inline-flex items-center gap-2 rounded-full border border-accent/40 bg-accent-soft/60 px-4 py-2 text-sm font-semibold text-accent transition hover:border-accent">
+        <LineIcon name="lightbulb" className="h-4 w-4" />Understand this chapter
+      </button>
+      <button type="button" onClick={() => setListen(true)} className="mt-4 ml-2 inline-flex items-center gap-2 rounded-full border border-line bg-surface px-4 py-2 text-sm font-semibold transition hover:border-accent">
+        <LineIcon name="volume" className="h-4 w-4" />Listen
+      </button>
+      <p className="mt-2 text-xs text-muted">Tip: tap a verse to colour it, save it to your journal, share it or have it explained.</p>
+
+      <article className={`mt-8 space-y-1 font-display leading-[1.7] ${SIZES[size]}`}>
         {verses.map((v) => {
           const on = selected.includes(v.verse)
+          const c = verseColor(marks[v.verse])
           return (
-            <span
+            <p
               key={v.verse}
               id={`v${v.verse}`}
               role="button"
               tabIndex={0}
+              aria-pressed={on}
               onClick={() => toggle(v.verse)}
               onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), toggle(v.verse))}
-              className={`cursor-pointer rounded-md transition ${on ? 'bg-accent-soft underline decoration-accent decoration-2 underline-offset-4' : 'hover:bg-surface-2'}`}
+              className={`flex cursor-pointer gap-2.5 rounded-lg px-2 py-1 transition ${speaking === v.verse ? 'bg-gold/30' : on ? 'bg-accent-soft ring-2 ring-accent/50' : c ? c.cls : 'hover:bg-surface-2'}`}
             >
-              <sup className="mr-1 ml-0.5 font-sans text-[0.6em] font-semibold text-accent">{v.verse}</sup>
-              {v.text}{' '}
-            </span>
+              <span className="w-6 shrink-0 pt-[0.35em] text-right font-sans text-[0.6em] font-semibold text-accent select-none">{v.verse}</span>
+              <span className="min-w-0 flex-1">{v.text}</span>
+            </p>
           )
         })}
       </article>
 
-      <nav className="mt-12 flex justify-between gap-3">
+      <button type="button" onClick={() => setChapterOpen(true)} className="card mt-10 flex w-full items-center gap-3 !p-4 text-left transition hover:border-accent">
+        <IconBadge name="lightbulb" />
+        <span className="flex-1"><span className="block font-semibold">Understand {book.name === 'Psalms' ? 'Psalm' : book.name} {chapter}</span><span className="text-xs text-muted">Summary, background, the chapter step by step, key verses, lessons and a prayer</span></span>
+        <span className="text-accent">→</span>
+      </button>
+      <button type="button" onClick={() => setQuizOpen(true)} className="card mt-3 flex w-full items-center gap-3 !p-4 text-left transition hover:border-accent">
+        <IconBadge name="brain" />
+        <span className="flex-1"><span className="block font-semibold">Quiz me on this chapter</span><span className="text-xs text-muted">5 quick questions to check what you read</span></span>
+        <span className="text-accent">→</span>
+      </button>
+
+      <nav className="mt-8 flex justify-between gap-3">
         {prev ? (
           <Link to="/app/bible/$book/$chapter" params={{ book: bookSlug(prev.book), chapter: String(prev.chapter) }} search={keep(prev.book, prev.chapter)} className="btn-ghost">← Previous</Link>
         ) : <span />}
@@ -203,25 +267,74 @@ function Reader() {
           <Link to="/app/bible/$book/$chapter" params={{ book: bookSlug(next.book), chapter: String(next.chapter) }} className="btn-primary">Next chapter →</Link>
         )}
       </nav>
-      {inPlan && selected.length === 0 && <PlanReadingBar search={search} bookId={book.id} chapter={chapter} />}
+      {inPlan && selected.length === 0 && !listen && <PlanReadingBar search={search} bookId={book.id} chapter={chapter} />}
 
-      {selected.length > 0 && (
+      {selected.length > 0 && !listen && (
         <div className="fixed inset-x-0 bottom-20 z-30 px-4 md:bottom-6">
-          <div className="fade-in mx-auto flex max-w-lg flex-wrap items-center gap-2 rounded-3xl bg-navy p-3 text-white shadow-2xl">
-            <p className="flex-1 truncate px-2 text-sm font-semibold">{msg ?? (contiguous ? ref : `${sorted.length} verses`)}</p>
-            <button type="button" onClick={copy} className="rounded-full bg-white/10 px-3 py-2 text-xs font-semibold">Copy</button>
-            {contiguous && (
-              <ShareButton
-                className="rounded-full bg-white/10 px-3 py-2 text-xs font-semibold"
-                card={{ kind: 'verse', text, reference: ref, translation: trLabel }}
-                text={`“${text}” (${ref} ${trLabel})`}
-              />
-            )}
-            <button type="button" onClick={memorize} className="rounded-full bg-gold px-3 py-2 text-xs font-semibold text-navy">Memorise</button>
-            <button type="button" onClick={() => setSelected([])} className="rounded-full px-2 py-2 text-xs text-white/70" aria-label="Clear selection">✕</button>
+          <div className="fade-in mx-auto max-w-lg rounded-3xl bg-navy p-3 text-white shadow-2xl">
+            <div className="flex items-center gap-2">
+              <p className="flex-1 truncate px-2 text-sm font-semibold">{msg ?? (contiguous ? ref : `${sorted.length} verses`)}</p>
+              <div className="flex items-center gap-1.5" role="group" aria-label="Colour">
+                {VERSE_COLORS.map((c) => (
+                  <button key={c.key} type="button" onClick={() => colour(c.key)} aria-label={`Colour ${c.label}`} className="h-7 w-7 rounded-full ring-2 ring-white/30 transition hover:scale-110" style={{ background: c.swatch }} />
+                ))}
+                {sorted.some((v) => marks[v]) && (
+                  <button type="button" onClick={() => colour(null)} aria-label="Remove colour" className="flex h-7 w-7 items-center justify-center rounded-full bg-white/10 text-xs">⌫</button>
+                )}
+              </div>
+              <button type="button" onClick={() => setSelected([])} className="rounded-full px-2 py-1 text-xs text-white/70" aria-label="Clear selection">✕</button>
+            </div>
+            <div className="mt-2.5 flex flex-wrap gap-1.5">
+              <button type="button" onClick={saveToJournal} className="rounded-full bg-gold px-3 py-2 text-xs font-semibold text-navy"><LineIcon name="star" className="mr-1 inline h-4 w-4 -translate-y-px" />Save to journal</button>
+              {contiguous && (
+                <ShareButton
+                  className="rounded-full bg-white/10 px-3 py-2 text-xs font-semibold"
+                  card={{ kind: 'verse', text, reference: ref, translation: trLabel }}
+                  text={`“${text}” (${ref} ${trLabel})`}
+                />
+              )}
+              {contiguous && sorted.length <= 12 && (
+                <button type="button" onClick={() => setUnderstand(formatReference(book.id, chapter, sorted[0], sorted[sorted.length - 1]))} className="rounded-full bg-white/10 px-3 py-2 text-xs font-semibold"><LineIcon name="lightbulb" className="mr-1 inline h-4 w-4 -translate-y-px" />Understand</button>
+              )}
+              <button type="button" onClick={memorize} className="rounded-full bg-white/10 px-3 py-2 text-xs font-semibold"><LineIcon name="gem" className="mr-1 inline h-4 w-4 -translate-y-px" />Memorise</button>
+              <button type="button" onClick={copy} className="rounded-full bg-white/10 px-3 py-2 text-xs font-semibold">Copy</button>
+            </div>
           </div>
         </div>
       )}
+      {understand && <UnderstandSheet reference={understand} onClose={() => setUnderstand(null)} />}
+      {listen && (
+        <ListenBar
+          key={`${book.id}-${chapter}-${tr}`}
+          title={`${book.name === 'Psalms' ? 'Psalm' : book.name} ${chapter}`}
+          items={verses.map((v) => v.text)}
+          autoStart={!!search.listen}
+          onIndex={(k) => {
+            const n = k === null ? null : verses[k]?.verse ?? null
+            setSpeaking(n)
+            if (n) document.getElementById(`v${n}`)?.scrollIntoView({ block: 'center', behavior: 'smooth' })
+          }}
+          nextLabel={next && !inPlan ? 'Keeps going into the next chapter' : undefined}
+          onFinished={() => {
+            if (next && !inPlan) navigate({ to: '/app/bible/$book/$chapter', params: { book: bookSlug(next.book), chapter: String(next.chapter) }, search: { listen: 1 } })
+          }}
+          onClose={() => {
+            setListen(false)
+            setSpeaking(null)
+            if (search.listen) navigate({ search: (p: Record<string, unknown>) => ({ ...p, listen: undefined }), replace: true } as never)
+          }}
+        />
+      )}
+      {quizOpen && (
+        <ChapterQuizSheet
+          book={book.id}
+          chapter={chapter}
+          load={(b, c) => getChapterQuiz({ data: { book: b, chapter: c } })}
+          save={(score, total, ref) => saveGameResult({ data: { kind: 'chapter', score, total, ref } }).catch(() => {})}
+          onClose={() => setQuizOpen(false)}
+        />
+      )}
+      {chapterOpen && <ChapterSheet book={book.id} chapter={chapter} onClose={() => setChapterOpen(false)} />}
     </main>
   )
 }

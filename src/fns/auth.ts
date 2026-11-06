@@ -29,7 +29,7 @@ export const signUp = createServerFn({ method: 'POST' })
     const birthYear = Math.round(Number(d?.birthYear))
     const thisYear = new Date().getFullYear()
     if (!birthYear || birthYear < thisYear - 110 || birthYear > thisYear) throw new Error('Please choose your year of birth.')
-    if (thisYear - birthYear < 13) throw new Error('SpiritualGym is for people aged 13 and over.')
+    if (thisYear - birthYear < 13) throw new Error('TheRenewGym is for people aged 13 and over.')
     return { name, email, password, birthYear }
   })
   .handler(async ({ data }) => {

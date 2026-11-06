@@ -14,9 +14,9 @@ export const getHome = createServerFn({ method: 'GET' }).handler(async () => {
 
   const [profile, checkin, lastDay, journey, verse, todaySessions, counts, memory] = await Promise.all([
     db()
-      .prepare('SELECT daily_minutes, level, onboarded_at FROM profiles WHERE user_id = ?')
+      .prepare('SELECT daily_minutes, level, onboarded_at, tour_seen_at FROM profiles WHERE user_id = ?')
       .bind(user.id)
-      .first<{ daily_minutes: number; level: string; onboarded_at: string | null }>(),
+      .first<{ daily_minutes: number; level: string; onboarded_at: string | null; tour_seen_at: string | null }>(),
     db()
       .prepare('SELECT mood, note FROM checkins WHERE user_id = ? AND day = ?')
       .bind(user.id, today)
@@ -50,9 +50,9 @@ export const getHome = createServerFn({ method: 'GET' }).handler(async () => {
     .bind(slug)
     .first<{ id: string; slug: string; title: string; description: string | null; minutes: number; is_recovery: number }>()
   const pastorRow = await db()
-    .prepare(`SELECT p.pastor_mode, (SELECT COUNT(*) FROM ministry_log m WHERE m.user_id = p.user_id AND m.day = ?) AS ministry FROM profiles p WHERE p.user_id = ?`)
+    .prepare(`SELECT p.pastor_mode, p.ministry_role, (SELECT COUNT(*) FROM ministry_log m WHERE m.user_id = p.user_id AND m.day = ? AND m.kind <> 'ai-revise') AS ministry FROM profiles p WHERE p.user_id = ?`)
     .bind(today, user.id)
-    .first<{ pastor_mode: number; ministry: number }>()
+    .first<{ pastor_mode: number; ministry_role: string | null; ministry: number }>()
     .catch(() => null)
   const [devotion, tongues, unseen, header, planRow] = await Promise.all([
     devotionOfTheDay(),
@@ -86,6 +86,15 @@ export const getHome = createServerFn({ method: 'GET' }).handler(async () => {
       pct: Math.round((planRow.done / days.length) * 100),
     }
   }
+  // The book I'm reading (Books)
+  const book = await db()
+    .prepare(
+      `SELECT b.id, b.title, b.cover_key, ub.days, ub.done FROM user_books ub JOIN books b ON b.id = ub.book_id
+       WHERE ub.user_id = ? AND ub.status = 'active' ORDER BY ub.created_at DESC LIMIT 1`,
+    )
+    .bind(user.id)
+    .first<{ id: string; title: string; cover_key: string | null; days: number; done: number }>()
+    .catch(() => null)
   const steps = workout
     ? (
         await db()
@@ -116,6 +125,7 @@ export const getHome = createServerFn({ method: 'GET' }).handler(async () => {
   return {
     name: user.name,
     avatar: user.avatar_key,
+    showTour: !!profile && !profile.tour_seen_at,
     dailyMinutes,
     level: profile?.level ?? 'build',
     checkin: checkin ?? null,
@@ -124,7 +134,8 @@ export const getHome = createServerFn({ method: 'GET' }).handler(async () => {
     devotion,
     header,
     activePlan,
-    pastor: pastorRow?.pastor_mode ? { ministryToday: pastorRow.ministry } : null,
+    book: book ? { ...book, day: Math.min(book.days, book.done + 1) } : null,
+    pastor: pastorRow?.pastor_mode ? { ministryToday: pastorRow.ministry, role: pastorRow.ministry_role || 'Minister' } : null,
     unseenAwards: unseen,
     journey,
     verse,
@@ -161,3 +172,17 @@ function parseKinds(raw: string): Record<string, number> {
     return {}
   }
 }
+
+/** The welcome tour was seen (finished or skipped): don't show it again */
+export const finishTour = createServerFn({ method: 'POST' }).handler(async () => {
+  const user = await requireUser()
+  await db().prepare(`UPDATE profiles SET tour_seen_at = datetime('now') WHERE user_id = ?`).bind(user.id).run()
+  return { ok: true }
+})
+
+/** "Show me around again" from Profile */
+export const replayTour = createServerFn({ method: 'POST' }).handler(async () => {
+  const user = await requireUser()
+  await db().prepare('UPDATE profiles SET tour_seen_at = NULL WHERE user_id = ?').bind(user.id).run()
+  return { ok: true }
+})

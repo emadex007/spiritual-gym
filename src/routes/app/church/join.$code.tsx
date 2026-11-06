@@ -3,6 +3,7 @@ import { Link, createFileRoute, useRouter } from '@tanstack/react-router'
 import { getChurchInvite, joinChurch } from '~/fns/church'
 import { ChurchBadge } from '~/components/ChurchBadge'
 import { errorText } from '~/components/AuthShell'
+import { IconBadge } from '~/components/LineIcon'
 
 export const Route = createFileRoute('/app/church/join/$code')({
   loader: ({ params }) => getChurchInvite({ data: params.code }),
@@ -31,7 +32,7 @@ function JoinChurch() {
   if (!c)
     return (
       <main className="mx-auto max-w-md px-5 pt-14 text-center">
-        <p className="text-5xl" aria-hidden>⛪</p>
+        <IconBadge name="church" size="lg" className="mx-auto" />
         <h1 className="mt-4 font-display text-3xl font-semibold">Church not found</h1>
         <p className="mt-3 text-muted">Check the code with your church — it may have been changed.</p>
         <Link to="/app/church" className="btn-primary mt-6">Back</Link>
@@ -43,7 +44,7 @@ function JoinChurch() {
       <div className="flex justify-center"><ChurchBadge name={c.name} logo={c.logo_key} color={c.color} size="lg" /></div>
       <h1 className="mt-4 font-display text-3xl font-semibold">{c.name}</h1>
       <p className="mt-1 text-muted">{[c.denomination, c.city, c.country].filter(Boolean).join(' · ')}</p>
-      <p className="mt-1 text-sm text-muted">{c.members} member{c.members === 1 ? '' : 's'} on SpiritualGym</p>
+      <p className="mt-1 text-sm text-muted">{c.members} member{c.members === 1 ? '' : 's'} on TheRenewGym</p>
       {c.description && <p className="mt-4 text-sm">{c.description}</p>}
       <p className="mt-5 rounded-2xl bg-surface-2 px-4 py-3 text-left text-xs text-muted">
         When you join, church admins see your name. Your journal, prayers and personal progress stay private.

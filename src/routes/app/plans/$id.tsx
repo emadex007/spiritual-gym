@@ -11,6 +11,7 @@ import { AwardCelebration } from '~/components/AwardCelebration'
 import { ShareButton } from '~/components/ShareButton'
 import { CheckIcon } from '~/components/Icons'
 import { errorText } from '~/components/AuthShell'
+import { LineIcon } from '~/components/LineIcon'
 
 export const Route = createFileRoute('/app/plans/$id')({
   validateSearch: (s: { done?: unknown; won?: unknown }): { done?: number; won?: string } => ({
@@ -66,13 +67,13 @@ function MyPlan() {
   return (
     <main className="fade-in mx-auto max-w-2xl pb-10 md:px-5 md:pt-10">
       <AwardCelebration awards={won} />
-      <div className="relative md:overflow-hidden md:rounded-[1.75rem]">
-        <JourneyCover focus={d.plan.focus} className="h-36" />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/55 to-transparent" />
+      <div className="relative isolate flex min-h-36 flex-col justify-end overflow-hidden md:rounded-[1.75rem]">
+        <JourneyCover focus={d.plan.focus} className="absolute inset-0 -z-10 h-full w-full" />
+        <div className="absolute inset-0 -z-10 bg-gradient-to-t from-black/60 to-transparent" />
         <Link to="/app/plans" className="absolute top-4 left-4 rounded-full bg-black/30 px-3 py-1.5 text-sm font-semibold text-white backdrop-blur">← Plans</Link>
-        <div className="absolute right-5 bottom-4 left-5 text-white">
-          <p className="text-xs font-semibold tracking-[0.12em] uppercase opacity-90">{d.circle ? `👥 ${d.circle.name}` : 'Reading plan'}</p>
-          <h1 className="mt-1 font-display text-3xl leading-tight font-semibold drop-shadow">{d.plan.title}</h1>
+        <div className="px-5 pt-16 pb-4 text-white">
+          <p className="text-xs font-semibold tracking-[0.12em] uppercase opacity-90">{d.circle ? <><LineIcon name="users" className="mr-1 inline h-3.5 w-3.5 -translate-y-px" />{d.circle.name}</> : 'Reading plan'}</p>
+          <h1 className="mt-1 font-display text-2xl leading-tight font-semibold break-words drop-shadow sm:text-3xl">{d.plan.title}</h1>
         </div>
       </div>
 
@@ -80,9 +81,9 @@ function MyPlan() {
         {justRead && (
           <p className="fade-in mt-4 rounded-2xl bg-sage-soft px-4 py-3 text-sm font-semibold text-sage">🎉 Day {justRead} read — well done! {d.plan.status === 'completed' ? 'You finished the whole plan!' : 'Your next reading is ready below.'}</p>
         )}
-        <div className="mt-4 h-2.5 rounded-full bg-surface-2"><div className="bar-grow h-2.5 rounded-full" style={{ width: `${pct}%`, background: 'linear-gradient(90deg,#c9971f,#e98a2b)' }} /></div>
-        <p className="mt-1 text-xs text-muted">{d.done.length} of {d.days.length} days read · {pct}%{d.plan.status === 'completed' ? ' · 🏅 Complete!' : ''}</p>
-        {d.plan.status === 'active' && <p className="mt-1 text-xs text-muted">🔔 You’ll get a reminder each day to keep reading. Change the time in <Link to="/app/profile" className="font-semibold text-accent">Profile</Link>.</p>}
+        <div className="mt-4 h-2.5 rounded-full bg-surface-2"><div className="bar-grow h-2.5 rounded-full" style={{ width: `${pct}%`, background: 'linear-gradient(90deg,var(--gold-mid),#e98a2b)' }} /></div>
+        <p className="mt-1 text-xs text-muted">{d.done.length} of {d.days.length} days read · {pct}%{d.plan.status === 'completed' ? ' · Complete!' : ''}</p>
+        {d.plan.status === 'active' && <p className="mt-1 text-xs text-muted"><LineIcon name="bell" className="mr-1 inline h-3.5 w-3.5 -translate-y-px" />You’ll get a reminder each day to keep reading. Change the time in <Link to="/app/profile" className="font-semibold text-accent">Profile</Link>.</p>}
 
         {/* Selected day */}
         <section className="card mt-5">
@@ -98,7 +99,7 @@ function MyPlan() {
               search={{ plan: d.plan.id, day: sel, pk: d.plan.plan_key }}
               className="btn-primary mt-4 w-full"
             >
-              📖 Start reading
+              <LineIcon name="bookOpen" className="h-4 w-4" />Start reading
             </Link>
           )}
           <div className="mt-4 flex flex-wrap gap-2">
@@ -173,15 +174,15 @@ function MyPlan() {
         {/* Reading circle */}
         {d.circle && (
           <section className="card mt-5">
-            <p className="eyebrow">👥 {d.circle.name}</p>
+            <p className="eyebrow"><LineIcon name="users" className="mr-1 inline h-4 w-4 -translate-y-px" />{d.circle.name}</p>
             {!d.circle.isChurch && (
             <div className="mt-3 flex flex-wrap gap-2">
               <ShareButton
                 label="Invite friends"
                 card={{ kind: 'verse', text: 'Thy word is a lamp unto my feet, and a light unto my path.', reference: 'Psalm 119:105', translation: 'KJV' }}
-                text={`Read “${d.plan.title}” with me on SpiritualGym 📖 Join our circle: ${inviteLink}`}
+                text={`Read “${d.plan.title}” with me on TheRenewGym 📖 Join our circle: ${inviteLink}`}
               />
-              <a className="btn-ghost !py-2" target="_blank" rel="noreferrer" href={`https://wa.me/?text=${encodeURIComponent(`Read “${d.plan.title}” with me on SpiritualGym 📖 ${inviteLink}`)}`}>WhatsApp</a>
+              <a className="btn-ghost !py-2" target="_blank" rel="noreferrer" href={`https://wa.me/?text=${encodeURIComponent(`Read “${d.plan.title}” with me on TheRenewGym 📖 ${inviteLink}`)}`}>WhatsApp</a>
             </div>
             )}
             <ul className="mt-4 space-y-3">
