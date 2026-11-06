@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { Link, Outlet, createFileRoute, redirect, useRouterState } from '@tanstack/react-router'
 import { getMe } from '~/fns/auth'
 import { CommunityIcon, HomeIcon, JournalIcon, ProfileIcon, TrainIcon } from '~/components/Icons'
@@ -5,6 +6,7 @@ import { Logo } from '~/components/Logo'
 import { BibleIcon } from '~/components/Art'
 import { ThemeSwitch } from '~/components/ThemeSwitch'
 import { NotificationBell } from '~/components/NotificationBell'
+import { InstallPrompt } from '~/components/InstallPrompt'
 import { SupportFloat, SupportLink } from '~/components/SupportButton'
 import { isInvite, safeNext } from '~/lib/next'
 
@@ -31,17 +33,22 @@ const NAV = [
 function AppLayout() {
   const pathname = useRouterState({ select: (s) => s.location.pathname })
   // The workout player is full-screen, without navigation
-  const immersive = pathname.startsWith('/app/workout/') || pathname.endsWith('/live')
+  const immersive = pathname.startsWith('/app/workout/') || pathname.startsWith('/app/meet/') || pathname.endsWith('/live') || /^\/app\/books\/[^/]+\/read/.test(pathname)
+
+  // A pop-up that closed while changing page must never leave the page unable to scroll
+  useEffect(() => {
+    document.body.style.overflow = ''
+  }, [pathname])
 
   if (immersive) return <Outlet />
 
   return (
     <div className="min-h-dvh md:flex">
       {/* Desktop sidebar */}
-      <aside className="sticky top-0 hidden h-dvh w-60 shrink-0 flex-col border-r border-line px-4 py-6 md:flex">
-        <div className="flex items-center justify-between px-2">
-          <Link to="/app">
-            <Logo />
+      <aside className="sticky top-0 hidden h-dvh w-60 shrink-0 flex-col overflow-y-auto overscroll-contain border-r border-line px-4 py-6 md:flex">
+        <div className="flex items-center justify-between gap-2 px-1">
+          <Link to="/app" className="min-w-0">
+            <Logo size="sm" />
           </Link>
           <NotificationBell tone="dark" />
         </div>
@@ -59,7 +66,7 @@ function AppLayout() {
             </Link>
           ))}
         </nav>
-        <div className="mt-auto space-y-4 px-1">
+        <div className="mt-auto space-y-4 px-1 pt-6">
           <SupportLink />
           <ThemeSwitch compact />
           <p className="px-2 text-xs leading-relaxed text-muted">You don’t have to be perfect to begin again.</p>
@@ -76,6 +83,7 @@ function AppLayout() {
           <SupportFloat />
         </div>
       )}
+      <InstallPrompt />
 
       {/* Mobile bottom navigation */}
       <nav className="fixed inset-x-0 bottom-0 z-20 border-t border-line bg-bg/92 backdrop-blur md:hidden safe-bottom" aria-label="Main">

@@ -36,7 +36,7 @@ function ForgotPassword() {
       {sent ? (
         <div className="space-y-4 text-sm text-muted">
           <p>Can’t find it? Check your spam or promotions folder, or wait a minute and try again.</p>
-          <p>Still stuck? Contact the SpiritualGym team and we can send you a reset link directly.</p>
+          <p>Still stuck? Contact the TheRenewGym team and we can send you a reset link directly.</p>
           <button type="button" className="btn-ghost w-full" onClick={() => setSent(false)}>Try a different email</button>
         </div>
       ) : (

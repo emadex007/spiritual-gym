@@ -6,6 +6,7 @@ import { PRAYER_CATEGORIES } from '~/lib/content'
 import { FormError, errorText } from '~/components/AuthShell'
 import { CheckIcon } from '~/components/Icons'
 import { AwardCelebration } from '~/components/AwardCelebration'
+import { LineIcon } from '~/components/LineIcon'
 import type { AwardDef } from '~/lib/awards'
 
 export const Route = createFileRoute('/app/journal/prayer')({
@@ -158,7 +159,7 @@ function PrayerCard({ p, onEdit }: { p: Prayer; onEdit: () => void }) {
           <span className="rounded-full bg-surface-2 px-2.5 py-0.5 text-xs font-medium text-muted">{catLabel(p.category)}</span>
           <p className="mt-2 font-semibold">{p.title}</p>
           {p.notes && <p className="mt-1 whitespace-pre-wrap text-sm text-muted">{p.notes}</p>}
-          {p.scripture && <p className="mt-2 text-sm text-accent">📖 {p.scripture}</p>}
+          {p.scripture && <p className="mt-2 text-sm text-accent"><LineIcon name="bookOpen" className="mr-1 inline h-4 w-4 -translate-y-px" />{p.scripture}</p>}
         </div>
       </div>
       {!answering ? (
@@ -172,7 +173,7 @@ function PrayerCard({ p, onEdit }: { p: Prayer; onEdit: () => void }) {
         </div>
       ) : (
         <div className="fade-in mt-4 space-y-3 rounded-2xl bg-sage-soft p-4">
-          <p className="font-display text-lg font-semibold">Answered prayer 🙏</p>
+          <p className="font-display text-lg font-semibold"><LineIcon name="prayer" className="mr-1.5 inline h-5 w-5 -translate-y-0.5" />Answered prayer</p>
           <textarea className="input" rows={2} placeholder="What happened?" value={what} onChange={(e) => setWhat(e.target.value)} />
           <textarea className="input" rows={2} placeholder="How did I respond?" value={resp} onChange={(e) => setResp(e.target.value)} />
           <div className="flex gap-3">
@@ -225,7 +226,7 @@ function AnsweredCard({ p }: { p: Prayer }) {
         </div>
       )}
       <div className="mt-4 flex flex-wrap items-center gap-4">
-        <a href={`/app/testimonies?from=${encodeURIComponent(p.id)}`} className="rounded-full bg-gold/20 px-4 py-2 text-xs font-semibold text-[#8a6310] dark:text-gold">🎉 Share as a testimony</a>
+        <a href={`/app/testimonies?from=${encodeURIComponent(p.id)}`} className="rounded-full bg-gold/20 px-4 py-2 text-xs font-semibold text-gold-ink dark:text-gold"><LineIcon name="sparkles" className="mr-1 inline h-3.5 w-3.5 -translate-y-px" />Share as a testimony</a>
         <button type="button" className="text-xs font-semibold text-muted hover:text-ink" onClick={reopen}>
           Move back to my list
         </button>
@@ -271,7 +272,7 @@ function PrayerLibrary({ library }: { library: LibraryPrayer[] }) {
           <div key={l.id} className="rounded-2xl border border-line bg-surface">
             <button type="button" className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left" onClick={() => setOpen(open === l.id ? null : l.id)}>
               <span>
-                <span className="block font-semibold">🙏 {l.title}</span>
+                <span className="block font-semibold"><LineIcon name="prayer" className="mr-1.5 inline h-4 w-4 -translate-y-px text-accent" />{l.title}</span>
                 {l.reference && <span className="text-xs text-accent">{l.reference}</span>}
               </span>
               <span className="text-sm text-muted" aria-hidden>{open === l.id ? '▲' : '▼'}</span>

@@ -1,10 +1,8 @@
 import { useEffect, useState } from 'react'
 import { errorText } from '~/components/AuthShell'
 import { SERMON_AUDIENCES, SERMON_MINUTES, SERMON_SERVICES } from '~/lib/content'
-
-/** Big section headings (capitals) and the smaller labels inside each point */
-const MAJOR = /^(SERMON TITLE|MAIN SCRIPTURE|INTRODUCTION|DEFINE THE KEY TERMS|CENTRAL TRUTH|POINT \d+|PRACTICAL APPLICATION|WARNINGS \/ THINGS TO AVOID|KEY TAKEAWAYS|CONCLUSION|ALTAR \/ RESPONSE MOMENT|PRAYER POINTS|PROPHETIC DECLARATIONS|CLOSING PRAYER|BENEDICTION):/
-const MINOR = /^(Explanation|Scripture|Bible example|Everyday example|Today|Practical steps|Watch out|Transition|Our [^:]{3,40}):/
+import { SermonStudio } from '~/components/SermonStudio'
+import { LineIcon } from '~/components/LineIcon'
 
 export type SermonOptions = { church: string; audience: string; service: string; minutes: number; altarCall: boolean }
 const saved = (): Partial<SermonOptions> => {
@@ -77,63 +75,18 @@ export function FullSermon({
     }
   }
 
-  const fileName = (sermonTitle || title || scripture || 'sermon').replace(/[^\w\s-]/g, '').trim().replace(/\s+/g, '-').slice(0, 60) || 'sermon'
-  const footer = '\n\n— Prepared with SpiritualGym'
-  function download(kind: 'doc' | 'txt') {
-    if (!text) return
-    let blob: Blob
-    if (kind === 'txt') blob = new Blob([text + footer], { type: 'text/plain;charset=utf-8' })
-    else {
-      const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-      const body = text
-        .split('\n')
-        .map((raw) => {
-          const l = raw.trim()
-          if (!l) return ''
-          if (MAJOR.test(l)) return `<p style="margin:18pt 0 4pt;font-size:14pt;color:#1f3a5f"><b>${esc(l)}</b></p>`
-          const m = l.match(MINOR)
-          if (m) return `<p style="margin:0 0 6pt"><b>${esc(m[0])}</b>${esc(l.slice(m[0].length))}</p>`
-          return `<p style="margin:0 0 6pt">${esc(l)}</p>`
-        })
-        .join('')
-      blob = new Blob([`<html><head><meta charset="utf-8"><title>${esc(sermonTitle || title || 'Sermon')}</title></head><body style="font-family:Georgia,serif;font-size:13pt;line-height:1.5">${body}<p style="color:#888;font-size:9pt">Prepared with SpiritualGym</p></body></html>`], { type: 'application/msword' })
-    }
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `${fileName}.${kind}`
-    a.click()
-    setTimeout(() => URL.revokeObjectURL(url), 2000)
-  }
-  async function copy() {
-    if (!text) return
-    try {
-      await navigator.clipboard.writeText(text)
-      setMsg('Copied. Paste it anywhere.')
-    } catch {
-      setMsg('Couldn’t copy on this device. Use Download instead.')
-    }
-  }
-  async function share() {
-    if (!text) return
-    try {
-      if (navigator.share) await navigator.share({ title: sermonTitle || title || 'Sermon', text: text + footer })
-      else await copy()
-    } catch {}
-  }
-
   if (!open)
     return (
       <button className="mt-4 w-full rounded-3xl border-2 border-dashed border-accent/40 bg-accent-soft/40 px-5 py-4 text-left transition hover:border-accent" onClick={() => setOpen(true)}>
-        <span className="block font-semibold text-accent">✨ Write the full sermon with AI</span>
-        <span className="block text-sm text-muted">A complete preaching manuscript: introduction, key terms, central truth, 5 points with KJV Scriptures, Bible stories and everyday examples, application, warnings, takeaways, response moment, prayer points, declarations, closing prayer and benediction.</span>
+        <span className="flex items-center gap-1.5 font-semibold text-accent"><LineIcon name="sparkles" className="h-4 w-4" />Write the full sermon with AI</span>
+        <span className="block text-sm text-muted">A full teaching sermon: what it means (simple, Bible and original word), its types, why it matters, points with KJV Scriptures and Bible stories, benefits, dangers of neglect, how to do it, what to avoid, notes to write down, prayer points, prophetic declarations and benediction.</span>
       </button>
     )
 
   return (
     <section className="card fade-in mt-4 space-y-4">
       <div className="flex items-start justify-between gap-3">
-        <p className="font-semibold">✨ Full sermon draft</p>
+        <p className="flex items-center gap-1.5 font-semibold"><LineIcon name="sparkles" className="h-4 w-4 text-accent" />Full sermon draft</p>
         <button className="text-sm text-muted" onClick={() => setOpen(false)}>Close</button>
       </div>
       {!text && (
@@ -165,26 +118,17 @@ export function FullSermon({
       )}
       {text && (
         <>
-          <div className="max-h-[60vh] overflow-y-auto rounded-2xl bg-surface-2 p-4 text-[15px] leading-relaxed">
-            {text.split('\n').map((l, i) =>
-              MAJOR.test(l.trim()) ? (
-                <p key={i} className="mt-5 font-display text-lg font-semibold text-accent first:mt-0">{l.trim()}</p>
-              ) : MINOR.test(l.trim()) ? (
-                <p key={i} className="mt-2"><b>{l.trim().match(MINOR)![0]}</b>{l.trim().slice(l.trim().match(MINOR)![0].length)}</p>
-              ) : l.trim() ? (
-                <p key={i} className="mt-1 whitespace-pre-wrap">{l}</p>
-              ) : null,
-            )}
-          </div>
-          <p className="text-xs text-muted">This is a draft to study, pray over and make your own. Check every point against Scripture before you preach.</p>
-          <div className="flex flex-wrap gap-2">
-            <button className="btn-primary !py-2" onClick={copy}>📋 Copy</button>
-            <button className="btn-ghost !py-2" onClick={share}>↗ Share</button>
-            <button className="btn-ghost !py-2" onClick={() => download('doc')}>⬇ Word</button>
-            <button className="btn-ghost !py-2" onClick={() => download('txt')}>⬇ Text</button>
-            <button className="btn-ghost !py-2" onClick={() => { onUse(text, sermonTitle); setMsg('Added to your notes. Tap Save sermon to keep it.') }}>➕ Add to my notes</button>
-            <button className="btn-ghost !py-2" onClick={() => setText(null)}>↻ Write again</button>
-          </div>
+          <SermonStudio
+            text={text}
+            title={sermonTitle || title || scripture}
+            onText={(t, newTitle) => { setText(t); if (newTitle) setSermonTitle(newTitle) }}
+            extra={
+              <>
+                <button type="button" className="btn-ghost !py-2" onClick={() => { onUse(text, sermonTitle); setMsg('Added to your notes. Tap Save sermon to keep it.') }}><LineIcon name="plus" className="h-4 w-4" />Add to my notes</button>
+                <button type="button" className="btn-ghost !py-2" onClick={() => setText(null)}>↻ Write a new one</button>
+              </>
+            }
+          />
           {msg && <p className="text-sm text-sage">{msg}</p>}
         </>
       )}

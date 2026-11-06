@@ -4,6 +4,7 @@ import { adminListTestimonies, adminReviewTestimony } from '~/fns/admin'
 import { PageHead, Stat } from '~/components/AdminUI'
 import { FormError, errorText } from '~/components/AuthShell'
 import { timeAgo } from '~/components/Avatar'
+import { LineIcon, Glyph } from '~/components/LineIcon'
 import { testimonyCategory } from '~/lib/content'
 
 export const Route = createFileRoute('/admin/testimonies')({
@@ -12,7 +13,7 @@ export const Route = createFileRoute('/admin/testimonies')({
 })
 
 type T = Awaited<ReturnType<typeof adminListTestimonies>>[number]
-const STATUS: Record<string, string> = { pending: 'bg-gold/20 text-[#8a6310]', approved: 'bg-sage-soft text-sage', rejected: 'bg-red-500/10 text-red-600', hidden: 'bg-red-500/10 text-red-600' }
+const STATUS: Record<string, string> = { pending: 'bg-gold/20 text-gold-ink', approved: 'bg-sage-soft text-sage', rejected: 'bg-red-500/10 text-red-600', hidden: 'bg-red-500/10 text-red-600' }
 
 function AdminTestimonies() {
   const list = Route.useLoaderData()
@@ -22,7 +23,7 @@ function AdminTestimonies() {
     <>
       <PageHead title="Testimonies" sub="Members share what God has done. Nothing appears on the wall until you approve it. You can correct small spelling mistakes before approving." />
       <div className="grid grid-cols-3 gap-3">
-        <Stat label="Waiting" value={list.filter((t) => t.status === 'pending').length} color="bg-gold/20 text-[#8a6310]" />
+        <Stat label="Waiting" value={list.filter((t) => t.status === 'pending').length} color="bg-gold/20 text-gold-ink" />
         <Stat label="On the wall" value={list.filter((t) => t.status === 'approved').length} color="bg-sage-soft text-sage" />
         <Stat label="Amens & praises" value={list.reduce((a, t) => a + t.amens + t.praises, 0)} />
       </div>
@@ -61,7 +62,7 @@ function Item({ t }: { t: T }) {
   return (
     <div className="card space-y-2 !p-4">
       <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
-        <span>{c.emoji} {c.label} · <b>{t.author}</b> <span className="text-muted">({t.email}) · {timeAgo(t.created_at)}{t.is_anonymous ? ' · shared anonymously' : ''}</span></span>
+        <span><Glyph e={c.emoji} className="mr-1 h-4 w-4 -translate-y-px text-accent" />{c.label} · <b>{t.author}</b> <span className="text-muted">({t.email}) · {timeAgo(t.created_at)}{t.is_anonymous ? ' · shared anonymously' : ''}</span></span>
         <span className={`rounded-full px-3 py-1 text-xs font-semibold capitalize ${STATUS[t.status] ?? ''}`}>{t.status}</span>
       </div>
       {t.status === 'pending' ? (
@@ -75,8 +76,8 @@ function Item({ t }: { t: T }) {
           <p className="text-sm whitespace-pre-wrap">{t.body}</p>
         </>
       )}
-      {t.scripture && <p className="text-sm text-accent">📖 {t.scripture}</p>}
-      {t.status === 'approved' && <p className="text-xs text-muted">🙏 {t.amens} · 🎉 {t.praises}</p>}
+      {t.scripture && <p className="text-sm text-accent"><LineIcon name="bookOpen" className="mr-1 inline h-4 w-4 -translate-y-px" />{t.scripture}</p>}
+      {t.status === 'approved' && <p className="flex items-center gap-1 text-xs text-muted"><LineIcon name="prayer" className="h-3.5 w-3.5" />{t.amens} · <LineIcon name="sparkles" className="h-3.5 w-3.5" />{t.praises}</p>}
       <FormError message={error} />
       <div className="flex flex-wrap items-center gap-2 pt-1">
         {t.status === 'pending' && (

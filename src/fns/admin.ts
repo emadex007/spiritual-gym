@@ -7,6 +7,9 @@ import { notify } from '~/lib/notify'
 import { confirmDonation, payConfig, testKey } from '~/lib/donations'
 import { checkAwards } from '~/lib/award-server'
 import { siteOrigin } from '~/lib/origin'
+import { buildWeekly, newToken, sendBatch } from '~/lib/weekly'
+import { BRAND_KEYS, DEFAULT_TAGLINE, cleanBrand } from '~/lib/brand'
+import { GROUP_KINDS } from '~/lib/content'
 
 const LEVELS = ['recovery', 'build', 'deepen', 'intensive']
 const STEP_KINDS = ['stillness', 'breathe', 'scripture', 'prayer', 'worship', 'reflection', 'thanksgiving', 'devotion', 'tongues']
@@ -366,14 +369,14 @@ export const adminListGroups = createServerFn({ method: 'GET' }).handler(async (
   await requireAdmin()
   const { results } = await db()
     .prepare(
-      `SELECT g.id, g.name, g.purpose, g.description, g.is_private, g.is_featured, g.is_hidden, g.member_count, g.live_count, g.invite_code,
+      `SELECT g.id, g.name, g.purpose, g.kind, g.description, g.is_private, g.is_featured, g.is_hidden, g.member_count, g.live_count, g.invite_code,
               g.last_activity_at, g.created_at, u.name AS creator,
               (SELECT COUNT(*) FROM prayer_posts p WHERE p.group_id = g.id) AS posts,
               (SELECT COUNT(*) FROM reports r WHERE r.target_type = 'group' AND r.target_id = g.id AND r.status = 'open') AS open_reports
        FROM prayer_groups g LEFT JOIN users u ON u.id = g.created_by ORDER BY g.live_count DESC, g.created_at DESC LIMIT 500`,
     )
     .all<{
-      id: string; name: string; purpose: string; description: string | null; is_private: number; is_featured: number; is_hidden: number
+      id: string; name: string; purpose: string; kind: string; description: string | null; is_private: number; is_featured: number; is_hidden: number
       member_count: number; live_count: number; invite_code: string; last_activity_at: string; created_at: string; creator: string | null; posts: number; open_reports: number
     }>()
   return results
@@ -396,18 +399,18 @@ export const adminUpdateGroup = createServerFn({ method: 'POST' })
   })
 
 export const adminCreateOfficialGroup = createServerFn({ method: 'POST' })
-  .validator((d: { name: string; purpose: string; description?: string }) => {
+  .validator((d: { name: string; kind?: string; purpose: string; description?: string }) => {
     const name = String(d?.name ?? '').trim()
     if (name.length < 3) throw new Error('Give the group a name.')
-    return { name: name.slice(0, 60), purpose: String(d.purpose || 'general'), description: String(d.description ?? '').slice(0, 300) || null }
+    return { name: name.slice(0, 60), kind: GROUP_KINDS.some((k) => k.key === d.kind) ? String(d.kind) : 'prayer', purpose: String(d.purpose || 'general'), description: String(d.description ?? '').slice(0, 300) || null }
   })
   .handler(async ({ data }) => {
     const admin = await requireAdmin()
     const id = newId()
     const code = Array.from(crypto.getRandomValues(new Uint8Array(8)), (b) => 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'[b % 32]).join('')
     await db()
-      .prepare('INSERT INTO prayer_groups (id, name, purpose, description, invite_code, is_featured) VALUES (?, ?, ?, ?, ?, 1)')
-      .bind(id, data.name, data.purpose, data.description, code)
+      .prepare('INSERT INTO prayer_groups (id, name, kind, purpose, description, invite_code, is_featured) VALUES (?, ?, ?, ?, ?, ?, 1)')
+      .bind(id, data.name, data.kind, data.purpose, data.description, code)
       .run()
     await audit(admin, 'group.create', id, data.name)
     return { id }
@@ -516,17 +519,23 @@ export const getCommunityStats = createServerFn({ method: 'GET' }).handler(async
   await requireAdmin()
   const q = <T,>(sql: string) => db().prepare(sql).first<T>()
   try {
-    const [groups, liveNow, postsWeek, liveWeek, openReports, bible] = await Promise.all([
+    const [groups, liveNow, postsWeek, liveWeek, openReports, bible, relay, alert] = await Promise.all([
       q<{ n: number }>('SELECT COUNT(*) AS n FROM prayer_groups WHERE is_hidden = 0'),
       q<{ n: number }>('SELECT COALESCE(SUM(live_count),0) AS n FROM prayer_groups'),
       q<{ n: number }>(`SELECT COUNT(*) AS n FROM prayer_posts WHERE created_at > datetime('now','-7 days')`),
       q<{ n: number }>(`SELECT COUNT(*) AS n FROM prayer_live_log WHERE joined_at > datetime('now','-7 days')`),
       q<{ n: number }>(`SELECT COUNT(*) AS n FROM reports WHERE status = 'open'`),
       q<{ n: number }>('SELECT COUNT(*) AS n FROM bible_verses'),
+      q<{ n: number }>(`SELECT COALESCE(SUM(relay_bytes),0) AS n FROM meeting_usage WHERE day >= strftime('%Y-%m-01','now')`).catch(() => ({ n: 0 })),
+      q<{ value: string }>(`SELECT value FROM settings WHERE key = 'usage_alert_gb'`).catch(() => null),
     ])
-    return { groups: groups?.n ?? 0, liveNow: liveNow?.n ?? 0, postsWeek: postsWeek?.n ?? 0, liveWeek: liveWeek?.n ?? 0, openReports: openReports?.n ?? 0, bibleVerses: bible?.n ?? 0 }
+    return {
+      groups: groups?.n ?? 0, liveNow: liveNow?.n ?? 0, postsWeek: postsWeek?.n ?? 0, liveWeek: liveWeek?.n ?? 0, openReports: openReports?.n ?? 0, bibleVerses: bible?.n ?? 0,
+      relayGbMonth: (relay?.n ?? 0) / 1024 ** 3,
+      alertGb: Number(alert?.value ?? 50),
+    }
   } catch {
-    return { groups: 0, liveNow: 0, postsWeek: 0, liveWeek: 0, openReports: 0, bibleVerses: 0 }
+    return { groups: 0, liveNow: 0, postsWeek: 0, liveWeek: 0, openReports: 0, bibleVerses: 0, relayGbMonth: 0, alertGb: 50 }
   }
 })
 
@@ -965,4 +974,148 @@ export const adminReviewTestimony = createServerFn({ method: 'POST' })
     }
     await audit(admin, `testimony.${data.action}`, t.id, t.title)
     return { ok: true }
+  })
+
+// ---------------- Weekly email ----------------
+/** Your own "Your week with God" email: preview it here, or send it to your inbox now */
+export const adminWeeklyEmail = createServerFn({ method: 'POST' })
+  .validator((d: { send?: boolean }) => ({ send: !!d?.send }))
+  .handler(async ({ data }) => {
+    const admin = await requireAdmin()
+    const p = await db()
+      .prepare(`SELECT p.email_token, u.email, (SELECT MAX(day) FROM workout_sessions w WHERE w.user_id = u.id) AS last_day FROM users u LEFT JOIN profiles p ON p.user_id = u.id WHERE u.id = ?`)
+      .bind(admin.id)
+      .first<{ email_token: string | null; email: string; last_day: string | null }>()
+    let token = p?.email_token
+    if (!token) {
+      token = newToken()
+      await db().prepare('UPDATE profiles SET email_token = ? WHERE user_id = ?').bind(token, admin.id).run()
+    }
+    const today = dayString()
+    const sunday = new Date(Date.parse(today + 'T12:00:00Z') - new Date(today + 'T12:00:00Z').getUTCDay() * 86_400_000).toISOString().slice(0, 10)
+    const [mail] = await buildWeekly([{ user_id: admin.id, email: p?.email ?? '', name: admin.name, email_token: token, last_day: p?.last_day ?? null }], sunday)
+    const stats = await db()
+      .prepare(`SELECT SUM(weekly_email) AS on_count, COUNT(*) AS total, SUM(CASE WHEN last_weekly >= date('now', '-7 days') THEN 1 ELSE 0 END) AS sent FROM profiles`)
+      .first<{ on_count: number; total: number; sent: number }>()
+    const ready = !!env().RESEND_API_KEY
+    if (data.send) {
+      if (!ready) throw new Error('Email isn’t set up yet. Add RESEND_API_KEY (and EMAIL_FROM) first; see the steps on this page.')
+      if (!(await sendBatch([mail]))) throw new Error('Resend didn’t accept the email. Check the key and that EMAIL_FROM uses your verified domain.')
+      await audit(admin, 'weekly-email-test', admin.email)
+    }
+    return { subject: mail.subject, html: mail.html, to: mail.to, ready, subscribed: stats?.on_count ?? 0, total: stats?.total ?? 0, sentThisWeek: stats?.sent ?? 0 }
+  })
+
+// ---------------- Branding (colours, logo mark, tagline) ----------------
+export const adminGetBrand = createServerFn({ method: 'GET' }).handler(async () => {
+  await requireAdmin()
+  const { results } = await db()
+    .prepare(`SELECT key, value FROM settings WHERE key IN (${[...BRAND_KEYS, 'tagline'].map(() => '?').join(',')})`)
+    .bind(...BRAND_KEYS, 'tagline')
+    .all<{ key: string; value: string }>()
+  const raw = Object.fromEntries(results.map((r) => [r.key, r.value]))
+  return { brand: cleanBrand(raw), tagline: raw.tagline || DEFAULT_TAGLINE }
+})
+
+export const adminSaveBrand = createServerFn({ method: 'POST' })
+  .validator((d: { brand: Record<string, string>; tagline: string }) => {
+    const brand = cleanBrand(d?.brand)
+    const tagline = String(d?.tagline ?? '').trim().slice(0, 90) || DEFAULT_TAGLINE
+    return { brand, tagline }
+  })
+  .handler(async ({ data }) => {
+    const admin = await requireAdmin()
+    const rows: [string, string][] = [...BRAND_KEYS.map((k) => [k, data.brand[k]] as [string, string]), ['tagline', data.tagline]]
+    await db().batch(
+      rows.map(([k, v]) =>
+        db().prepare(`INSERT INTO settings (key, value, updated_at) VALUES (?1, ?2, datetime('now')) ON CONFLICT(key) DO UPDATE SET value = ?2, updated_at = datetime('now')`).bind(k, v),
+      ),
+    )
+    await audit(admin, 'branding.update', null, `${data.brand.brand_navy} / ${data.brand.brand_gold}`)
+    return { ok: true }
+  })
+
+// ---------------- Insights (totals and trends only, never anyone's private content) ----------------
+export const adminInsights = createServerFn({ method: 'GET' })
+  .validator((d: { days?: number }) => ({ days: [7, 30, 90].includes(Number(d?.days)) ? Number(d.days) : 30 }))
+  .handler(async ({ data }) => {
+    await requireAdmin()
+    const today = dayString()
+    const from = dayString(new Date(Date.now() - (data.days - 1) * 86_400_000))
+    const prevFrom = dayString(new Date(Date.now() - (2 * data.days - 1) * 86_400_000))
+    // "Active" = did something with God that day: a workout, a check-in, a game, a plan reading, an explanation
+    const ACTIVITY = `SELECT user_id, day FROM workout_sessions UNION SELECT user_id, day FROM checkins UNION SELECT user_id, day FROM game_results
+      UNION SELECT user_id, day FROM insight_log UNION SELECT up.user_id, substr(d.completed_at, 1, 10) FROM plan_days_done d JOIN user_plans up ON up.id = d.user_plan_id`
+    const q = (sql: string, ...b: unknown[]) => db().prepare(sql).bind(...b)
+    const [active, signups, workouts, totals, retention, funnel, plans, topWorkouts, features, giving, moods] = await db().batch([
+      q(`SELECT day, COUNT(DISTINCT user_id) AS n FROM (${ACTIVITY}) WHERE day >= ? GROUP BY day ORDER BY day`, from),
+      q(`SELECT substr(created_at, 1, 10) AS day, COUNT(*) AS n FROM users WHERE substr(created_at, 1, 10) >= ? GROUP BY day ORDER BY day`, from),
+      q(`SELECT day, COUNT(*) AS n, COALESCE(SUM(minutes), 0) AS minutes FROM workout_sessions WHERE day >= ? GROUP BY day ORDER BY day`, from),
+      q(
+        `SELECT (SELECT COUNT(*) FROM users) AS users,
+                (SELECT COUNT(DISTINCT user_id) FROM (${ACTIVITY}) WHERE day >= ?1) AS active,
+                (SELECT COUNT(DISTINCT user_id) FROM (${ACTIVITY}) WHERE day >= ?2 AND day < ?1) AS active_prev,
+                (SELECT COUNT(*) FROM users WHERE substr(created_at, 1, 10) >= ?1) AS new_users,
+                (SELECT COUNT(*) FROM users WHERE substr(created_at, 1, 10) >= ?2 AND substr(created_at, 1, 10) < ?1) AS new_prev,
+                (SELECT COUNT(*) FROM workout_sessions WHERE day >= ?1) AS workouts,
+                (SELECT COALESCE(SUM(minutes), 0) FROM workout_sessions WHERE day >= ?1) AS minutes,
+                (SELECT COUNT(DISTINCT user_id) FROM (${ACTIVITY}) WHERE day = ?3) AS today`,
+        from,
+        prevFrom,
+        today,
+      ),
+      // Of people who joined 8–60 days ago, how many were active in the last 7 days
+      q(
+        `SELECT COUNT(*) AS joined, SUM(CASE WHEN EXISTS (SELECT 1 FROM (${ACTIVITY}) a WHERE a.user_id = u.id AND a.day >= date('now', '-7 days')) THEN 1 ELSE 0 END) AS still
+         FROM users u WHERE u.created_at < datetime('now', '-8 days') AND u.created_at >= datetime('now', '-60 days')`,
+      ),
+      // Where people drop off: of everyone who joined in the period
+      q(
+        `SELECT COUNT(*) AS joined,
+                SUM(CASE WHEN p.onboarded_at IS NOT NULL THEN 1 ELSE 0 END) AS onboarded,
+                SUM(CASE WHEN EXISTS (SELECT 1 FROM workout_sessions w WHERE w.user_id = u.id) THEN 1 ELSE 0 END) AS first_workout,
+                SUM(CASE WHEN (SELECT COUNT(DISTINCT day) FROM workout_sessions w WHERE w.user_id = u.id) >= 3 THEN 1 ELSE 0 END) AS three_days,
+                SUM(CASE WHEN (SELECT COUNT(DISTINCT day) FROM workout_sessions w WHERE w.user_id = u.id) >= 7 THEN 1 ELSE 0 END) AS seven_days
+         FROM users u LEFT JOIN profiles p ON p.user_id = u.id WHERE substr(u.created_at, 1, 10) >= ?`,
+        from,
+      ),
+      q(`SELECT plan_key, COUNT(*) AS started, SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) AS finished FROM user_plans GROUP BY plan_key ORDER BY started DESC LIMIT 8`),
+      q(`SELECT w.title, COUNT(*) AS n FROM workout_sessions s JOIN workouts w ON w.id = s.workout_id WHERE s.day >= ? GROUP BY w.id ORDER BY n DESC LIMIT 8`, from),
+      q(
+        `SELECT (SELECT COUNT(*) FROM insight_log WHERE day >= ?1) AS understand,
+                (SELECT COUNT(*) FROM game_results WHERE day >= ?1) AS games,
+                (SELECT COUNT(*) FROM coach_messages WHERE role = 'user' AND substr(created_at, 1, 10) >= ?1) AS coach,
+                (SELECT COUNT(*) FROM checkins WHERE day >= ?1) AS checkins,
+                (SELECT COUNT(*) FROM walk_prayed WHERE day >= ?1) AS walk_prayers,
+                (SELECT COUNT(*) FROM fasts WHERE substr(created_at, 1, 10) >= ?1) AS fasts,
+                (SELECT COUNT(*) FROM testimonies WHERE substr(created_at, 1, 10) >= ?1) AS testimonies,
+                (SELECT COUNT(*) FROM ministry_log WHERE kind = 'ai-sermon' AND day >= ?1) AS sermons`,
+        from,
+      ),
+      q(`SELECT currency, COUNT(*) AS n, SUM(amount_minor) AS minor FROM donations WHERE status = 'success' AND COALESCE(mode, 'live') = 'live' AND substr(COALESCE(paid_at, created_at), 1, 10) >= ? GROUP BY currency ORDER BY minor DESC`, from),
+      q(`SELECT mood, COUNT(*) AS n FROM checkins WHERE day >= ? GROUP BY mood ORDER BY n DESC`, from),
+    ])
+    const rows = <T,>(r: { results?: unknown[] }) => (r.results ?? []) as T[]
+    // Every day in the range, so gaps show as zero
+    const daysList = Array.from({ length: data.days }, (_, k) => dayString(new Date(Date.now() - (data.days - 1 - k) * 86_400_000)))
+    const series = (list: { day: string; n: number }[]) => {
+      const m = new Map(list.map((x) => [x.day, x.n]))
+      return daysList.map((day) => ({ day, n: m.get(day) ?? 0 }))
+    }
+    const w = rows<{ day: string; n: number; minutes: number }>(workouts)
+    return {
+      days: data.days,
+      totals: rows<Record<string, number>>(totals)[0] ?? {},
+      active: series(rows(active)),
+      signups: series(rows(signups)),
+      workouts: series(w),
+      minutes: series(w.map((x) => ({ day: x.day, n: x.minutes }))),
+      retention: rows<{ joined: number; still: number }>(retention)[0] ?? { joined: 0, still: 0 },
+      funnel: rows<{ joined: number; onboarded: number; first_workout: number; three_days: number; seven_days: number }>(funnel)[0] ?? null,
+      plans: rows<{ plan_key: string; started: number; finished: number }>(plans),
+      topWorkouts: rows<{ title: string; n: number }>(topWorkouts),
+      features: rows<Record<string, number>>(features)[0] ?? {},
+      giving: rows<{ currency: string; n: number; minor: number }>(giving),
+      moods: rows<{ mood: string; n: number }>(moods),
+    }
   })

@@ -2,13 +2,17 @@ import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { bookSlug } from '~/lib/bible'
 import { Link, createFileRoute, useRouter } from '@tanstack/react-router'
 import { completeWorkout, getWorkout } from '~/fns/train'
-import { STEP_LABELS } from '~/lib/content'
+import { STEP_LABELS, adaptSteps } from '~/lib/content'
+import { setTongues } from '~/fns/profile'
 import { formatClock } from '~/lib/util'
 import { CheckIcon, CloseIcon, PauseIcon, PlayIcon } from '~/components/Icons'
 import { errorText } from '~/components/AuthShell'
 import { SunriseScene, stepStyle } from '~/components/Art'
 import { NEXT_LINES, WorkoutMusic, speak, speechSupported, unlockSpeech } from '~/lib/audio'
 import { AwardCelebration } from '~/components/AwardCelebration'
+import { SongPlayer } from '~/components/SongPlayer'
+import { LineIcon } from '~/components/LineIcon'
+import { WordStep } from '~/components/WordStep'
 
 export const Route = createFileRoute('/app/workout/$slug')({
   loader: ({ params }) => getWorkout({ data: params.slug }),
@@ -19,7 +23,12 @@ type Phase = 'intro' | 'running' | 'complete' | 'saved'
 type Result = Awaited<ReturnType<typeof completeWorkout>>
 
 function WorkoutPlayer() {
-  const { workout, steps, verse, journey, devotion, tracks, reading, readingSource } = Route.useLoaderData()
+  const { workout, steps: rawSteps, tongues: tonguesPref, journey, tracks, reading, words, songs, prayers } = Route.useLoaderData()
+  const [singing, setSinging] = useState<(typeof songs)[number] | null>(null)
+  const [tongues, setTonguesOn] = useState(tonguesPref)
+  const hasTongues = rawSteps.some((s) => s.kind === 'tongues')
+  const steps = adaptSteps(rawSteps, tongues)
+  const firstWord = Object.values(words).find((w) => w?.sections.length)?.sections[0] ?? reading
   const router = useRouter()
   const [phase, setPhase] = useState<Phase>('intro')
   const [index, setIndex] = useState(0)
@@ -64,7 +73,7 @@ function WorkoutPlayer() {
     if (remaining <= lead) {
       announced.current = index
       const nxt = steps[index + 1]
-      say(nxt ? NEXT_LINES[nxt.kind] ?? `Coming up: ${nxt.label}.` : 'Your time with God is almost complete.')
+      say(nxt ? NEXT_LINES[nxt.label === 'Opening prayer' ? 'openingPrayer' : nxt.kind] ?? `Coming up: ${nxt.label}.` : 'Your time with God is almost complete.')
     }
   }, [remaining, phase, index])
 
@@ -121,7 +130,21 @@ function WorkoutPlayer() {
     setPhase('running')
   }
 
+  /** Sing (or pray) along with one of my songs. The timer keeps going: when it ends, the song stops and the next step starts. */
+  function sing(song: (typeof songs)[number] | null) {
+    setSinging(song)
+  }
+
+  // Background music: on during the workout, but quiet while you sing along, while paused, and in Devotion (no distractions)
+  useEffect(() => {
+    if (phase !== 'running' || !music.current) return
+    const quiet = paused || !!singing || step?.kind === 'devotion' || step?.kind === 'scripture'
+    if (quiet) music.current.pause()
+    else music.current.resume()
+  }, [phase, paused, singing, index])
+
   function next() {
+    setSinging(null) // the song stops when its step ends
     if (index + 1 < steps.length) {
       setIndex(index + 1)
       setRemaining(steps[index + 1].seconds)
@@ -151,8 +174,8 @@ function WorkoutPlayer() {
   const st = step ? stepStyle(step.kind) : stepStyle('prayer')
   const bg =
     phase === 'running'
-      ? `radial-gradient(120% 70% at 50% 0%, ${st.color}66 0%, transparent 60%), linear-gradient(180deg, ${st.deep} 0%, #12203a 100%)`
-      : 'linear-gradient(180deg,#1b2750 0%,#12203a 100%)'
+      ? `radial-gradient(120% 70% at 50% 0%, ${st.color}66 0%, transparent 60%), linear-gradient(180deg, ${st.deep} 0%, var(--brand-navy) 100%)`
+      : 'linear-gradient(180deg,var(--brand-navy-2) 0%,var(--brand-navy) 100%)'
 
   return (
     <div className="relative isolate flex min-h-dvh flex-col text-white transition-[background] duration-700" style={{ background: bg }}>
@@ -194,17 +217,23 @@ function WorkoutPlayer() {
             </ol>
             <div className="mt-6 space-y-3 rounded-2xl bg-white/8 p-4 backdrop-blur-sm">
               <label className="flex items-center justify-between gap-3 text-sm">
-                <span>🔊 Voice guide <span className="text-white/50">(announces each next step)</span></span>
-                <input type="checkbox" className="h-5 w-5 accent-[#d4a94a]" checked={voiceOn} disabled={!speechSupported()} onChange={(e) => { setVoiceOn(e.target.checked); savePref('sg-voice', e.target.checked ? '1' : '0') }} />
+                <span><LineIcon name="volume" className="mr-1.5 inline h-4 w-4 -translate-y-px" />Voice guide <span className="text-white/50">(announces each next step)</span></span>
+                <input type="checkbox" className="h-5 w-5 accent-gold" checked={voiceOn} disabled={!speechSupported()} onChange={(e) => { setVoiceOn(e.target.checked); savePref('sg-voice', e.target.checked ? '1' : '0') }} />
               </label>
               <label className="flex items-center justify-between gap-3 text-sm">
-                <span>🎵 Calm instrumental music</span>
-                <input type="checkbox" className="h-5 w-5 accent-[#d4a94a]" checked={musicOn} onChange={(e) => { setMusicOn(e.target.checked); savePref('sg-music', e.target.checked ? '1' : '0') }} />
+                <span><LineIcon name="music" className="mr-1.5 inline h-4 w-4 -translate-y-px" />Calm instrumental music</span>
+                <input type="checkbox" className="h-5 w-5 accent-gold" checked={musicOn} onChange={(e) => { setMusicOn(e.target.checked); savePref('sg-music', e.target.checked ? '1' : '0') }} />
               </label>
               {musicOn && (
                 <label className="flex items-center gap-3 text-xs text-white/70">
                   <span>Volume</span>
-                  <input type="range" min={0.1} max={1} step={0.05} value={musicVol} className="flex-1 accent-[#d4a94a]" onChange={(e) => { const v = Number(e.target.value); setMusicVol(v); music.current?.setVolume(v); savePref('sg-music-vol', String(v)) }} />
+                  <input type="range" min={0.1} max={1} step={0.05} value={musicVol} className="flex-1 accent-gold" onChange={(e) => { const v = Number(e.target.value); setMusicVol(v); music.current?.setVolume(v); savePref('sg-music-vol', String(v)) }} />
+                </label>
+              )}
+              {hasTongues && (
+                <label className="flex items-center justify-between gap-3 text-sm">
+                  <span><LineIcon name="flame" className="mr-1.5 inline h-4 w-4 -translate-y-px" />Include praying in tongues <span className="text-white/50">(off: pray in your own words)</span></span>
+                  <input type="checkbox" className="h-5 w-5 accent-gold" checked={tongues} onChange={(e) => { const on = e.target.checked; setTonguesOn(on); setTongues({ data: { on } }).catch(() => {}) }} />
                 </label>
               )}
             </div>
@@ -225,39 +254,34 @@ function WorkoutPlayer() {
             </p>
             <h2 className="mt-2 font-display text-3xl font-semibold">{step.label}</h2>
 
+            {(
             <Ring pct={1 - Math.max(0, remaining) / step.seconds} paused={paused} color={st.color}>
               <span className="font-display text-5xl font-semibold tabular-nums" aria-live="off">
                 {formatClock(Math.ceil(Math.max(0, remaining)))}
               </span>
             </Ring>
+            )}
 
             {step.guidance && <p className="max-w-sm text-white/75">{step.guidance}</p>}
 
-            {step.kind === 'scripture' && (
-              <ScriptureReading
-                reading={reading}
-                label={readingSource === 'journey' ? `${journey?.title ?? 'Journey'} · Day ${journey?.today?.day_number ?? ''}` : readingSource === 'word' ? 'Today’s word, in context' : 'Today’s reading'}
-                extra={[
-                  ...(verse && reading && !reading.reference.startsWith(verse.reference.split(':')[0]) ? [{ title: 'Verse of the day', reference: `${verse.reference} · ${verse.translation}`, text: verse.text }] : []),
-                  ...(devotion && readingSource === 'journey' ? [{ title: 'Today’s word', reference: devotion.reference, text: devotion.text }] : []),
-                ]}
-              />
-            )}
-            {step.kind === 'devotion' && devotion && (
-              <div className="mt-6 w-full rounded-3xl bg-white/5 p-5 text-left">
-                <p className="text-xs font-semibold tracking-[0.14em] text-gold uppercase">Today’s word · {devotion.reference}</p>
-                <p className="mt-2 font-display text-xl leading-snug">“{devotion.text}”</p>
-                <p className="mt-3 text-white/80">{devotion.reflection}</p>
-                <p className="mt-4 rounded-2xl bg-gold/15 p-3 font-semibold text-gold">🗣️ Declare aloud: {devotion.declaration}</p>
-                {devotion.prayer && <p className="mt-3 text-sm text-white/85 italic">🙏 {devotion.prayer}</p>}
-              </div>
-            )}
+            {(step.kind === 'scripture' || step.kind === 'devotion') &&
+              (words[step.position] ? (
+                <WordStep
+                  word={words[step.position]!}
+                  journey={reading ? { label: `${journey?.title ?? 'Your journey'} · Day ${journey?.today?.day_number ?? ''}`, reference: reading.reference, verses: reading.verses } : null}
+                />
+              ) : (
+                reading && <ScriptureReading reading={reading} label={`${journey?.title ?? 'Your journey'} · Day ${journey?.today?.day_number ?? ''}`} extra={[]} />
+              ))}
+            {step.kind === 'worship' && <WorshipPicker songs={songs.filter((x) => x.kind !== 'tongues')} singing={singing} onSing={sing} />}
+            {step.kind === 'tongues' && <WorshipPicker songs={songs.filter((x) => x.kind === 'tongues')} singing={singing} onSing={sing} tongues />}
+            {step.kind === 'prayer' && !/opening|closing/i.test(step.label) && <MyPrayers prayers={prayers} />}
             {step.kind === 'tongues' && (
               <p className="mt-6 w-full rounded-3xl bg-white/5 p-5 text-left text-white/80">
                 “But ye, beloved, building up yourselves on your most holy faith, praying in the Holy Ghost.” <span className="text-white/50">Jude 1:20</span>
               </p>
             )}
-            {step.kind === 'reflection' && journey?.today?.prompt && (
+            {(step.kind === 'reflection' || (!steps.some((x) => x.kind === 'reflection') && (step.kind === 'scripture' || step.kind === 'devotion'))) && journey?.today?.prompt && (
               <p className="mt-6 w-full rounded-3xl bg-white/5 p-5 text-left text-white/80">{journey.today.prompt}</p>
             )}
 
@@ -267,11 +291,7 @@ function WorkoutPlayer() {
               </button>
               <button
                 type="button"
-                onClick={() => {
-                  if (paused) music.current?.resume()
-                  else music.current?.pause()
-                  setPaused(!paused)
-                }}
+                onClick={() => setPaused(!paused)}
                 className="flex h-16 w-16 items-center justify-center rounded-full bg-gold text-navy"
                 aria-label={paused ? 'Resume' : 'Pause'}
               >
@@ -294,6 +314,7 @@ function WorkoutPlayer() {
             <label htmlFor="reflection" className="mt-8 block font-semibold">
               What did you receive from this time?
             </label>
+            {journey?.today?.prompt && <p className="mt-2 rounded-2xl bg-white/8 p-3 text-sm text-white/85"><LineIcon name="chat" className="mr-1.5 inline h-4 w-4 -translate-y-px" />{journey.today.prompt}</p>}
             <p className="text-sm text-white/50">Optional and private. Only you can see this.</p>
             <textarea
               id="reflection"
@@ -335,13 +356,13 @@ function WorkoutPlayer() {
             <Link to="/app" className="btn-gold mx-auto mt-10 w-full max-w-xs py-4 text-base">
               Back to home
             </Link>
-            {reading && (
+            {firstWord && (
               <Link
                 to="/app/bible/$book/$chapter"
-                params={{ book: bookSlug(reading.bookId), chapter: String(reading.chapter) }}
+                params={{ book: bookSlug(firstWord.bookId), chapter: String(firstWord.chapter) }}
                 className="mx-auto mt-3 w-full max-w-xs rounded-full bg-white/10 py-3 text-sm font-semibold text-white/85"
               >
-                📖 Keep reading {reading.reference.split(':')[0]}
+                <LineIcon name="bookOpen" className="mr-1.5 inline h-4 w-4 -translate-y-px" />Keep reading {firstWord.reference.split(':')[0]}
               </Link>
             )}
           </div>
@@ -351,7 +372,7 @@ function WorkoutPlayer() {
   )
 }
 
-function Ring({ pct, paused, color = '#d4a94a', children }: { pct: number; paused: boolean; color?: string; children: ReactNode }) {
+function Ring({ pct, paused, color = '#e3b648', children }: { pct: number; paused: boolean; color?: string; children: ReactNode }) {
   const r = 110
   const c = 2 * Math.PI * r
   return (
@@ -430,6 +451,72 @@ function ScriptureReading({ reading, label, extra }: { reading: ReadingT; label:
           {open === i && <span className="mt-2 block font-display text-lg leading-snug text-white/90">“{x.text}”</span>}
         </button>
       ))}
+    </div>
+  )
+}
+
+type SongT = { id: string; title: string; artist: string | null; link: string | null; lyrics: string | null; media_key: string | null; kind: string }
+
+/** Worship step: pick one of my saved songs and sing along (the timer waits) */
+function WorshipPicker({ songs, singing, onSing, tongues = false }: { songs: SongT[]; singing: SongT | null; onSing: (s: SongT | null) => void; tongues?: boolean }) {
+  if (singing) {
+    return (
+      <div className="mt-6 w-full rounded-3xl bg-white/5 p-4 text-left">
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <p className="min-w-0 truncate font-semibold"><LineIcon name="music" className="mr-1.5 inline h-4 w-4 -translate-y-px" />{singing.title}{singing.artist ? <span className="font-normal text-white/60"> · {singing.artist}</span> : null}</p>
+          <button type="button" onClick={() => onSing(null)} className="shrink-0 rounded-full bg-white/15 px-3 py-1.5 text-sm font-semibold">Done</button>
+        </div>
+        <SongPlayer song={singing} dark />
+        <p className="mt-3 text-xs text-white/60">When the time is up, this stops and the next step begins. Tap Done to stop it sooner.</p>
+      </div>
+    )
+  }
+  return (
+    <div className="mt-6 w-full rounded-3xl bg-white/5 p-4 text-left">
+      <p className="text-xs font-semibold tracking-[0.14em] text-gold uppercase"><LineIcon name={tongues ? 'flame' : 'music'} className="mr-1 inline h-3.5 w-3.5 -translate-y-px" />{tongues ? 'Pray along' : 'Sing along'}</p>
+      {songs.length ? (
+        <ul className="mt-3 max-h-60 space-y-2 overflow-y-auto">
+          {songs.map((s) => (
+            <li key={s.id}>
+              <button type="button" onClick={() => onSing(s)} className="flex w-full items-center gap-3 rounded-2xl bg-white/8 px-3 py-2.5 text-left hover:bg-white/12">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gold/20 text-gold"><LineIcon name="play" className="h-4 w-4" /></span>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate font-semibold">{s.title}</span>
+                  {s.artist && <span className="block truncate text-xs text-white/60">{s.artist}</span>}
+                </span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="mt-2 text-sm text-white/70">{tongues ? 'Pray in the Spirit freely, or add a praying-in-tongues sound to pray along with here.' : 'Worship freely, or save your favourite songs to sing along with here.'}</p>
+      )}
+      <Link to="/app/journal/worship" className="mt-3 inline-block text-sm font-semibold text-gold">{tongues ? (songs.length ? '+ Add or edit my sounds' : '+ Add a praying-in-tongues sound') : songs.length ? '+ Add or edit my songs' : '+ Add my worship songs'}</Link>
+    </div>
+  )
+}
+
+type PrayerT = { id: string; category: string; title: string; notes: string | null; scripture: string | null }
+
+/** Prayer step: my prayer list, shown like the Scripture reading so I can pray through it */
+function MyPrayers({ prayers }: { prayers: PrayerT[] }) {
+  return (
+    <div className="mt-6 w-full rounded-3xl bg-white/5 p-4 text-left">
+      <p className="text-xs font-semibold tracking-[0.14em] text-gold uppercase"><LineIcon name="prayer" className="mr-1 inline h-3.5 w-3.5 -translate-y-px" />My prayer list</p>
+      {prayers.length ? (
+        <ul className="mt-3 max-h-[46vh] space-y-2 overflow-y-auto pr-1">
+          {prayers.map((p) => (
+            <li key={p.id} className="rounded-2xl bg-white/8 px-4 py-3">
+              <p className="font-semibold">{p.title}</p>
+              {p.notes && <p className="mt-1 text-sm leading-relaxed whitespace-pre-line text-white/80">{p.notes}</p>}
+              {p.scripture && <p className="mt-1 text-xs font-semibold text-gold/90"><LineIcon name="bookOpen" className="mr-1 inline h-3.5 w-3.5 -translate-y-px" />{p.scripture}</p>}
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="mt-2 text-sm text-white/70">Pray in your own words. You can also save prayers and people to pray for, and they’ll show here.</p>
+      )}
+      <Link to="/app/journal/prayer" className="mt-3 inline-block text-sm font-semibold text-gold">{prayers.length ? '+ Add to my prayer list' : '+ Start my prayer list'}</Link>
     </div>
   )
 }

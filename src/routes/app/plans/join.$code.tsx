@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link, createFileRoute, useRouter } from '@tanstack/react-router'
 import { getCircleInvite, joinCircle } from '~/fns/plans'
 import { errorText } from '~/components/AuthShell'
+import { IconBadge } from '~/components/LineIcon'
 
 export const Route = createFileRoute('/app/plans/join/$code')({
   loader: ({ params }) => getCircleInvite({ data: params.code }),
@@ -36,7 +37,7 @@ function JoinCircle() {
   )
   return (
     <main className="fade-in mx-auto max-w-md px-5 pt-12 pb-10 text-center">
-      <p className="text-5xl" aria-hidden>📖</p>
+      <IconBadge name="bookOpen" size="lg" className="mx-auto" />
       <h1 className="mt-4 font-display text-3xl font-semibold">{c.owner} invited you to read together</h1>
       <p className="mt-3 text-muted">“{c.name}” · {c.planTitle} · {c.members} reading</p>
       <p className="mt-2 text-sm text-muted">You’ll follow the same daily readings and can share what you learn.</p>

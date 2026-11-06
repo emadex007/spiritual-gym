@@ -7,7 +7,7 @@ declare global {
   }
 }
 
-/** "Add SpiritualGym to your home screen": one-tap install on Android/desktop Chrome, step-by-step on iPhone */
+/** "Add TheRenewGym to your home screen": one-tap install on Android/desktop Chrome, step-by-step on iPhone */
 export function InstallApp({ variant = 'card' }: { variant?: 'card' | 'banner' }) {
   const [installed, setInstalled] = useState(true)
   const [canPrompt, setCanPrompt] = useState(false)
@@ -50,14 +50,14 @@ export function InstallApp({ variant = 'card' }: { variant?: 'card' | 'banner' }
   }
 
   return (
-    <section className={`relative overflow-hidden rounded-[1.5rem] p-5 text-white ${variant === 'banner' ? 'mt-5' : ''}`} style={{ background: 'linear-gradient(135deg,#1b2750,#3a2f86)' }}>
+    <section className={`relative overflow-hidden rounded-[1.5rem] p-5 text-white ${variant === 'banner' ? 'mt-5' : ''}`} style={{ background: 'linear-gradient(135deg,var(--brand-navy-2),#3a2f86)' }}>
       {variant === 'banner' && (
         <button type="button" onClick={dismiss} className="absolute top-3 right-3 rounded-full px-2 text-white/60 hover:text-white" aria-label="Dismiss">✕</button>
       )}
-      <div className="flex items-center gap-4">
+      <div className={`flex items-center gap-4 ${variant === 'banner' ? 'pr-6' : ''}`}>
         <img src="/icons/icon-192.png" alt="" className="h-14 w-14 shrink-0 rounded-2xl shadow-lg" />
         <div className="min-w-0">
-          <p className="font-semibold">Add SpiritualGym to your home screen</p>
+          <p className="font-semibold">Add TheRenewGym to your home screen</p>
           <p className="mt-0.5 text-sm text-white/75">Opens like an app, full screen, with no app store needed.</p>
         </div>
       </div>

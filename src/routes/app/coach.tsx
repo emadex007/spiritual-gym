@@ -4,6 +4,7 @@ import { clearCoach, getCoach, sendCoach } from '~/fns/coach'
 import { ListenButton } from '~/components/ListenButton'
 import { DoveIcon } from '~/components/Art'
 import { errorText } from '~/components/AuthShell'
+import { LineIcon } from '~/components/LineIcon'
 
 export const Route = createFileRoute('/app/coach')({
   loader: () => getCoach(),
@@ -21,17 +22,17 @@ const STARTERS = [
   'I’m tired and discouraged',
 ]
 
-const ACTION: Record<string, { label: string; to: string }> = {
-  'prayer-list': { label: '🙏 My prayer list', to: '/app/journal/prayer' },
-  plans: { label: '📅 Reading plans', to: '/app/plans' },
-  memory: { label: '🧠 Memorise a verse', to: '/app/journal/memory' },
-  community: { label: '🤝 Pray with others', to: '/app/community' },
-  journal: { label: '📝 Write in my journal', to: '/app/journal' },
+const ACTION: Record<string, { icon: string; label: string; to: string }> = {
+  'prayer-list': { icon: 'prayer', label: 'My prayer list', to: '/app/journal/prayer' },
+  plans: { icon: 'calendar', label: 'Reading plans', to: '/app/plans' },
+  memory: { icon: 'brain', label: 'Memorise a verse', to: '/app/journal/memory' },
+  community: { icon: 'handshake', label: 'Pray with others', to: '/app/community' },
+  journal: { icon: 'pen', label: 'Write in my journal', to: '/app/journal' },
 }
 
 /** Turns the coach's [[tags]] into highlighted references and buttons */
 function render(text: string) {
-  const actions: { label: string; to: string }[] = []
+  const actions: { icon: string; label: string; to: string }[] = []
   const parts: ReactNode[] = []
   let last = 0
   for (const m of text.matchAll(/\[\[([^\]]{2,40})\]\]/g)) {
@@ -39,7 +40,7 @@ function render(text: string) {
     const tag = m[1].trim()
     if (tag.startsWith('workout:')) {
       const slug = tag.slice(8)
-      if (/^[a-z0-9-]+$/.test(slug)) actions.push({ label: '▶ Start this workout', to: `/app/workout/${slug}` })
+      if (/^[a-z0-9-]+$/.test(slug)) actions.push({ icon: 'play', label: 'Start this workout', to: `/app/workout/${slug}` })
     } else if (ACTION[tag]) {
       actions.push(ACTION[tag])
     } else {
@@ -142,18 +143,18 @@ function Coach() {
           const r = render(m.content)
           return (
             <div key={m.id} className="fade-in max-w-[92%]">
-              <div className={`rounded-3xl rounded-bl-md border px-4 py-3 ${m.flagged ? 'border-red-300 bg-red-50 text-[#12203a] dark:border-red-400/40 dark:bg-red-500/10 dark:text-ink' : 'border-line bg-surface'}`}>
+              <div className={`rounded-3xl rounded-bl-md border px-4 py-3 ${m.flagged ? 'border-red-300 bg-red-50 text-navy dark:border-red-400/40 dark:bg-red-500/10 dark:text-ink' : 'border-line bg-surface'}`}>
                 <p className="leading-relaxed whitespace-pre-wrap">{r.parts}</p>
                 {m.verses.map((v) => (
                   <blockquote key={v.reference} className="mt-3 rounded-2xl bg-gold/15 px-4 py-3">
                     <p className="font-display leading-snug">“{v.text}”</p>
-                    <p className="mt-1 text-xs font-semibold text-[#8a6310] dark:text-gold">{v.reference} · KJV</p>
+                    <p className="mt-1 text-xs font-semibold text-gold-ink dark:text-gold">{v.reference} · KJV</p>
                   </blockquote>
                 ))}
               </div>
               <div className="mt-2 flex flex-wrap gap-2 pl-1">
                 {r.actions.map((a) => (
-                  <a key={a.to} href={a.to} className="rounded-full bg-accent-soft px-3 py-1.5 text-xs font-semibold text-accent">{a.label}</a>
+                  <a key={a.to} href={a.to} className="inline-flex items-center gap-1.5 rounded-full bg-accent-soft px-3 py-1.5 text-xs font-semibold text-accent"><LineIcon name={a.icon} className="h-3.5 w-3.5" />{a.label}</a>
                 ))}
                 <ListenButton lines={[r.spoken, ...m.verses.map((v) => `${v.reference}. ${v.text}`)]} className="inline-flex items-center gap-1 rounded-full bg-surface-2 px-3 py-1.5 text-xs font-semibold" />
               </div>
@@ -185,7 +186,7 @@ function Coach() {
             className="input max-h-40 min-h-[3rem] flex-1 resize-none !py-3"
             rows={1}
             maxLength={1000}
-            placeholder={left > 0 ? 'Share what’s on your heart…' : 'Let’s talk again tomorrow 🙏'}
+            placeholder={left > 0 ? 'Share what’s on your heart…' : 'Let’s talk again tomorrow'}
             value={text}
             disabled={left <= 0}
             onChange={(e) => setText(e.target.value)}

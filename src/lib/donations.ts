@@ -1,4 +1,4 @@
-// Server-only: gifts to support SpiritualGym through Paystack or Flutterwave.
+// Server-only: gifts to support TheRenewGym through Paystack or Flutterwave.
 // Amounts are stored in hundredths (kobo, cents…). A gift is only marked paid after we confirm it with the provider's API.
 import { db, env } from '~/lib/env'
 import { notify } from '~/lib/notify'
@@ -83,7 +83,7 @@ export async function createCheckout(cfg: PayConfig, d: DonationRow, redirectUrl
         currency: d.currency,
         reference: d.reference,
         callback_url: redirectUrl,
-        metadata: { donation_id: d.id, purpose: 'Support SpiritualGym', cancel_action: `${origin}/give` },
+        metadata: { donation_id: d.id, purpose: 'Support TheRenewGym', cancel_action: `${origin}/give` },
       }),
     })
     const j = (await res.json().catch(() => ({}))) as { status?: boolean; message?: string; data?: { authorization_url?: string } }
@@ -98,8 +98,8 @@ export async function createCheckout(cfg: PayConfig, d: DonationRow, redirectUrl
       amount: d.amount_minor / 100,
       currency: d.currency,
       redirect_url: redirectUrl,
-      customer: { email: d.email, name: d.name || 'Friend of SpiritualGym' },
-      customizations: { title: 'SpiritualGym', description: 'Support the mission', logo: `${origin}/icons/icon-192.png` },
+      customer: { email: d.email, name: d.name || 'Friend of TheRenewGym' },
+      customizations: { title: 'TheRenewGym', description: 'Support the mission', logo: `${origin}/icons/icon-192.png` },
       meta: { donation_id: d.id },
     }),
   })
@@ -160,16 +160,16 @@ async function thankGiver(d: DonationRow) {
   const amount = formatMoney(d.amount_minor / 100, d.currency)
   const first = (d.name || 'friend').split(' ')[0]
   if (d.user_id) {
-    await notify({ userIds: [d.user_id] }, { kind: 'gift', title: 'Thank you for your gift 💛', body: `Your ${amount} helps keep SpiritualGym free for everyone.`, url: '/app' }, { push: false }).catch(() => {})
+    await notify({ userIds: [d.user_id] }, { kind: 'gift', title: 'Thank you for your gift 💛', body: `Your ${amount} helps keep TheRenewGym free for everyone.`, url: '/app' }, { push: false }).catch(() => {})
   }
-  const text = `Dear ${first},\n\nThank you for your gift of ${amount} to SpiritualGym. It helps keep a free place for people everywhere to grow in prayer, the Word and worship.\n\n"God loveth a cheerful giver." — 2 Corinthians 9:7\n\nWith gratitude,\nThe SpiritualGym team`
-  const html = `<div style="font-family:Arial,sans-serif;max-width:480px;margin:auto;padding:24px;color:#12203a">
-  <p style="font-size:20px;font-weight:bold;margin:0 0 16px">SpiritualGym</p>
+  const text = `Dear ${first},\n\nThank you for your gift of ${amount} to TheRenewGym. It helps keep a free place for people everywhere to grow in prayer, the Word and worship.\n\n"God loveth a cheerful giver." — 2 Corinthians 9:7\n\nWith gratitude,\nThe TheRenewGym team`
+  const html = `<div style="font-family:Arial,sans-serif;max-width:480px;margin:auto;padding:24px;color:#002e54">
+  <p style="font-size:20px;font-weight:bold;margin:0 0 16px">TheRenewGym</p>
   <p>Dear ${first.replace(/[<>&"]/g, '')},</p>
   <p>Thank you for your gift of <b>${amount}</b>. It helps keep a free place for people everywhere to grow in prayer, the Word and worship.</p>
-  <p style="color:#b88a2e;font-style:italic">“God loveth a cheerful giver.” — 2 Corinthians 9:7</p>
-  <p>With gratitude,<br/>The SpiritualGym team</p></div>`
-  await sendEmail(d.email, 'Thank you for supporting SpiritualGym 💛', html, text).catch(() => {})
+  <p style="color:#866724;font-style:italic">“God loveth a cheerful giver.” — 2 Corinthians 9:7</p>
+  <p>With gratitude,<br/>The TheRenewGym team</p></div>`
+  await sendEmail(d.email, 'Thank you for supporting TheRenewGym 💛', html, text).catch(() => {})
 }
 
 // ---------- Webhooks (called from server.ts with the raw request) ----------

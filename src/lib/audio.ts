@@ -217,14 +217,14 @@ export function speechSupported() {
 }
 
 /** Speak slowly and warmly. Returns when finished (or after a safety timeout). */
-export function speak(text: string, opts: { onStart?: () => void; onEnd?: () => void } = {}) {
+export function speak(text: string, opts: { onStart?: () => void; onEnd?: () => void; rate?: number } = {}) {
   return new Promise<void>((resolve) => {
     if (!speechSupported()) return resolve()
     const u = new SpeechSynthesisUtterance(text)
     const v = pickVoice()
     if (v) u.voice = v
     u.lang = v?.lang ?? 'en-GB'
-    u.rate = 0.86
+    u.rate = 0.86 * (opts.rate ?? 1)
     u.pitch = 0.78
     u.volume = 1
     let done = false
@@ -239,7 +239,7 @@ export function speak(text: string, opts: { onStart?: () => void; onEnd?: () => 
     u.onerror = finish
     speechSynthesis.cancel()
     speechSynthesis.speak(u)
-    setTimeout(finish, Math.max(12_000, text.length * 120))
+    setTimeout(finish, Math.max(12_000, (text.length * 120) / (opts.rate ?? 1)))
   })
 }
 
@@ -255,7 +255,8 @@ export function unlockSpeech() {
 export const NEXT_LINES: Record<string, string> = {
   stillness: 'Coming up: stillness. Be still, and know that He is God.',
   breathe: 'Coming up: stillness. Breathe, and be still before the Lord.',
-  devotion: 'Coming up: devotion. Open your heart to today’s word.',
+  devotion: 'Coming up: the Word. Open your heart to what God will say to you.',
+  openingPrayer: 'Coming up: opening prayer. Invite the Holy Spirit, and ask Him to speak to you.',
   scripture: 'Coming up: Scripture. Let the Word of God speak to you.',
   worship: 'Coming up: worship. Lift up your voice and worship the Lord.',
   tongues: 'Coming up: praying in the Spirit. Pray in the Holy Ghost.',
@@ -322,4 +323,22 @@ export async function speakAll(lines: string[], shouldStop: () => boolean = () =
     await speak(l)
     await new Promise((r) => setTimeout(r, 350))
   }
+}
+
+/** Split long text into sentence-sized pieces (phones cut off very long speech) */
+export function speechChunks(text: string, max = 220): string[] {
+  const out: string[] = []
+  for (const para of text.split(/\n+/)) {
+    const sentences = para.match(/[^.!?;:]+[.!?;:]*\s*/g) ?? [para]
+    let cur = ''
+    for (const s of sentences) {
+      if ((cur + s).length > max && cur) {
+        out.push(cur.trim())
+        cur = ''
+      }
+      cur += s
+    }
+    if (cur.trim()) out.push(cur.trim())
+  }
+  return out.filter(Boolean)
 }

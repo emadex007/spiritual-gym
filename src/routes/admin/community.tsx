@@ -1,9 +1,10 @@
 import { useState } from 'react'
 import { createFileRoute, useRouter } from '@tanstack/react-router'
 import { adminCreateOfficialGroup, adminDeleteGroup, adminGroupPosts, adminListGroups, adminSetPostHidden, adminUpdateGroup } from '~/fns/admin'
-import { PRAYER_PURPOSES, purposeOf } from '~/lib/content'
+import { GROUP_KINDS, PRAYER_PURPOSES, groupLook } from '~/lib/content'
 import { Field, PageHead } from '~/components/AdminUI'
 import { FormError, errorText } from '~/components/AuthShell'
+import { LineIcon, GlyphBadge } from '~/components/LineIcon'
 
 export const Route = createFileRoute('/admin/community')({
   loader: () => adminListGroups(),
@@ -23,7 +24,7 @@ function AdminCommunity() {
     <>
       <PageHead
         title="Community"
-        sub="Prayer groups, their prayer walls and live prayer. Feature groups to put them on top; hide anything that breaks the rules."
+        sub="Community groups (prayer, Bible study, fellowship and more), their walls and live meetings. Feature groups to put them on top; hide anything that breaks the rules."
         action={<button className="btn-primary" onClick={() => setCreating(!creating)}>{creating ? 'Close' : '+ Official group'}</button>}
       />
       {creating && <NewOfficial onDone={() => setCreating(false)} />}
@@ -37,7 +38,7 @@ function AdminCommunity() {
 
 function NewOfficial({ onDone }: { onDone: () => void }) {
   const router = useRouter()
-  const [f, setF] = useState({ name: '', purpose: 'general', description: '' })
+  const [f, setF] = useState({ name: '', kind: 'prayer', purpose: 'general', description: '' })
   const [error, setError] = useState<string | null>(null)
   async function save() {
     setError(null)
@@ -54,11 +55,18 @@ function NewOfficial({ onDone }: { onDone: () => void }) {
       <p className="font-semibold">New official group</p>
       <div className="grid gap-3 sm:grid-cols-2">
         <Field label="Name"><input className="input" value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} /></Field>
-        <Field label="Purpose">
-          <select className="input" value={f.purpose} onChange={(e) => setF({ ...f, purpose: e.target.value })}>
-            {PRAYER_PURPOSES.map((p) => <option key={p.key} value={p.key}>{p.emoji} {p.label}</option>)}
+        <Field label="Kind of group">
+          <select className="input" value={f.kind} onChange={(e) => setF({ ...f, kind: e.target.value })}>
+            {GROUP_KINDS.map((k) => <option key={k.key} value={k.key}>{k.label}</option>)}
           </select>
         </Field>
+        {f.kind === 'prayer' && (
+          <Field label="Prayer topic">
+            <select className="input" value={f.purpose} onChange={(e) => setF({ ...f, purpose: e.target.value })}>
+              {PRAYER_PURPOSES.map((p) => <option key={p.key} value={p.key}>{p.label}</option>)}
+            </select>
+          </Field>
+        )}
       </div>
       <Field label="Description"><input className="input" value={f.description} onChange={(e) => setF({ ...f, description: e.target.value })} /></Field>
       <FormError message={error} />
@@ -71,7 +79,7 @@ function GroupRow({ g }: { g: G }) {
   const router = useRouter()
   const [open, setOpen] = useState(false)
   const [posts, setPosts] = useState<P[] | null>(null)
-  const p = purposeOf(g.purpose)
+  const p = groupLook(g)
 
   async function update(patch: { is_featured?: boolean; is_hidden?: boolean }) {
     await adminUpdateGroup({ data: { id: g.id, ...patch } })
@@ -94,17 +102,17 @@ function GroupRow({ g }: { g: G }) {
   return (
     <div className={`card !p-0 ${g.is_hidden ? 'opacity-60' : ''}`}>
       <div className="flex flex-wrap items-center gap-3 p-4">
-        <span className="text-2xl" aria-hidden>{p.emoji}</span>
+        <GlyphBadge e={p.emoji} />
         <div className="min-w-0 flex-1">
           <p className="font-semibold">
             {g.name}
             {g.is_featured ? <span className="ml-2 rounded-full bg-accent-soft px-2 py-0.5 text-xs text-accent">Featured</span> : null}
             {g.is_hidden ? <span className="ml-2 rounded-full bg-red-100 px-2 py-0.5 text-xs text-red-700">Hidden</span> : null}
             {g.live_count > 0 && <span className="ml-2 rounded-full bg-red-500 px-2 py-0.5 text-xs text-white">● {g.live_count} live</span>}
-            {g.open_reports > 0 && <span className="ml-2 rounded-full bg-orange-100 px-2 py-0.5 text-xs text-orange-700">🚩 {g.open_reports}</span>}
+            {g.open_reports > 0 && <span className="ml-2 rounded-full bg-orange-100 px-2 py-0.5 text-xs text-orange-700"><LineIcon name="flag" className="mr-1 inline h-3 w-3 -translate-y-px" />{g.open_reports}</span>}
           </p>
           <p className="text-xs text-muted">
-            {p.label} · {g.member_count} members · {g.posts} posts · by {g.creator ?? 'SpiritualGym (official)'} · {g.is_private ? `private (code ${g.invite_code})` : 'public'}
+            {p.label} · {g.member_count} members · {g.posts} posts · by {g.creator ?? 'TheRenewGym (official)'} · {g.is_private ? `private (code ${g.invite_code})` : 'public'}
           </p>
         </div>
         <div className="flex flex-wrap gap-2 text-xs font-semibold">
@@ -125,7 +133,7 @@ function GroupRow({ g }: { g: G }) {
               {posts.map((post) => (
                 <li key={post.id} className={`rounded-2xl bg-surface-2 p-3 text-sm ${post.is_hidden ? 'opacity-50' : ''}`}>
                   <div className="flex items-start justify-between gap-3">
-                    <p className="text-xs text-muted">{post.author} &lt;{post.email}&gt; · {post.kind} · 🙏 {post.prayed_count} · {post.created_at.slice(0, 16)}</p>
+                    <p className="text-xs text-muted">{post.author} &lt;{post.email}&gt; · {post.kind} · <LineIcon name="prayer" className="inline h-3.5 w-3.5 -translate-y-px" /> {post.prayed_count} · {post.created_at.slice(0, 16)}</p>
                     <button type="button" className="shrink-0 text-xs font-semibold text-accent" onClick={() => hidePost(post)}>{post.is_hidden ? 'Unhide' : 'Hide'}</button>
                   </div>
                   <p className="mt-1 whitespace-pre-wrap">{post.body}</p>

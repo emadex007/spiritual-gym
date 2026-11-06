@@ -3,6 +3,7 @@ import { Link, useRouter } from '@tanstack/react-router'
 import { markPlanDay } from '~/fns/plans'
 import { bookSlug } from '~/lib/bible'
 import { planByKey, planDays, readingLabel } from '~/lib/plans'
+import { LineIcon } from '~/components/LineIcon'
 
 export type PlanSearch = { plan?: string; day?: number; pk?: string }
 
@@ -40,7 +41,7 @@ export function PlanReadingBar({ search, bookId, chapter }: { search: PlanSearch
       <div className="fade-in mx-auto max-w-lg rounded-3xl border border-line bg-surface/95 p-3 shadow-2xl backdrop-blur">
         <div className="flex items-center justify-between gap-2 px-1">
           <Link to="/app/plans/$id" params={{ id: search.plan }} className="text-xs font-semibold text-accent">← My plan</Link>
-          <p className="text-xs text-muted">📅 Day {search.day} · chapter {idx + 1} of {chapters.length}</p>
+          <p className="text-xs text-muted"><LineIcon name="calendar" className="mr-1 inline h-3.5 w-3.5 -translate-y-px" />Day {search.day} · chapter {idx + 1} of {chapters.length}</p>
         </div>
         <div className="mt-2 flex gap-1" aria-hidden>
           {chapters.map((_, i) => <span key={i} className={`h-1.5 flex-1 rounded-full ${i <= idx ? 'bg-accent' : 'bg-surface-2'}`} />)}

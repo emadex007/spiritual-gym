@@ -5,6 +5,9 @@ import { dayLabel, planByKey, planDays, type PlanDay } from '~/lib/plans'
 import { dayOfYear, daysBetween } from '~/lib/util'
 import { fastKind, fastState, type FastRow } from '~/lib/fasting'
 import { nextStart, type Schedule } from '~/lib/schedule'
+import { env } from '~/lib/env'
+import { buildWeekly, newToken, sendBatch } from '~/lib/weekly'
+import { usageAlerts } from '~/lib/usage'
 
 const REMINDERS = [
   'Your time with God is waiting.',
@@ -16,9 +19,12 @@ const REMINDERS = [
 // Each job marks people as reminded BEFORE queueing their notification, and the dispatcher is woken once at the end,
 // so a run that stops early (free-plan limits) never sends the same reminder twice.
 export async function runCron(now = Date.now()) {
-  const jobs: [string, () => Promise<void>][] = [['schedules', () => scheduleReminders(now)]]
-  if (pushConfigured()) jobs.push(['daily', () => dailyReminders(now)], ['word', () => dailyWord(now)], ['plans', () => planReminders(now)], ['fasts', () => fastReminders(now)])
+  const jobs: [string, () => Promise<void>][] = [['schedules', () => scheduleReminders(now)], ['meetings', () => meetingReminders(now)]]
+  if (pushConfigured()) jobs.push(['daily', () => dailyReminders(now)], ['word', () => dailyWord(now)], ['plans', () => planReminders(now)], ['fasts', () => fastReminders(now)], ['walk', () => walkPrayerReminders(now)])
+  if (env().RESEND_API_KEY) jobs.push(['weekly', () => weeklyEmails(now)])
   const d = new Date(now)
+  // Meetings usage meter: check once an hour whether admins should be alerted
+  if (d.getUTCMinutes() < 5) jobs.push(['usage', () => usageAlerts(now)])
   if (d.getUTCHours() === 3 && d.getUTCMinutes() < 5) {
     jobs.push([
       'cleanup',
@@ -61,7 +67,7 @@ async function scheduleReminders(now: number) {
       {
         kind: 'schedule',
         title: mins <= 1 ? `${s.title} is starting now` : `${s.title} starts in ${mins} minutes`,
-        body: `${s.group_name} · Tap to join live prayer`,
+        body: `${s.group_name} · Tap to join live`,
         url: `/app/community/${s.group_id}/live`,
         tag: `sched-${s.id}`,
       },
@@ -207,7 +213,7 @@ function inWindow(minutes: number, hhmm: string) {
 }
 
 /** One database batch however many people (the free plan allows few requests per run) */
-async function markDay(column: 'last_reminded_day' | 'last_word_day' | 'last_plan_day', day: string, ids: string[]) {
+async function markDay(column: 'last_reminded_day' | 'last_word_day' | 'last_plan_day' | 'last_walk_day', day: string, ids: string[]) {
   const stmts: D1PreparedStatement[] = []
   for (let i = 0; i < ids.length; i += 90) {
     const chunk = ids.slice(i, i + 90)
@@ -254,4 +260,87 @@ async function fastReminders(now: number) {
   }
   for (let i = 0; i < marks.length; i += 100) await db().batch(marks.slice(i, i + 100))
   if (items.length) await notifyMany(items, { kick: false, inApp: true })
+}
+
+/** Midday: "Pray for Tunde: new job" — for people whose walk partners have open requests they haven't prayed for today */
+async function walkPrayerReminders(now: number) {
+  const { results } = await db()
+    .prepare(
+      `SELECT p.user_id, p.timezone, p.walk_pray_time, p.last_walk_day,
+              (SELECT u.name || '|' || r.title FROM walk_requests r
+                 JOIN walk_pairs w ON w.status = 'active' AND ((w.inviter_id = p.user_id AND w.invitee_id = r.user_id) OR (w.invitee_id = p.user_id AND w.inviter_id = r.user_id))
+                 JOIN users u ON u.id = r.user_id
+                WHERE r.status = 'open' AND (r.pair_id IS NULL OR r.pair_id = w.id)
+                  AND NOT EXISTS (SELECT 1 FROM walk_prayed x WHERE x.request_id = r.id AND x.user_id = p.user_id AND x.created_at > datetime('now', '-16 hours'))
+                ORDER BY r.created_at DESC LIMIT 1) AS pick
+       FROM profiles p
+       WHERE p.walk_pray_time IS NOT NULL
+         AND EXISTS (SELECT 1 FROM push_subscriptions s WHERE s.user_id = p.user_id)
+         AND EXISTS (SELECT 1 FROM walk_pairs w2 WHERE w2.status = 'active' AND (w2.inviter_id = p.user_id OR w2.invitee_id = p.user_id))
+       LIMIT 3000`,
+    )
+    .all<{ user_id: string; timezone: string; walk_pray_time: string; last_walk_day: string | null; pick: string | null }>()
+  const byDay = new Map<string, string[]>()
+  const items: { userId: string; notice: { kind: string; title: string; body: string; url: string; tag: string } }[] = []
+  for (const r of results) {
+    const local = safeLocal(now, r.timezone)
+    if (r.last_walk_day === local.day || !inWindow(local.minutes, r.walk_pray_time)) continue
+    byDay.set(local.day, [...(byDay.get(local.day) ?? []), r.user_id])
+    if (!r.pick) continue
+    const [name, ...rest] = r.pick.split('|')
+    items.push({ userId: r.user_id, notice: { kind: 'walk', title: `🙏 Pray for ${name.split(' ')[0]} today`, body: rest.join('|'), url: '/app/walk', tag: 'walkpray' } })
+    if (items.length >= 300) break // the rest are picked up in the next run
+  }
+  for (const [day, ids] of byDay) await markDay('last_walk_day', day, ids)
+  if (items.length) await notifyMany(items, { kick: false })
+}
+
+/** Sunday evening (from 6 PM in each person's time zone): "Your week with God". Up to 50 per run, in one Resend request. */
+async function weeklyEmails(now: number) {
+  const { results } = await db()
+    .prepare(
+      `SELECT p.user_id, p.timezone, p.last_weekly, p.email_token, u.email, u.name,
+              (SELECT MAX(day) FROM workout_sessions w WHERE w.user_id = p.user_id) AS last_day
+       FROM profiles p JOIN users u ON u.id = p.user_id
+       WHERE p.weekly_email = 1 AND u.created_at < datetime('now', '-2 days')
+         AND (p.last_weekly IS NULL OR p.last_weekly < date('now', '-3 days'))
+         AND COALESCE(p.last_active_date, substr(u.created_at, 1, 10)) >= date('now', '-90 days')
+       LIMIT 500`,
+    )
+    .all<{ user_id: string; timezone: string; last_weekly: string | null; email_token: string | null; email: string; name: string; last_day: string | null }>()
+  const bySunday = new Map<string, (typeof results)[number][]>()
+  let n = 0
+  for (const r of results) {
+    const local = safeLocal(now, r.timezone)
+    const weekday = new Date(local.day + 'T12:00:00Z').getUTCDay()
+    if (weekday !== 0 || local.minutes < 18 * 60 || r.last_weekly === local.day) continue
+    bySunday.set(local.day, [...(bySunday.get(local.day) ?? []), r])
+    if (++n >= 50) break
+  }
+  for (const [sunday, people] of bySunday) {
+    const withTokens = people.map((p) => ({ ...p, email_token: p.email_token || newToken() }))
+    // Mark first (a run that stops early never emails anyone twice), saving any new unsubscribe tokens at the same time
+    await db().batch(withTokens.map((p) => db().prepare('UPDATE profiles SET last_weekly = ?, email_token = ? WHERE user_id = ?').bind(sunday, p.email_token, p.user_id)))
+    const emails = await buildWeekly(withTokens, sunday)
+    await sendBatch(emails)
+  }
+}
+
+/** Church meetings: "starts in 15 minutes" to the church, and tidy up meetings everyone has left */
+async function meetingReminders(now: number) {
+  const soon = new Date(now + 15 * 60_000).toISOString()
+  const { results } = await db()
+    .prepare(`SELECT id, church_id, title, starts_at FROM church_meetings WHERE status = 'scheduled' AND reminded = 0 AND starts_at <= ? AND starts_at > ? LIMIT 10`)
+    .bind(soon, new Date(now - 30 * 60_000).toISOString())
+    .all<{ id: string; church_id: string; title: string; starts_at: string }>()
+  for (const m of results) {
+    const mark = await db().prepare('UPDATE church_meetings SET reminded = 1 WHERE id = ? AND reminded = 0').bind(m.id).run()
+    if (!mark.meta.changes) continue
+    const mins = Math.max(0, Math.round((Date.parse(m.starts_at) - now) / 60_000))
+    await notify({ churchId: m.church_id }, { kind: 'church', title: `🗓️ ${m.title}`, body: mins > 1 ? `Starts in ${mins} minutes. Tap to join.` : 'Starting now. Tap to join.', url: `/app/meet/${m.id}`, tag: `meet-${m.id}` }, { kick: false })
+  }
+  // Meetings end at their scheduled end time (the live room closes itself at that moment too)
+  await db()
+    .prepare(`UPDATE church_meetings SET status = 'ended', ended_at = COALESCE(ended_at, datetime('now')), live_count = 0 WHERE status IN ('live', 'scheduled') AND datetime(starts_at, '+' || (duration_min + 5) || ' minutes') < datetime('now')`)
+    .run()
 }

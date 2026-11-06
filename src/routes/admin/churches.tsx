@@ -4,6 +4,7 @@ import { adminListChurches, adminReviewChurch } from '~/fns/admin'
 import { PageHead, Stat } from '~/components/AdminUI'
 import { FormError, errorText } from '~/components/AuthShell'
 import { timeAgo } from '~/components/Avatar'
+import { LineIcon } from '~/components/LineIcon'
 
 export const Route = createFileRoute('/admin/churches')({
   loader: () => adminListChurches(),
@@ -12,7 +13,7 @@ export const Route = createFileRoute('/admin/churches')({
 
 type C = Awaited<ReturnType<typeof adminListChurches>>[number]
 const STATUS_STYLE: Record<string, string> = {
-  pending: 'bg-gold/20 text-[#8a6310]',
+  pending: 'bg-gold/20 text-gold-ink',
   approved: 'bg-sage-soft text-sage',
   rejected: 'bg-red-500/10 text-red-600',
   suspended: 'bg-red-500/10 text-red-600',
@@ -27,7 +28,7 @@ function Churches() {
     <>
       <PageHead title="Churches" sub="Pastors request a church; it only goes live after you approve it. Church admins never see members’ journals or personal data." />
       <div className="grid grid-cols-3 gap-3">
-        <Stat label="Waiting for review" value={pending} color="bg-gold/20 text-[#8a6310]" />
+        <Stat label="Waiting for review" value={pending} color="bg-gold/20 text-gold-ink" />
         <Stat label="Live churches" value={list.filter((c) => c.status === 'approved').length} color="bg-sage-soft text-sage" />
         <Stat label="Church members" value={list.reduce((a, c) => a + c.members, 0)} />
       </div>
@@ -67,7 +68,7 @@ function ChurchCard({ c }: { c: C }) {
     <div className="card !p-4">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
-          <p className="font-display text-lg font-semibold">⛪ {c.name}</p>
+          <p className="flex items-center gap-2 font-display text-lg font-semibold"><LineIcon name="church" className="h-5 w-5 shrink-0 text-accent" />{c.name}</p>
           <p className="text-sm text-muted">{[c.denomination, c.city, c.country].filter(Boolean).join(' · ')}</p>
         </div>
         <span className={`rounded-full px-3 py-1 text-xs font-semibold capitalize ${STATUS_STYLE[c.status] ?? ''}`}>{c.status}</span>

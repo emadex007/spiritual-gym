@@ -47,16 +47,25 @@ export const updateProfile = createServerFn({ method: 'POST' })
     const dailyMinutes = Number(d.dailyMinutes)
     if (![5, 10, 15, 30, 45, 60].includes(dailyMinutes)) throw new Error('Choose a daily time.')
     if (!['recovery', 'build', 'deepen', 'intensive'].includes(d.level)) throw new Error('Choose a level.')
-    return { name, dailyMinutes, level: d.level, favoriteVerse: String(d.favoriteVerse ?? '').slice(0, 300), includeTongues: d.includeTongues === false ? 0 : 1 }
+    return { name, dailyMinutes, level: d.level, favoriteVerse: String(d.favoriteVerse ?? '').slice(0, 300) }
   })
   .handler(async ({ data }) => {
     const user = await requireUser()
     await db().batch([
       db().prepare('UPDATE users SET name = ? WHERE id = ?').bind(data.name, user.id),
       db()
-        .prepare(`UPDATE profiles SET daily_minutes = ?, level = ?, favorite_verse = ?, include_tongues = ?, updated_at = datetime('now') WHERE user_id = ?`)
-        .bind(data.dailyMinutes, data.level, data.favoriteVerse || null, data.includeTongues, user.id),
+        .prepare(`UPDATE profiles SET daily_minutes = ?, level = ?, favorite_verse = ?, updated_at = datetime('now') WHERE user_id = ?`)
+        .bind(data.dailyMinutes, data.level, data.favoriteVerse || null, user.id),
     ])
+    return { ok: true }
+  })
+
+/** The "Include praying in tongues" switch on the workout screen */
+export const setTongues = createServerFn({ method: 'POST' })
+  .validator((d: { on: boolean }) => ({ on: d?.on === false ? 0 : 1 }))
+  .handler(async ({ data }) => {
+    const user = await requireUser()
+    await db().prepare(`UPDATE profiles SET include_tongues = ?, updated_at = datetime('now') WHERE user_id = ?`).bind(data.on, user.id).run()
     return { ok: true }
   })
 

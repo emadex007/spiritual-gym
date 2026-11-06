@@ -6,7 +6,7 @@ import { FormError, errorText } from '~/components/AuthShell'
 import { SunriseScene } from '~/components/Art'
 
 export const Route = createFileRoute('/admin/login')({
-  head: () => ({ meta: [{ title: 'Admin sign in · SpiritualGym' }, { name: 'robots', content: 'noindex' }] }),
+  head: () => ({ meta: [{ title: 'Admin sign in · TheRenewGym' }, { name: 'robots', content: 'noindex' }] }),
   component: AdminLogin,
 })
 

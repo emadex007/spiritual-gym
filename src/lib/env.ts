@@ -12,9 +12,9 @@ export type AppEnv = {
   TURN_KEY_API_TOKEN?: string
   /** Optional: Resend API key for password-reset emails (resend.com, free tier) */
   RESEND_API_KEY?: string
-  /** Sender, e.g. "SpiritualGym <hello@yourdomain.com>" (the domain must be verified in Resend) */
+  /** Sender, e.g. "TheRenewGym <hello@yourdomain.com>" (the domain must be verified in Resend) */
   EMAIL_FROM?: string
-  /** Optional: public site address used in email links, e.g. https://spiritualgym.com */
+  /** Optional: public site address used in email links, e.g. https://therenewgym.com */
   APP_URL?: string
   /** Push notifications (generate with: node scripts/vapid.mjs) */
   VAPID_PUBLIC_KEY?: string

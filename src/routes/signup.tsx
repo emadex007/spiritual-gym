@@ -71,7 +71,7 @@ function SignUp() {
               <option key={y} value={y}>{y}</option>
             ))}
           </select>
-          <p className="mt-1.5 text-xs text-muted">You must be 13 or older. Prayer groups are for adults (18+).</p>
+          <p className="mt-1.5 text-xs text-muted">You must be 13 or older. Community groups are for adults (18+).</p>
         </div>
         <FormError message={error} />
         <button className="btn-primary w-full" disabled={busy}>

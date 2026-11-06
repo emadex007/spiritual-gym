@@ -223,7 +223,7 @@ export const joinCircle = createServerFn({ method: 'POST' })
     return { userPlanId: id }
   })
 
-/** Remove a shared note: its author, the circle's creator, or a SpiritualGym admin */
+/** Remove a shared note: its author, the circle's creator, or a TheRenewGym admin */
 export const deletePlanNote = createServerFn({ method: 'POST' })
   .validator((d: { id: string }) => ({ id: String(d?.id ?? '') }))
   .handler(async ({ data }) => {

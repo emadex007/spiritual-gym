@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, createFileRoute, useRouter } from '@tanstack/react-router'
 import { checkDonation } from '~/fns/give'
 import { Logo } from '~/components/Logo'
+import { LineIcon } from '~/components/LineIcon'
 import { formatMoney } from '~/lib/give'
 
 type Search = { ref?: string; reference?: string; tx_ref?: string }
@@ -14,7 +15,7 @@ export const Route = createFileRoute('/give/thanks')({
   }),
   loaderDeps: ({ search }) => ({ ref: search.ref || search.reference || search.tx_ref || '' }),
   loader: ({ deps }) => checkDonation({ data: deps.ref }),
-  head: () => ({ meta: [{ title: 'Thank you · SpiritualGym' }] }),
+  head: () => ({ meta: [{ title: 'Thank you · TheRenewGym' }] }),
   component: Thanks,
 })
 
@@ -40,34 +41,34 @@ function Thanks() {
       <main className="mx-auto max-w-md px-5 pt-8 pb-16 text-center">
         {!d ? (
           <>
-            <p className="text-5xl" aria-hidden>🙏</p>
+            <LineIcon name="prayer" className="mx-auto h-14 w-14 text-accent" strokeWidth={1.5} />
             <h1 className="mt-4 font-display text-3xl font-semibold">We couldn’t find that gift</h1>
             <p className="mt-3 text-muted">If you were charged, don’t worry — it will be confirmed shortly and you’ll get a receipt by email.</p>
           </>
         ) : d.status === 'success' ? (
           <>
-            <p className="text-6xl" aria-hidden>💛</p>
+            <LineIcon name="heart" className="mx-auto h-16 w-16 text-accent" strokeWidth={1.5} />
             <h1 className="mt-4 font-display text-3xl font-semibold">Thank you{first ? `, ${first}` : ''}!</h1>
             <p className="mt-3 text-lg">Your gift of <b>{formatMoney(d.amount, d.currency)}</b> was received.</p>
-            <p className="mt-3 text-muted">It helps keep SpiritualGym free for people everywhere to grow in prayer, the Word and worship. A receipt is on its way to your email.</p>
+            <p className="mt-3 text-muted">It helps keep TheRenewGym free for people everywhere to grow in prayer, the Word and worship. A receipt is on its way to your email.</p>
             <p className="mt-6 font-display text-muted italic">“God loveth a cheerful giver.” — 2 Corinthians 9:7</p>
           </>
         ) : d.status === 'failed' ? (
           <>
-            <p className="text-5xl" aria-hidden>🙏</p>
+            <LineIcon name="prayer" className="mx-auto h-14 w-14 text-accent" strokeWidth={1.5} />
             <h1 className="mt-4 font-display text-3xl font-semibold">The payment didn’t go through</h1>
             <p className="mt-3 text-muted">No money was taken. You can try again, perhaps with a different card or method.</p>
             <Link to="/give" className="btn-primary mt-6">Try again</Link>
           </>
         ) : (
           <>
-            <p className="animate-pulse text-5xl" aria-hidden>⏳</p>
+            <LineIcon name="hourglass" className="mx-auto h-14 w-14 animate-pulse text-accent" strokeWidth={1.5} />
             <h1 className="mt-4 font-display text-3xl font-semibold">Confirming your gift…</h1>
             <p className="mt-3 text-muted">{tries >= 5 ? 'This is taking a little longer. If you completed the payment, it will be confirmed shortly and you’ll get an email receipt.' : 'This only takes a moment.'}</p>
             {tries >= 5 && <Link to="/give" className="btn-ghost mt-6">Back to giving</Link>}
           </>
         )}
-        <div className="mt-8"><Link to="/app" className="btn-primary">Continue to SpiritualGym</Link></div>
+        <div className="mt-8"><Link to="/app" className="btn-primary">Continue to TheRenewGym</Link></div>
       </main>
     </div>
   )

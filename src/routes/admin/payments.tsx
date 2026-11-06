@@ -3,6 +3,7 @@ import { createFileRoute, useRouter } from '@tanstack/react-router'
 import { adminPaymentSettings, adminSavePaymentSettings, adminTestPayment } from '~/fns/admin'
 import { PageHead } from '~/components/AdminUI'
 import { FormError, errorText } from '~/components/AuthShell'
+import { LineIcon } from '~/components/LineIcon'
 
 export const Route = createFileRoute('/admin/payments')({
   loader: () => adminPaymentSettings(),
@@ -44,7 +45,7 @@ function Payments() {
         <div className="mt-3 grid grid-cols-2 gap-2">
           {(['test', 'live'] as const).map((m) => (
             <button key={m} disabled={busy} className={`option !py-3 ${d.mode === m ? 'option-on' : ''}`} onClick={() => d.mode !== m && save({ pay_mode: m }, m === 'live' ? 'Live mode is on — real payments.' : 'Test mode is on — no real money.')}>
-              <span>{m === 'test' ? '🧪 Test' : '✅ Live'}</span>
+              <span className="inline-flex items-center gap-1.5"><LineIcon name={m === 'test' ? 'wrench' : 'check'} className="h-4 w-4" />{m === 'test' ? 'Test' : 'Live'}</span>
               {d.mode === m && <span className="text-xs text-accent">Active</span>}
             </button>
           ))}
@@ -110,7 +111,7 @@ function ProviderCard(props: {
   async function check(mode: 'test' | 'live') {
     setTest({ ...test, [mode]: 'Checking…' })
     const r = await adminTestPayment({ data: { provider: props.provider, mode } })
-    setTest({ ...test, [mode]: `${r.ok ? '✅' : '⚠️'} ${r.message}` })
+    setTest({ ...test, [mode]: `${r.ok ? '✓' : '✕'} ${r.message}` })
   }
 
   return (

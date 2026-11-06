@@ -1,18 +1,19 @@
+import { Portal } from '~/components/Portal'
 import { useState } from 'react'
 import { drawCard, type CardInput } from '~/lib/shareCard'
 
 /** Share as a picture (WhatsApp, Instagram, Facebook, etc. via the phone's share menu), with link fallbacks on computers */
-export function ShareButton({ card, text, label = 'Share', className = '' }: { card: CardInput; text: string; label?: string; className?: string }) {
+export function ShareButton({ card, text, label = 'Share', className = '', url }: { card: CardInput; text: string; label?: string; className?: string; url?: string }) {
   const [sheet, setSheet] = useState<{ url: string; file: File } | null>(null)
   const [busy, setBusy] = useState(false)
-  const site = typeof location !== 'undefined' ? location.origin : ''
+  const site = url ?? (typeof location !== 'undefined' ? location.origin : '')
   const fullText = `${text}\n\n${site}`
 
   async function share() {
     setBusy(true)
     try {
       const blob = await drawCard(card)
-      const file = new File([blob], 'spiritualgym.png', { type: 'image/png' })
+      const file = new File([blob], 'therenewgym.png', { type: 'image/png' })
       const nav = navigator as Navigator & { canShare?: (d: ShareData) => boolean }
       if (nav.share && nav.canShare?.({ files: [file] })) {
         try {
@@ -45,10 +46,10 @@ export function ShareButton({ card, text, label = 'Share', className = '' }: { c
         {busy ? 'Preparing…' : label}
       </button>
       {sheet && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-4 sm:items-center" role="dialog" aria-modal="true" aria-label="Share" onClick={() => setSheet(null)}>
+        <Portal><div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-4 sm:items-center" role="dialog" aria-modal="true" aria-label="Share" onClick={() => setSheet(null)}>
           <div className="card fade-in w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
             <img src={sheet.url} alt="Share picture" className="w-full rounded-2xl" />
-            <a href={sheet.url} download="spiritualgym.png" className="btn-primary mt-4 w-full">Save picture</a>
+            <a href={sheet.url} download="therenewgym.png" className="btn-primary mt-4 w-full">Save picture</a>
             <p className="mt-3 text-center text-xs text-muted">Save the picture to post it on Instagram or WhatsApp Status, or share the text:</p>
             <div className="mt-3 grid grid-cols-4 gap-2 text-center text-xs font-semibold">
               {links.map(([n, href]) => (
@@ -57,7 +58,7 @@ export function ShareButton({ card, text, label = 'Share', className = '' }: { c
             </div>
             <button type="button" className="btn-ghost mt-3 w-full" onClick={() => setSheet(null)}>Close</button>
           </div>
-        </div>
+        </div></Portal>
       )}
     </>
   )

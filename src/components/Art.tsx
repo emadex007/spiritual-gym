@@ -1,4 +1,4 @@
-// SpiritualGym illustration set: hand-drawn SVG, no external assets.
+// TheRenewGym illustration set: hand-drawn SVG, no external assets.
 import type { ComponentType, SVGProps } from 'react'
 
 type IconProps = { className?: string }
@@ -113,13 +113,14 @@ export const STEP_STYLE: Record<string, StepStyle> = {
 }
 export const stepStyle = (kind: string) => STEP_STYLE[kind] ?? STEP_STYLE.prayer
 
-export const MOOD_STYLE: Record<string, { emoji: string; color: string; soft: string }> = {
-  dry: { emoji: '🍂', color: '#b7791f', soft: '#fbf0dc' },
-  tired: { emoji: '😴', color: '#5b6b8c', soft: '#e8ecf4' },
-  okay: { emoji: '🙂', color: '#1f9a8f', soft: '#dcf2ef' },
-  encouraged: { emoji: '🌱', color: '#3f8f5a', soft: '#e1f1e6' },
-  hungry: { emoji: '🙌', color: '#6f5ce6', soft: '#ebe8fd' },
-  strong: { emoji: '💪', color: '#c9971f', soft: '#f8ecd0' },
+/** Each mood: a one-colour line icon (same look on every phone) and its colours. `emoji` is kept for share cards. */
+export const MOOD_STYLE: Record<string, { emoji: string; icon: string; color: string; soft: string }> = {
+  dry: { emoji: '🍂', icon: 'leaf', color: '#b7791f', soft: '#fbf0dc' },
+  tired: { emoji: '😴', icon: 'moon', color: '#5b6b8c', soft: '#e8ecf4' },
+  okay: { emoji: '🙂', icon: 'smile', color: '#1f9a8f', soft: '#dcf2ef' },
+  encouraged: { emoji: '🌱', icon: 'sprout', color: '#3f8f5a', soft: '#e1f1e6' },
+  hungry: { emoji: '🙌', icon: 'flame', color: '#6f5ce6', soft: '#ebe8fd' },
+  strong: { emoji: '💪', icon: 'dumbbell', color: '#c9971f', soft: '#f8ecd0' },
 }
 
 const FOCUS: Record<string, { from: string; to: string; Icon: ComponentType<IconProps> }> = {
@@ -138,7 +139,7 @@ export function JourneyCover({ focus, className = '' }: { focus: string; classNa
   const f = FOCUS[focus] ?? FOCUS.growth
   const id = `jc-${focus}`
   return (
-    <div className={`relative overflow-hidden ${className}`} style={{ background: `linear-gradient(135deg, ${f.from}, ${f.to})` }}>
+    <div className={`${className.includes('absolute') ? '' : 'relative '}overflow-hidden ${className}`} style={{ background: `linear-gradient(135deg, ${f.from}, ${f.to})` }}>
       <svg viewBox="0 0 400 160" preserveAspectRatio="xMidYMid slice" className="absolute inset-0 h-full w-full" aria-hidden>
         <defs>
           <radialGradient id={id} cx="0.85" cy="0.2" r="0.7">

@@ -4,8 +4,8 @@ import { db } from '~/lib/env'
 export type SiteSettings = Record<string, string>
 
 export const DEFAULT_SETTINGS: SiteSettings = {
-  site_name: 'SpiritualGym',
-  tagline: 'Train your walk. Grow in grace. Walk together.',
+  site_name: 'TheRenewGym',
+  tagline: 'Train Your Faith. Grow in Grace. Walk Together.',
   hero_title: 'Your spiritual life doesn’t need perfection. It needs intentionality.',
   hero_subtitle: 'Gentle, guided time with God in prayer, Scripture, worship and reflection. Start with five minutes and begin again whenever you need to.',
   hero_image: '',

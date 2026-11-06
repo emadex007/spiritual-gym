@@ -1,12 +1,26 @@
-export function Logo({ className = '' }: { className?: string }) {
+/** TheRenewGym logo: the "R" mark (cross and road) with the wordmark. On dark backgrounds (or in dark mode)
+ *  the mark switches to its light version and "The" / "Gym" turn white. The mark can be replaced in Admin → Branding. */
+export function Logo({ className = '', onDark = false, size = 'md', wordmark = true }: { className?: string; onDark?: boolean; size?: 'sm' | 'md' | 'lg'; wordmark?: boolean }) {
+  const box = size === 'lg' ? 'h-12 w-12' : size === 'sm' ? 'h-7 w-7' : 'h-9 w-9'
+  const text = size === 'lg' ? 'text-3xl' : size === 'sm' ? 'text-base' : 'text-[1.35rem]'
+  const plain = onDark ? 'text-white' : 'text-navy dark:text-white'
   return (
     <span className={`inline-flex items-center gap-2 ${className}`}>
-      <svg viewBox="0 0 64 64" className="h-8 w-8" aria-hidden>
-        <rect width="64" height="64" rx="16" fill="#12203a" />
-        <path d="M16 40a16 16 0 0 1 32 0z" fill="#d4a94a" />
-        <rect x="12" y="43" width="40" height="4" rx="2" fill="#f6f1e7" />
-      </svg>
-      <span className="font-display text-lg font-semibold tracking-tight">SpiritualGym</span>
+      {onDark ? (
+        <img src="/brand/logo-mark-dark" alt="" className={`${box} object-contain`} />
+      ) : (
+        <>
+          <img src="/brand/logo-mark" alt="" className={`${box} object-contain dark:hidden`} />
+          <img src="/brand/logo-mark-dark" alt="" className={`${box} hidden object-contain dark:block`} />
+        </>
+      )}
+      {wordmark && (
+        <span className={`font-logo ${text} leading-none font-bold tracking-tight`} aria-label="TheRenewGym">
+          <span className={plain}>The</span>
+          <span className="text-gold">Renew</span>
+          <span className={plain}>Gym</span>
+        </span>
+      )}
     </span>
   )
 }

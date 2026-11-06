@@ -1,3 +1,4 @@
+import { Portal } from '~/components/Portal'
 import { useState } from 'react'
 import { reportContent } from '~/fns/community'
 import { REPORT_REASONS } from '~/lib/content'
@@ -19,7 +20,7 @@ export function ReportDialog({ targetType, targetId, onClose }: { targetType: 'p
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-4 sm:items-center" role="dialog" aria-modal="true" aria-label="Report" onClick={onClose}>
+    <Portal><div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-4 sm:items-center" role="dialog" aria-modal="true" aria-label="Report" onClick={onClose}>
       <div className="card fade-in w-full max-w-md" onClick={(e) => e.stopPropagation()}>
         {done ? (
           <>
@@ -47,6 +48,6 @@ export function ReportDialog({ targetType, targetId, onClose }: { targetType: 'p
           </>
         )}
       </div>
-    </div>
+    </div></Portal>
   )
 }

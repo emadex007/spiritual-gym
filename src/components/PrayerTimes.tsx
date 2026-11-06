@@ -3,10 +3,12 @@ import { useRouter } from '@tanstack/react-router'
 import { deleteSchedule, saveSchedule, setGroupNotify } from '~/fns/community'
 import { describeSchedule, nextStart, relativeStart, type Schedule } from '~/lib/schedule'
 import { FormError, errorText } from '~/components/AuthShell'
+import { LineIcon } from '~/components/LineIcon'
 
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
-export function PrayerTimes({ groupId, schedules, canSchedule, isMember, notifyOn }: { groupId: string; schedules: Schedule[]; canSchedule: boolean; isMember: boolean; notifyOn: boolean }) {
+export function PrayerTimes({ groupId, schedules, canSchedule, isMember, notifyOn, prayer = true, liveCount = 0 }: { groupId: string; schedules: Schedule[]; canSchedule: boolean; isMember: boolean; notifyOn: boolean; prayer?: boolean; liveCount?: number }) {
+  const word = prayer ? 'prayer time' : 'meeting time'
   const router = useRouter()
   const [now, setNow] = useState(() => Date.now())
   const [adding, setAdding] = useState(false)
@@ -27,7 +29,7 @@ export function PrayerTimes({ groupId, schedules, canSchedule, isMember, notifyO
     await setGroupNotify({ data: { groupId, on: !on } })
   }
   async function remove(id: string) {
-    if (!confirm('Remove this prayer time?')) return
+    if (!confirm(`Remove this ${word}?`)) return
     await deleteSchedule({ data: { id } })
     await router.invalidate()
   }
@@ -35,14 +37,15 @@ export function PrayerTimes({ groupId, schedules, canSchedule, isMember, notifyO
   return (
     <section className="card mt-5">
       <div className="flex items-center justify-between gap-3">
-        <p className="eyebrow">⏰ Prayer times</p>
+        <p className="eyebrow"><LineIcon name="alarm" className="mr-1 inline h-3.5 w-3.5 -translate-y-px" />{prayer ? 'Prayer times' : 'Meeting times'}</p>
         {isMember && schedules.length > 0 && (
-          <button type="button" onClick={toggleNotify} className={`rounded-full px-3 py-1.5 text-xs font-semibold ${on ? 'bg-sage-soft text-sage' : 'bg-surface-2 text-muted'}`}>
-            {on ? '🔔 Reminders on' : '🔕 Reminders off'}
+          <button type="button" onClick={toggleNotify} className={`inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-xs font-semibold ${on ? 'bg-sage-soft text-sage' : 'bg-surface-2 text-muted'}`}>
+            <LineIcon name="bell" className="h-3.5 w-3.5" />
+            {on ? 'Reminders on' : 'Reminders off'}
           </button>
         )}
       </div>
-      {upcoming.length === 0 && <p className="mt-2 text-sm text-muted">No regular prayer times yet. Set one so members can pray together.</p>}
+      {upcoming.length === 0 && <p className="mt-2 text-sm text-muted">No regular {word}s yet. Set one so members can {prayer ? 'pray' : 'meet'} together.</p>}
       <ul className="mt-3 space-y-2">
         {upcoming.map(({ s, start }) => {
           const live = start != null && start <= now
@@ -54,8 +57,8 @@ export function PrayerTimes({ groupId, schedules, canSchedule, isMember, notifyO
               </div>
               <div className="flex shrink-0 items-center gap-3">
                 {start != null && (
-                  <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${live ? 'bg-red-500 text-white' : 'bg-accent-soft text-accent'}`}>
-                    {live ? '● Live now' : relativeStart(start, s.duration_min, now)}
+                  <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${live && liveCount > 0 ? 'bg-red-500 text-white' : 'bg-accent-soft text-accent'}`}>
+                    {live ? (liveCount > 0 ? '● Live now' : 'Now · join') : relativeStart(start, s.duration_min, now)}
                   </span>
                 )}
                 {canSchedule && <button type="button" onClick={() => remove(s.id)} className="text-xs font-semibold text-muted hover:text-red-600" aria-label={`Remove ${s.title}`}>✕</button>}
@@ -64,14 +67,14 @@ export function PrayerTimes({ groupId, schedules, canSchedule, isMember, notifyO
           )
         })}
       </ul>
-      {canSchedule && (adding ? <AddTime groupId={groupId} onDone={() => setAdding(false)} /> : (
-        <button type="button" className="mt-3 text-sm font-semibold text-accent" onClick={() => setAdding(true)}>+ Add a prayer time</button>
+      {canSchedule && (adding ? <AddTime groupId={groupId} prayer={prayer} onDone={() => setAdding(false)} /> : (
+        <button type="button" className="mt-3 text-sm font-semibold text-accent" onClick={() => setAdding(true)}>+ Add a {word}</button>
       ))}
     </section>
   )
 }
 
-function AddTime({ groupId, onDone }: { groupId: string; onDone: () => void }) {
+function AddTime({ groupId, prayer, onDone }: { groupId: string; prayer: boolean; onDone: () => void }) {
   const router = useRouter()
   const [title, setTitle] = useState('')
   const [daily, setDaily] = useState(false)
@@ -86,7 +89,7 @@ function AddTime({ groupId, onDone }: { groupId: string; onDone: () => void }) {
     setError(null)
     try {
       await saveSchedule({
-        data: { groupId, title: title || 'Group prayer', days: daily ? 'daily' : days.join(','), time, durationMin: duration, timezone: Intl.DateTimeFormat().resolvedOptions().timeZone },
+        data: { groupId, title: title || (prayer ? 'Group prayer' : 'Group meeting'), days: daily ? 'daily' : days.join(','), time, durationMin: duration, timezone: Intl.DateTimeFormat().resolvedOptions().timeZone },
       })
       await router.invalidate()
       onDone()
@@ -98,7 +101,7 @@ function AddTime({ groupId, onDone }: { groupId: string; onDone: () => void }) {
 
   return (
     <div className="fade-in mt-4 space-y-3 border-t border-line pt-4">
-      <input className="input" placeholder="Name, e.g. Night Watch" value={title} onChange={(e) => setTitle(e.target.value)} maxLength={60} />
+      <input className="input" placeholder={prayer ? 'Name, e.g. Night Watch' : 'Name, e.g. Tuesday Bible Study'} value={title} onChange={(e) => setTitle(e.target.value)} maxLength={60} />
       <div className="flex flex-wrap gap-1.5">
         <button type="button" onClick={() => setDaily(!daily)} className={`chip !px-3 !py-1.5 text-xs ${daily ? 'chip-on' : ''}`}>Every day</button>
         {!daily && DAYS.map((d, i) => {
@@ -126,7 +129,7 @@ function AddTime({ groupId, onDone }: { groupId: string; onDone: () => void }) {
       <FormError message={error} />
       <div className="flex gap-2">
         <button type="button" className="btn-ghost !py-2" onClick={onDone}>Cancel</button>
-        <button type="button" className="btn-primary !py-2" disabled={busy || (!daily && !days.length)} onClick={save}>{busy ? 'Saving…' : 'Save prayer time'}</button>
+        <button type="button" className="btn-primary !py-2" disabled={busy || (!daily && !days.length)} onClick={save}>{busy ? 'Saving…' : prayer ? 'Save prayer time' : 'Save meeting time'}</button>
       </div>
     </div>
   )

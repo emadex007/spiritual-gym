@@ -2,7 +2,7 @@
 // Simple format: "## Heading", "- bullet", blank line = new paragraph. {{email}} = the contact email from settings.
 // These are sensible starting drafts, not legal advice. Have them reviewed for your organisation (e.g. under the Nigeria Data Protection Act 2023).
 
-export const DEFAULT_PRIVACY = `SpiritualGym helps you build a steady walk with God. Your spiritual life is personal, so we treat your data with care. This policy explains what we collect, why, and the choices you have.
+export const DEFAULT_PRIVACY = `TheRenewGym helps you build a steady walk with God. Your spiritual life is personal, so we treat your data with care. This policy explains what we collect, why, and the choices you have.
 
 ## What we collect
 - Account details: your name, email, password (stored scrambled, never readable) and year of birth.
@@ -14,7 +14,7 @@ export const DEFAULT_PRIVACY = `SpiritualGym helps you build a steady walk with 
 Your journal, check-ins, reflections, personal prayer list and Scripture memory are private to you. Other members, group leaders, churches and our admins cannot read them. Our admin dashboard shows only totals.
 
 ## Community content
-Posts and replies in a prayer group can be seen by that group's members. Live prayer audio goes directly between the phones in the room; we do not record it. Reported content may be reviewed by our moderators.
+Posts and replies in a community group can be seen by that group's members. In live meetings (community groups and church meetings), voice and video go directly between the devices in the room; our servers do not hear, see or store them. A group leader or church admin may record a meeting on their own device; everyone in the meeting sees a "Recording" notice while this happens, and the recording is kept and shared by that leader, not by TheRenewGym. Reported content may be reviewed by our moderators.
 
 ## How we use your data
 - To run the app and personalise your workouts and journeys.
@@ -29,20 +29,20 @@ Your data is stored with Cloudflare, our hosting provider, and may be processed 
 You can view and edit your profile, remove your photo, delete journal entries and posts, and permanently delete your account at any time from Profile. You may also ask us for a copy of your data or to correct it.
 
 ## Children
-SpiritualGym is for people aged 13 and over. Prayer groups and live prayer are for adults (18+).
+TheRenewGym is for people aged 13 and over. Community groups and live meetings in them are for adults (18+).
 
 ## Contact
 Questions about privacy? Contact us at {{email}}.`
 
-export const DEFAULT_TERMS = `By creating an account or using SpiritualGym you agree to these terms.
+export const DEFAULT_TERMS = `By creating an account or using TheRenewGym you agree to these terms.
 
-## Using SpiritualGym
-- You must be at least 13 years old. Prayer groups and live prayer are for adults (18+).
+## Using TheRenewGym
+- You must be at least 13 years old. Community groups and live meetings in them are for adults (18+).
 - Keep your password safe. You are responsible for activity on your account.
 - Give accurate information, and don't pretend to be someone else.
 
-## What SpiritualGym is, and isn't
-SpiritualGym offers tools, content and community to encourage spiritual habits. It does not measure your salvation or your worth before God. It is not a church, and it is not a substitute for pastoral, medical, legal or mental-health care. If you are in danger, contact local emergency services.
+## What TheRenewGym is, and isn't
+TheRenewGym offers tools, content and community to encourage spiritual habits. It does not measure your salvation or your worth before God. It is not a church, and it is not a substitute for pastoral, medical, legal or mental-health care. If you are in danger, contact local emergency services.
 
 ## Community content
 You keep ownership of what you post, and you give us permission to display it to the people you share it with. You must follow the Community Guidelines. We may remove content or suspend accounts that break them.
@@ -51,7 +51,7 @@ You keep ownership of what you post, and you give us permission to display it to
 Bible translations in the app are in the public domain or used with permission.
 
 ## Changes and availability
-We may update the app and these terms. We will try to keep SpiritualGym available but cannot guarantee it will always be uninterrupted.
+We may update the app and these terms. We will try to keep TheRenewGym available but cannot guarantee it will always be uninterrupted.
 
 ## Ending your account
 You can delete your account at any time in Profile. We may suspend accounts that put others at risk.
@@ -59,7 +59,7 @@ You can delete your account at any time in Profile. We may suspend accounts that
 ## Contact
 {{email}}`
 
-export const DEFAULT_GUIDELINES = `SpiritualGym is a place to pray for one another and begin again together. Support over performance.
+export const DEFAULT_GUIDELINES = `TheRenewGym is a place to pray for one another and begin again together. Support over performance.
 
 ## Please do
 - Be kind, patient and encouraging.
@@ -75,9 +75,11 @@ export const DEFAULT_GUIDELINES = `SpiritualGym is a place to pray for one anoth
 - Start romantic conversations with members, or pressure anyone to join a church.
 - Share sexual, violent or hateful content.
 
-## Live prayer
-- Mute yourself when you are not praying, and use headphones if you can.
-- Pray with reverence. Leaders may remove anyone who disrupts.
+## Live meetings
+- Mute yourself when you are not speaking, and use headphones if you can.
+- Pray and share with reverence. Leaders may mute or remove anyone who disrupts.
+- Cameras are optional. Dress and behave as you would in church.
+- Leaders: tell people before you record, and only share a recording where the group would expect it.
 
 ## If someone is in danger
 If someone says they may harm themselves or others, report it with "Someone may be in danger" and encourage them to contact local emergency services or someone they trust right away.

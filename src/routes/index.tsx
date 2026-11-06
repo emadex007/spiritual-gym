@@ -1,9 +1,11 @@
+import { InstallPrompt } from '~/components/InstallPrompt'
 import { SupportFloat } from '~/components/SupportButton'
 import { Link, createFileRoute } from '@tanstack/react-router'
 import { getMe } from '~/fns/auth'
 import { getSiteSettings } from '~/fns/site'
 import { Logo } from '~/components/Logo'
 import { BibleIcon, DoveIcon, HandsIcon, HeartIcon, JourneyCover, LampIcon, STEP_STYLE, SunriseScene } from '~/components/Art'
+import { LineIcon } from '~/components/LineIcon'
 import { mediaUrl } from '~/lib/util'
 
 export const Route = createFileRoute('/')({
@@ -50,7 +52,7 @@ function Welcome() {
           <SunriseScene className="absolute inset-0 -z-10 h-full w-full" />
         )}
         <header className="mx-auto flex max-w-6xl items-center justify-between px-5 py-5">
-          <span className="[&_span]:text-white"><Logo /></span>
+          <Logo onDark />
           <Link to={me ? startTo : '/login'} className="rounded-full bg-white/15 px-4 py-2 text-sm font-semibold backdrop-blur hover:bg-white/25">
             {me ? 'Open app →' : 'Sign in'}
           </Link>
@@ -59,10 +61,10 @@ function Welcome() {
           <p className="fade-in inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-xs font-semibold tracking-[0.14em] text-gold uppercase backdrop-blur">
             <DoveIcon className="h-4 w-4" /> Welcome to {site.site_name}
           </p>
-          <h1 className="fade-in mt-5 max-w-3xl font-display text-4xl leading-[1.08] font-semibold tracking-tight drop-shadow-sm md:text-6xl">
+          <h1 className="fade-in mt-5 max-w-3xl font-display text-4xl leading-[1.08] font-semibold tracking-tight text-on-photo md:text-6xl">
             {site.hero_title}
           </h1>
-          <p className="fade-in mt-5 max-w-xl text-lg text-white/85">{site.hero_subtitle}</p>
+          <p className="fade-in text-on-photo mt-5 max-w-xl text-lg text-white/90">{site.hero_subtitle}</p>
           <div className="fade-in mt-8 flex flex-wrap gap-3">
             <Link to={startTo} className="btn-gold px-7 py-4 text-base shadow-lg shadow-black/20">START MY JOURNEY</Link>
             {!me && (
@@ -71,7 +73,7 @@ function Welcome() {
               </Link>
             )}
           </div>
-          <p className="mt-4 text-sm text-white/70">Free forever · Your journal stays private</p>
+          <p className="text-on-photo mt-4 text-sm text-white/80">Free forever · Your journal stays private</p>
         </div>
       </section>
 
@@ -81,7 +83,7 @@ function Welcome() {
           {[
             { t: 'Restore', d: 'Come back after a tired or distracted season. No guilt, no catching up. Just begin again.', Icon: DoveIcon, c: STEP_STYLE.stillness },
             { t: 'Train', d: 'Short guided workouts and journeys that grow at your pace, from 5 minutes to an hour.', Icon: HandsIcon, c: STEP_STYLE.prayer },
-            { t: 'Connect', d: 'Join prayer groups, share requests, and pray live together with your voice.', Icon: HeartIcon, c: STEP_STYLE.worship },
+            { t: 'Connect', d: 'Join prayer groups, Bible studies and fellowships, and meet live by voice or video.', Icon: HeartIcon, c: STEP_STYLE.worship },
           ].map(({ t, d, Icon, c }) => (
             <div key={t} className="card fade-in">
               <span className="flex h-12 w-12 items-center justify-center rounded-2xl" style={{ background: c.soft, color: c.color }}>
@@ -145,15 +147,15 @@ function Welcome() {
         </section>
 
         {/* VERSE BAND */}
-        <section className="relative mb-20 overflow-hidden rounded-[2rem] px-6 py-14 text-center md:px-16" style={{ background: 'linear-gradient(135deg,#f8ecd0,#fdebd8 60%,#fce6ec)' }}>
-          <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-white/70 text-[#c9971f]">
+        <section className="on-light relative mb-20 overflow-hidden rounded-[2rem] px-6 py-14 text-center md:px-16" style={{ background: 'linear-gradient(135deg,var(--gold-tint),var(--gold-tint-2) 60%,#fce6ec)' }}>
+          <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-white/70 text-gold-mid">
             <LampIcon className="h-7 w-7" />
           </span>
-          <blockquote className="mx-auto mt-5 max-w-2xl font-display text-2xl leading-snug text-[#12203a] md:text-3xl">
+          <blockquote className="mx-auto mt-5 max-w-2xl font-display text-2xl leading-snug text-navy md:text-3xl">
             “Thy word is a lamp unto my feet, and a light unto my path.”
           </blockquote>
           <p className="mt-3 text-sm font-semibold text-[#5c4209]">Psalm 119:105 · KJV</p>
-          <BibleIcon className="absolute -bottom-6 -left-6 h-40 w-40 text-[#c9971f]/15" />
+          <BibleIcon className="absolute -bottom-6 -left-6 h-40 w-40 text-gold-mid/15" />
           <HandsIcon className="absolute -top-6 -right-6 h-40 w-40 text-[#6f5ce6]/10" />
         </section>
 
@@ -169,11 +171,12 @@ function Welcome() {
             <Link to="/privacy">Privacy</Link>
             <Link to="/terms">Terms</Link>
             <Link to="/guidelines">Community guidelines</Link>
-            <Link to="/give">Support us 💛</Link>
+            <Link to="/give" className="inline-flex items-center gap-1">Support us <LineIcon name="heart" className="h-3.5 w-3.5" /></Link>
           </p>
         </footer>
       </main>
       <SupportFloat bottom="bottom-5" />
+      <InstallPrompt />
     </div>
   )
 }

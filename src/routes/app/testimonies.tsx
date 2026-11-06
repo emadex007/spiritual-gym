@@ -6,6 +6,7 @@ import { Avatar, timeAgo } from '~/components/Avatar'
 import { ReportDialog } from '~/components/ReportDialog'
 import { WeeklyScene } from '~/components/WeeklyScene'
 import { FormError, errorText } from '~/components/AuthShell'
+import { LineIcon, IconBadge, Glyph } from '~/components/LineIcon'
 
 export const Route = createFileRoute('/app/testimonies')({
   validateSearch: (s: Record<string, unknown>): { from?: string } => ({ from: typeof s.from === 'string' ? s.from.slice(0, 40) : undefined }),
@@ -41,21 +42,21 @@ function Testimonies() {
       {writing ? (
         <ShareForm d={d} onDone={() => setWriting(false)} />
       ) : d.canShare ? (
-        <button className="btn-gold mt-5 w-full py-4 text-base" onClick={() => setWriting(true)}>🎉 Share your testimony</button>
+        <button className="btn-gold mt-5 w-full py-4 text-base" onClick={() => setWriting(true)}><LineIcon name="megaphone" className="h-5 w-5" />Share your testimony</button>
       ) : (
         <p className="mt-5 rounded-2xl bg-surface-2 px-4 py-3 text-sm text-muted">Sharing testimonies on the wall is for adults (18+). You can still read them and say Amen!</p>
       )}
 
       <div className="-mx-1 mt-6 flex gap-2 overflow-x-auto px-1 pb-1">
         {[{ key: 'all', label: 'All', emoji: '🌟' }, ...TESTIMONY_CATEGORIES].map((c) => (
-          <button key={c.key} type="button" onClick={() => setCat(c.key)} className={`chip shrink-0 !py-2 text-xs ${cat === c.key ? 'chip-on' : ''}`}>{c.emoji} {c.label}</button>
+          <button key={c.key} type="button" onClick={() => setCat(c.key)} className={`chip shrink-0 !py-2 text-xs ${cat === c.key ? 'chip-on' : ''}`}><Glyph e={c.emoji} className="mr-1 inline h-3.5 w-3.5 -translate-y-px" />{c.label}</button>
         ))}
       </div>
 
       <div className="mt-4 space-y-3">
         {list.length === 0 && (
           <div className="card text-center">
-            <p className="text-3xl" aria-hidden>🙌</p>
+            <IconBadge name="sparkles" size="lg" className="mx-auto" />
             <p className="mt-2 font-semibold">No testimonies here yet</p>
             <p className="mt-1 text-sm text-muted">When God answers your prayer, come back and tell it. Your story could be the encouragement someone needs today.</p>
           </div>
@@ -85,16 +86,16 @@ function TestimonyCard({ t, onReport }: { t: Data['wall'][number]; onReport: () 
   return (
     <article className="card fade-in !p-5">
       <div className="flex items-center gap-3">
-        {t.author ? <Avatar name={t.author} src={t.avatar_key} /> : <span className="flex h-10 w-10 items-center justify-center rounded-full bg-surface-2 text-lg" aria-hidden>🙏</span>}
+        {t.author ? <Avatar name={t.author} src={t.avatar_key} /> : <span className="flex h-10 w-10 items-center justify-center rounded-full bg-surface-2 text-accent" aria-hidden><LineIcon name="prayer" className="h-5 w-5" /></span>}
         <div className="min-w-0 flex-1">
           <p className="text-sm font-semibold">{t.author ?? 'Someone in the family'}</p>
-          <p className="text-xs text-muted">{c.emoji} {c.label} · {timeAgo(t.approved_at)}</p>
+          <p className="text-xs text-muted"><Glyph e={c.emoji} className="mr-1 inline h-3.5 w-3.5 -translate-y-px" />{c.label} · {timeAgo(t.approved_at)}</p>
         </div>
       </div>
       <h2 className="mt-3 font-display text-xl font-semibold">{t.title}</h2>
       <p className="mt-1 leading-relaxed whitespace-pre-wrap">{open || !long ? t.body : t.body.slice(0, 300) + '…'}</p>
       {long && <button type="button" className="mt-1 text-sm font-semibold text-accent" onClick={() => setOpen(!open)}>{open ? 'Show less' : 'Read more'}</button>}
-      {t.scripture && <p className="mt-2 text-sm font-semibold text-accent">📖 {t.scripture}</p>}
+      {t.scripture && <p className="mt-2 text-sm font-semibold text-accent"><LineIcon name="bookOpen" className="mr-1 inline h-4 w-4 -translate-y-px" />{t.scripture}</p>}
       <div className="mt-4 flex flex-wrap items-center gap-2">
         <button type="button" onClick={() => react('amen')} className={`rounded-full px-4 py-2 text-sm font-semibold transition ${mine.amen ? 'bg-navy text-white dark:bg-accent' : 'bg-surface-2'}`}>🙏 Amen {mine.amens > 0 && mine.amens}</button>
         <button type="button" onClick={() => react('praise')} className={`rounded-full px-4 py-2 text-sm font-semibold transition ${mine.praise ? 'bg-gold text-navy' : 'bg-surface-2'}`}>🎉 Praise God {mine.praises > 0 && mine.praises}</button>
@@ -148,7 +149,7 @@ function ShareForm({ d, onDone }: { d: Data; onDone: () => void }) {
     <section className="card fade-in mt-5 space-y-3">
       <p className="font-display text-xl font-semibold">Share what God did</p>
       <div className="flex flex-wrap gap-2">
-        {TESTIMONY_CATEGORIES.map((c) => <button key={c.key} type="button" className={`chip !py-1.5 text-xs ${f.category === c.key ? 'chip-on' : ''}`} onClick={() => setF({ ...f, category: c.key })}>{c.emoji} {c.label}</button>)}
+        {TESTIMONY_CATEGORIES.map((c) => <button key={c.key} type="button" className={`chip !py-1.5 text-xs ${f.category === c.key ? 'chip-on' : ''}`} onClick={() => setF({ ...f, category: c.key })}><Glyph e={c.emoji} className="mr-1 inline h-3.5 w-3.5 -translate-y-px" />{c.label}</button>)}
       </div>
       <input className="input" placeholder="Title, e.g. God healed my mother" value={f.title} onChange={(e) => setF({ ...f, title: e.target.value })} maxLength={100} />
       <textarea className="input" rows={6} placeholder="Tell the story: what you were praying for, what happened, and how God came through." value={f.body} onChange={(e) => setF({ ...f, body: e.target.value })} maxLength={2000} />

@@ -1,4 +1,4 @@
-# SpiritualGym
+# TheRenewGym
 
 Train your walk. Grow in grace. Walk together.
 
@@ -47,8 +47,8 @@ Load the Bible once per database:
 node node_modules\wrangler\bin\wrangler.js d1 execute spiritual_gym_db --local  --file seed\kjv.sql
 node node_modules\wrangler\bin\wrangler.js d1 execute spiritual_gym_db --remote --file seed\kjv.sql
 ```
-Optional, for live prayer on strict mobile networks: create a TURN key in Cloudflare (Realtime → TURN) and
-`wrangler secret put TURN_KEY_ID` / `wrangler secret put TURN_KEY_API_TOKEN`.
+**Recommended for meetings (mobile data):** create a TURN key in Cloudflare (Realtime → TURN Server → Create) and
+`wrangler secret put TURN_KEY_ID` / `wrangler secret put TURN_KEY_API_TOKEN`. Without it, people on some mobile networks stay on "Connecting…".
 
 ## Translations + profile photos
 - Bible reader: KJV (in D1, searchable) plus BSB (CC0), ASV and BBE (public domain) as static files, one per book, in `public/bible/<code>/<bookId>.json`
@@ -57,7 +57,7 @@ Optional, for live prayer on strict mobile networks: create a TURN key in Cloudf
 
 ## Launch essentials
 - Forgot password: `/forgot-password` → email with a 1-hour link (Resend). Without email set up, admins can make a 24-hour reset link in Admin → Users and send it on WhatsApp.
-  Email setup (optional): `wrangler secret put RESEND_API_KEY`, and add `EMAIL_FROM = "SpiritualGym <hello@yourdomain>"` (verified domain) and `APP_URL = "https://your-site"` under [vars].
+  Email setup (optional): `wrangler secret put RESEND_API_KEY`, and add `EMAIL_FROM = "TheRenewGym <hello@yourdomain>"` (verified domain) and `APP_URL = "https://your-site"` under [vars].
 - Install on phone (PWA): manifest, icons, service worker (`public/sw.js`) with offline page; "Install app" card on Home and Profile.
 - Privacy policy, terms, community guidelines at `/privacy`, `/terms`, `/guidelines`, editable in Admin → Site content.
 - Year of birth at sign-up (13+). Prayer groups and live prayer are 18+, enforced on the server. Older accounts are asked once.
@@ -86,7 +86,7 @@ Optional, for live prayer on strict mobile networks: create a TURN key in Cloudf
 - Churches: a pastor or leader (18+) requests a church at `/app/church/new`. It goes live only after you approve it in Admin → Churches, and the person who asked becomes its first church admin.
 - Members join with the church code or invite link (13+). Church admins can post announcements (members are notified), create programs (prayer challenges, fasting, devotionals, Bible study, workers' programs; each 1–60 days, built on journeys), start church-wide Bible plans, manage members and admins, and set the logo, colour and details.
 - Privacy: church admins see names and anonymous totals only, never journals, prayers, check-ins or anyone's personal progress. The "time with God this week" total only shows once a church has 5 or more members. Members can report a church, and Admin can suspend it.
-- Donations: the public page `/give` for SpiritualGym, in any of 15 currencies. Paystack handles the currencies set in PAYSTACK_CURRENCIES (default NGN); Flutterwave handles everything else. A gift is marked received only after the provider's API confirms the amount and currency. Webhooks are signature-checked. Givers get a thank-you by email (if Resend is set up) and in the app. Admin → Donations shows totals.
+- Donations: the public page `/give` for TheRenewGym, in any of 15 currencies. Paystack handles the currencies set in PAYSTACK_CURRENCIES (default NGN); Flutterwave handles everything else. A gift is marked received only after the provider's API confirms the amount and currency. Webhooks are signature-checked. Givers get a thank-you by email (if Resend is set up) and in the app. Admin → Donations shows totals.
 - Secrets (set whichever you use):
   - `PAYSTACK_SECRET_KEY` (sk_live_…); optional `PAYSTACK_CURRENCIES` (e.g. `NGN,USD` if USD is enabled on your Paystack account)
   - `FLUTTERWAVE_SECRET_KEY` (FLWSECK-…) and `FLUTTERWAVE_WEBHOOK_HASH` (any long random text, also typed into Flutterwave)
@@ -138,12 +138,124 @@ Optional, for live prayer on strict mobile networks: create a TURN key in Cloudf
 - Sermons: a preaching calendar with stages (idea, drafting, ready, preached). The editor has title, main Scripture, date, venue, big idea and notes; KJV verse insert; an outline template; "Suggest an outline" (AI, max 10 a day, a starting point to study, not a script); and copy notes.
 - Intercession: a list grouped by Church family, Workers, The sick…, with a "Pray through my list" mode, prayer counts and answered prayers.
 - Pastoral tasks: visits, calls, counselling and meetings, with due dates (overdue shown in red).
-- ✨ Write the full sermon with AI: follows the SpiritualGym sermon brief and gives a complete preaching manuscript, not an outline. Inputs: topic (the sermon title), main Scripture, church or ministry (filled in from the pastor's church), audience, service type, length (30, 45 or 60 min) and whether to include a response moment. Output, in this order: sermon title; main Scripture in full KJV (key verses when the passage is long); introduction; key terms defined; central truth; about 5 points (4 for 30 min), each with explanation, Scriptures explained in context, a Bible story and its lesson, an everyday example, application with a question for the congregation, practical steps, common mistakes and a transition; practical application by area of life; warnings; key takeaways; conclusion; altar or response moment (only when it fits); 5–10 prayer points, each with its Scripture in full KJV underneath; biblically grounded declarations; closing prayer; benediction.
+- ✨ Write the full sermon with AI: follows the TheRenewGym sermon brief and gives a complete preaching manuscript, not an outline. Inputs: topic (the sermon title), main Scripture, church or ministry (filled in from the pastor's church), audience, service type, length (30, 45 or 60 min) and whether to include a response moment. Output, in this order, written as teaching people can take notes from, with Scripture-based prophetic fire: sermon title; main Scripture in full KJV (key verses when long); introduction; WHAT IT MEANS (simple meaning, Bible meaning, and the Hebrew or Greek word only when certain, e.g. agape); TYPES AND DIMENSIONS (e.g. kinds of love, only what Scripture shows); central truth; WHY IT MATTERS; about 5 points (4 for 30 min), each with explanation, Scripture explained in context, a Bible story and its lesson, an everyday example, "How to live it" steps, "Watch out" and a highlighted "Note this" line; BENEFITS AND BLESSINGS; DANGERS OF NEGLECT; HOW TO DO IT; THINGS TO AVOID; practical application by area of life; SERMON NOTES (7–10 one-liners to copy down); conclusion with a faith-stirring charge; altar or response moment (only when it fits); prayer points, each with its Scripture in full KJV underneath; 6–8 bold, Scripture-grounded declarations; closing prayer; benediction.
   - How it works: `src/lib/sermon.ts` makes three AI calls. First a short plan (title, central truth, point headings, key verses), then the first half and the second half at the same time, so the wait is about 1–3 minutes. The AI only writes references like `[[John 15:5]]`; every verse is filled in word for word from the KJV table in a single D1 batch. A reference that isn't in the Bible is marked "⚠ check this reference" and not guessed. If the model stops before the benediction, 2 Corinthians 13:14 is added.
   - The reader and the Word export bold the section headings and point labels. Sermon notes now hold up to 80,000 characters, so a full manuscript with its Scriptures fits. Max 3 a day per minister.
   - Cost note: on the free Workers AI plan (10,000 neurons a day), one 45-minute sermon uses roughly 1,500–2,500 neurons, so about 4–6 sermons a day across the whole app. With a Claude key saved in Admin → AI coach, sermons use Claude instead.
 - Leaders: people being raised up, with their role, what they're growing in, private notes and next meeting ("✓ Met today").
 - Migration `0016_pastor.sql`.
+
+## Devotion order, ministry titles, sermon chat, verse insight (migrations `0017_flow.sql` and `0018_order.sql`)
+- Built-in workout order (`0018_order.sql`, which replaces 0017's order): Stillness → Worship → The Word → Prayer → Praying in tongues → Thanksgiving. Prayer and tongues are separate steps; the 5- and 10-minute workouts have no tongues step. A reading plan's reflection question now shows during The Word. Workouts created in Admin are not changed.
+- "🔥 Include praying in tongues" now sits on the workout start screen with the voice and music switches, and is saved for next time. It's no longer in Profile. When it's off, tongues time joins the prayer step.
+- Pastor Mode is now the Ministry Corner, named after the person's calling: Pastor's Corner, Apostle's Corner, Prophet's Corner, Teacher's Corner, Evangelist, Bishop, Reverend, Minister, Elder, Deacon/Deaconess, Missionary, Worship Leader, Youth Leader, Church Worker, or their own title. It's chosen when turning it on and changed with "Change title" (`profiles.ministry_role`). The AI sermon writer is told the preacher's office.
+- 💬 Ask the AI to adjust a sermon: quick chips (shorter, 3 points, simpler English, more Bible stories, more prophetic, more prayer points, stronger altar call, for youths) or any request typed in. Undo goes back. It works on a fresh AI draft and on saved notes ("📖 Read & adjust" beside "✍️ Write"). Scriptures are turned back into references before the AI sees them and refilled word for word from KJV afterwards; the title and main Scripture block stay unless a new title is asked for. Max 15 adjustments a day; they don't count as ministry activity.
+- Every Bible reference in a sermon is marked 📖 and tappable: the verse opens in a sheet with "Open … in the Bible", which scrolls to and highlights that verse.
+- Verse of the day: "💡 Understand this verse" under Share: what it says, background, key words, what it teaches, how to live it today, related Scriptures (exact KJV), a prayer and a declaration, plus the verses around it. The AI writes it once per verse and it's saved in `verse_insights` for everyone. To have one rewritten, delete its row: `DELETE FROM verse_insights WHERE reference = 'John 3:16'`.
+
+## Understand any verse (migration `0019_understand.sql`)
+- /app/understand: type any Scripture (up to 12 verses, e.g. "Romans 8:28" or "Psalm 23:1-3") and it opens in a pop-up. The pop-up shows the verse in KJV, what it says, the background, key words, what it teaches, how to live it today, related Scriptures (tappable), a prayer and a declaration, plus the verses around it. From there: Share (picture + summary + link back), Copy, Open in Bible. It also lists recently opened verses and well-loved verses.
+- The same pop-up opens from: the Bible reader (select verses → 💡 Understand), any 📖 Scripture pop-up in sermons and explanations, and the verse of the day (which now also has "Share this explanation" and "Understand any other verse →"). Bible home has a 💡 Understand a verse button.
+- Each explanation is written by the AI once and saved in `verse_insights` for everyone. A person can open 20 new verses a day (`insight_log`); verses anyone has opened before are unlimited.
+
+## Walk With Me: praying for each other (migration `0020_walk_prayer.sql`)
+- Walk partners can share prayer requests (title + optional details) with all their partners or just one. Partners are notified, see the request on Walk With Me, and tap "🙏 I prayed" (once a day). The person is told "Tunde prayed for you" and sees who prayed and how many times.
+- "🙌 God answered!" (with an optional note) tells the partners, shows as answered for 14 days, and links to sharing a testimony.
+- A daily reminder ("🙏 Pray for Ada today: job interview") at 12:00 by default, with the time or off set on the Walk With Me page (`profiles.walk_pray_time`). Sent only when a partner has an open request not prayed for today.
+- Only walk partners ever see requests; the personal prayer list stays private. Up to 10 open requests per person.
+
+## Weekly email (migration `0021_weekly_email.sql`)
+- "Your week with God" every Sunday from 6 PM (each person's time zone): days (out of 7) and minutes with God, answered prayers, prayers from walk partners, reading-plan progress, and the word for the week ahead (Monday's verse and declaration). People with no activity get a gentle "begin again" email instead.
+- Sent to people who joined more than 2 days ago and were active in the last 90 days. Up to 50 per 5-minute run in one Resend batch request (`src/lib/weekly.ts`).
+- Opt out: the Unsubscribe link in the email (one-click, `/unsubscribe`, with a private token per person), or Profile → Notifications → Weekly email.
+- Admin → Notifications → Weekly email: status, "👀 Preview my email" and "📨 Send it to me now".
+- Needs email set up: `wrangler secret put RESEND_API_KEY`, plus `EMAIL_FROM = "TheRenewGym <hello@yourdomain>"` (a domain verified in Resend) and `APP_URL` under [vars]. Resend's free plan allows 100 emails a day and 3,000 a month.
+
+## New name: TheRenewGym (migration `0022_rename.sql`)
+- Everything people see now says TheRenewGym: screens, page titles, the phone install name, notifications, emails, share pictures, the AI coach, sermons and the legal pages. The migration updates names saved in the database (site name and site text).
+- Internal names are unchanged on purpose: the Worker (spiritual-gym), the D1 database (spiritual_gym_db), the R2 bucket, cookies and saved settings. Nobody is logged out and no links break.
+- People who installed the app on their phone may keep the old name under the icon until they remove it and add it again (the app itself shows the new name straight away).
+
+## Brand: logo, colours, Admin → Branding (migration `0023_brand.sql`)
+- The TheRenewGym logo is everywhere: the "R" mark (cross and road) with the wordmark "The**Renew**Gym" (Poppins bold, "Renew" in gold) in the app header, sign-in, landing page, onboarding, admin sidebar, share pictures and emails. In dark mode (and on dark headers) the mark switches to its light version and "The…Gym" turns white.
+- Files: `public/brand/mark.png`, `mark-dark.png`, `logo.png` (horizontal), `logo-stacked.png`. App icons (`public/icons/*`, `public/favicon.png`) are the R mark on white.
+- Colours come from the logo: navy `#002e54`, gold `#e3b648`. `src/lib/brand.ts` builds the whole light and dark palette from four colours (main, accent, light background, dark background) and checks contrast so text stays readable. In dark mode primary buttons turn gold.
+- Admin → Branding: change the four colours (colour picker or hex), upload your own logo mark (light, and optionally dark), and edit the tagline, with a live light/dark preview, contrast warnings and "back to the logo colours". Saving applies it to the whole app and admin: the server serves `/brand.css` (cached for about 2 minutes) after the main stylesheet, and `/brand/logo-mark` / `/brand/logo-mark-dark` serve the uploaded mark or the built-in one. Weekly emails and share pictures use the saved colours too.
+
+## Understand a chapter + install pop-up
+- Bible reader: "💡 Understand this chapter" (top of the chapter, and a card at the end). A pop-up explains the whole chapter: in summary, the background, the chapter step by step, key verses (exact KJV), key words, what it teaches, how to live it today, a prayer and a declaration, with Share and Copy. Written once per chapter by the AI and saved for everyone (`verse_insights`, counted in the same 20-a-day limit for new ones). The Understand page also accepts a whole chapter ("Psalm 23").
+- Install pop-up (`InstallPrompt`): a couple of seconds after opening the app or the home page on a device that hasn't installed it, "Download TheRenewGym app" pops up. Android/Chrome: one tap installs it; iPhone and other browsers: step-by-step. Cancel hides it until the next visit, and it comes back on each new visit until the app is installed. It never shows inside the installed app or once this device has installed it (`appinstalled`, standalone mode, and Chrome's installed-app check via `related_applications` in the manifest).
+
+## Bible games, Listen mode, Admin insights (migration `0024_games.sql`)
+- Bible games (`/app/games`, Home shortcut "🧠 Bible games"):
+  - Today's quiz: 7 questions (finish the verse, which book, where is it found), built each day from the memory-verse library and the year of daily words. No AI, so no wrong answers, and everyone gets the same quiz. It counts once a day, with a streak and a shareable score.
+  - Memory games: 🧩 Verse Scramble (tap the pieces in order) and 🔗 Match the Reference (pair 4 verses with where they're found), using your memory verses (or well-loved verses until you have 4).
+  - "🧠 Quiz me on this chapter" at the end of every Bible chapter: 5 questions the AI writes from the chapter's KJV text, checked and saved once per chapter for everyone (`quiz_cache`, counted in the 20-a-day limit for new ones).
+  - New medals: Bible Quizzer, Perfect Score, Seven-Day Scholar, Word Warrior. As with all medals, there are no leaderboards.
+- Listen mode: "🔊 Listen" in the Bible reader reads the chapter aloud verse by verse, highlighting and scrolling to each verse, with play/pause, back/forward, speed (0.75×–1.5×), and it carries on into the next chapter. 🔊 Listen is also on the verse and chapter explanations and the verse-of-the-day explanation.
+- Admin → Insights (`/admin/insights`): active members today and per day, new members, workouts, still active after a week, where new members drop off (joined → onboarding → first workout → 3 days → 7 days), most used features, favourite workouts, reading plans, how people are feeling, and live gifts, for the last 7, 30 or 90 days. Totals only, with a table view under each chart.
+- Admin sidebar: the menu now scrolls on smaller screens, so every page (Users, Activity log, Sign out) can be reached. Pages also can't get stuck unable to scroll after a pop-up closes.
+
+## Pop-up fix
+- Pop-ups (medals, Understand, Scripture, chapter quiz, Share, Report, download, Listen) now open in a layer directly on the page body (`components/Portal.tsx`), so they always cover the whole screen and can always be closed. Before, a page's fade-in animation could trap them inside the page box, cutting off the top and the close button.
+- The fade-in animation no longer leaves anything applied once it ends (`animation-fill-mode: backwards`).
+- The medal pop-up has a ✕ button, and tapping outside it also closes it.
+
+## Church meetings (migration `0025_meetings.sql`)
+- **Church page → Meetings.** Church admins tap **Start a meeting now** (members get a "🔴 has started" notification) or **+ Schedule** (title, type, date/time, length, details). Members are notified when it's scheduled and again 15 minutes before.
+- **In the meeting** (`/app/meet/<id>`): everyone can talk; mute/unmute, raise a hand ✋, chat 💬, see who's speaking (gold ring). **Invite** shares the link to WhatsApp.
+- **Video:** adults (18+) can turn their camera on or off at any time; up to 4 cameras at once (`CAMERA_LIMIT`), up to 12 people (`MEETING_LIMIT`). Under-18s join by voice and chat.
+- **Host tools** (church admins and site admins): mute someone, turn their camera off, lower a hand, remove someone, end the meeting for everyone.
+- **Recording:** the host taps Host → Record (voice only, or voice and video). Everyone sees "🔴 Recording". The file is made on the host's own device (nothing uploaded, no cost); when it stops: **Share to WhatsApp** or **Download**. Voice ≈ 30 MB/hour; video ≈ 250 MB/hour (best on a computer, keep the screen open).
+- **Cost:** voice and video go phone-to-phone (peer-to-peer); the server only passes on the "connect" messages, so meetings are free. Bigger meetings (a server that relays video) are Step 2.
+- The cron job reminds members 15 minutes before and closes live meetings that everyone left over an hour after their end time.
+
+## Community groups for every program (migration `0026_group_kinds.sql`)
+- **Community is no longer prayer-only.** When starting a group, pick its kind: Prayer group, Bible study, Fellowship / cell, Worship & choir, Youth, Students & campus, Women, Men, Marriage & family, Singles, New believers & discipleship, Evangelism & outreach, Ministry & workers, or Other. Prayer groups still choose a prayer topic. Existing groups stay prayer groups.
+- **Find a group** filters by kind. Each group's wording follows its kind ("Live Bible study", "Study wall", "Meeting times"…).
+- **Every group meets live with the full meeting room:** voice, optional cameras (up to 4), chat, raised hands. The group leader hosts: mute, camera off, remove, record (share to WhatsApp) and end. In the room, prayer groups see their prayer requests; other groups see notes and questions.
+- **New post types:** ❓ Question, 📝 Notes / lesson, and 📢 Announcement (group leader only). Non-request posts get "🙌 Amen" instead of "🙏 Pray".
+- **Church meetings** have more types too: service, night vigil, praise & worship, choir rehearsal, women, men, children's church, foundation class, counselling / marriage class, evangelism, conference / special program.
+- Admin → Community can create official groups of any kind. The privacy note and guidelines now cover recording in live meetings.
+
+## Meetings: Meet/Zoom-style room, screen sharing, connection fixes (no migration)
+- **Layout:** one big stage with everyone else in a strip underneath (phones) or down the side (computers). The stage shows, in order: what you pinned → whoever is presenting → the person the host spotlighted → the host → whoever spoke last. Tap anyone to pin them on your own screen. **More → Grid view** shows everyone the same size.
+- **Present:** *Share my screen* (window, tab or whole screen, on computers) or *Show pictures or slides* (works on phones; pick pictures and use ◀ ▶). One presenter at a time; the host can take over or stop someone's presentation. Recordings include the presented screen.
+- **Host:** People → ⭐ Spotlight (puts someone on everyone's big screen), mute, camera off, stop presenting, lower hand, remove.
+- **Compact controls:** mic, camera, present, hand, chat, more, leave. Everything else is under **More** (layout, people, notes, invite, sound fix, recording, end for everyone, connection status).
+- **Connecting fixes:** a connection that doesn't come up is restarted automatically (up to 4 times). Safari's connection status is read correctly. A "Tap to hear everyone" button appears if the phone blocked sound. If you join from a second tab or device with the same account, the first one is told why it was disconnected. Each person needs their own account to test.
+- **TURN relay** (see Setup): the new TURN API is used (`generate-ice-servers`), and More → Connection shows whether the relay is on. Cloudflare Realtime: 1,000 GB free (shared with the SFU), then $0.05/GB; it is only used when a direct connection fails.
+
+## Meetings usage meter + admin alerts, Community home (migration `0027_meeting_usage.sql`)
+- **Admin → Meetings & usage:** relayed data this month (the part that can cost money), the bill estimate, free relay left, meeting hours, people, daily charts, the meetings/groups using the most, and month by month. Every device in a meeting reports its own data every 30 seconds (relayed vs direct). The admin dashboard shows this month's relay use too.
+- **Alerts:** admins get an in-app and push notification, and an email (when `RESEND_API_KEY` is set), at 50%, 80% and 100% of the monthly alert level (default 50 GB), and when 80% and 100% of the free allowance is used. Set the level, extra email addresses, free allowance and price on the same page. Checked hourly by the cron.
+- **Community home** is now short and in order: Live now → **Your church** (with its next meeting, or join with a code / register) → **Join a group** by kind (prayer, Bible study, fellowship, worship, youth, more) → Start a group / Reading plans → Coming up → My groups → group invite code → guidelines. Browsing groups has its own page (`/app/community/groups`, filter by kind and search).
+- **Delete a group:** the group's leader can delete it (posts, requests and meeting times go with it). Admins can still delete any group in Admin → Community.
+
+## Today’s word, worship songs and prayer list in workouts, Books (migrations `0028_worship_songs.sql`, `0029_books.sql`)
+- **One “Today’s word”** on Home (the separate Verse of the day card is gone). It has 🔊 Listen, Share and **💡 Understand this verse**. If no daily word is set for today, the verse of the day is used.
+- **My worship songs** (Journal → Worship): save songs with a YouTube link, an uploaded MP3/M4A (private, up to 20 MB) and/or lyrics. In a workout’s **Worship** step, pick a song: it plays with the lyrics, the calm music and the timer pause, and **Done** carries on.
+- **Prayer step** shows my prayer list (Journal → Prayer) to pray through, like the Scripture step.
+- **Books** (Home → Books, Admin → Books): admins upload a PDF; the admin’s browser reads the text of every page, makes the cover from page 1 and uploads the PDF. Publish when ready. Members pick 1 week, 2 weeks, 1 month, 2 months or any number of days; the book is split into daily readings of similar length. Reader: easy text view (size Aa) or the real PDF pages, 🔊 read aloud, “I’ve read day N”, and **select words → ⭐ Save / 💡 Understand / 📤 Share**. Highlights page per book. PDF.js is loaded from jsDelivr only when a book is opened.
+- Only upload books you have the right to share (public domain, your own, or with permission).
+
+## Members add their own books, Bible verses on their own lines with colours, tongues sounds (migration `0030_my_books_verses_tongues.sql`)
+- **Books are added by members** (Books → + Add a book): the PDF is read on their device (each page's text, page 1 as the cover), uploaded, and then **checked by the AI to be a Christian book** before it can be read. If it isn't, it isn't added (the file is deleted) and the reason is shown. If the AI isn't set up, books are allowed. Books are private to the person who added them; up to 20 books each, 40 MB per PDF. Then they pick 1 week, 2 weeks, 1 month, 2 months or any number of days, as before.
+- **Admin → Books** is now an overview (who added what, storage used of R2's free 10 GB) with Delete for anything that breaks the rules.
+- **Bible:** every verse starts on its own line. Tap verses, then: pick a **colour** (yellow, green, blue, pink, purple; ⌫ removes it), **⭐ Save to journal** (it appears in Journal with a Share button), Share, Understand, Memorise, Copy.
+- **Praying-in-tongues sounds:** in Journal → Worship, add a **🔥 Tongues sound** (upload the audio or a YouTube link). In a workout's *Praying in the Spirit* step, pick it and pray along (the timer waits).
+
+## Workout music fix + Home reorganised (no migration)
+- **Worship / tongues songs:** the timer keeps running while a song plays. When the time is up the song stops and the next step starts (Done stops it sooner). Background music is quiet while a song plays, while paused, and during **Devotion**.
+- **Home** is now in three clear parts: **Today** (workout with today's minutes, Today's word, a **Continue** card for journey, Bible plan, book and memory verses), **Explore** (everything in the app in three groups: The Word, Prayer & worship, Together) and **Your progress**.
+
+## Meetings like Zoom: waiting room, end time, mute all, PDF slides, live captions (migration `0031_daily_counts.sql`)
+- **Waiting room:** in church meetings people knock and the host lets them in (Admit / Deny / Admit all; a bar pops up for the host). Group leaders can turn it on in More → Host. The host can turn it off.
+- **Meetings end at their set time:** church meetings close for everyone at their scheduled end (5-minute warning with a countdown; the host can add 15 minutes). Ending or deleting a meeting in the app also closes the room. Old meetings stop showing as live.
+- **Group meeting times** no longer say “Live now” unless people are actually in the room (they say “Now · join”).
+- **Host:** mute everyone, mute one person, **ask someone to unmute** (they choose; nobody can be unmuted without saying yes), camera off, stop a presentation, spotlight, remove.
+- **Present:** share your screen (computer), **present a PDF** page by page (PowerPoint/Word/Excel/Google Slides saved as PDF; works on phones) or show pictures.
+- **Live captions:** the host turns them on; each person's device writes their own speech as text for everyone (Chrome works best). Anyone can choose their speaking language and **translate captions** into English, Yoruba, Igbo, Hausa, Pidgin or French (AI; 600 lines a day each).
 
 ## Setup (Windows, PowerShell)
 ```powershell
@@ -169,3 +281,18 @@ Or push to GitHub and connect the repo in Cloudflare (same as Ronia).
 - `src/fns/` server functions (auth, onboarding, home, train, profile)
 - `src/lib/` helpers (`env.ts` = D1/R2 bindings, `auth.ts`, `queries.ts`, `content.ts` rules and labels)
 - `migrations/` D1 schema + seed content (KJV verses, public domain)
+
+## Line icons + welcome tour (migration `0032_welcome_tour.sql`)
+- Emojis used as icons are now one-colour line icons (`src/components/LineIcon.tsx`: `LineIcon`, `IconBadge`, and `Glyph`, which draws an emoji from the data as its matching icon). Emojis stay for moods, medals, celebrations, Amen reactions and shared messages.
+- New members see a 3-screen welcome tour on Home once: the daily workout, church and groups, Bible and books, each with a "where to find it" map of the bottom bar. People who already use the app don't see it. Profile → "Show me around again" replays it.
+
+## The Word step: its own devotion, sized to the time (migration `0033_word_step.sql`)
+- The Word step in a workout no longer repeats Today's word. `src/lib/word-plans.ts` holds 54 themed devotions (title, focus, key verse, passages and chapters, declaration, prayer). Each workout gets a different one each day, and the Scriptures are filled to the step's length (about 120 words a minute, ~75% of the step): a 1-minute step gets a verse or two, 3–4 minutes a passage, 15 minutes two or three chapters.
+- If you're on a journey, that day's Scripture shows as a small card under the devotion.
+- Tap verses to save them to the journal (with a note), highlight them (shows in the Bible), or add them to memory verses. "Save this devotion to my journal" saves the whole thing.
+- The mood check-in on Home uses line icons in each mood's colour.
+
+## Older iPhones and iPads + screen check (no migration)
+- Safari before iOS/iPadOS 16.2 doesn't understand `color-mix()`, so Tailwind's see-through brand colours (`bg-gold/20`, …) fell back to the **solid** colour there: "Support TheRenewGym" became gold text on a solid gold box (blank), and soft tints became solid blocks. `scripts/legacy-colors.mjs` (a Vite plugin, see `vite.config.ts`) adds a proper see-through fallback using `--name-rgb` colour channels, which `styles.css` and `/brand.css` now include. Newer browsers are unchanged.
+- Words over the sunrise pictures (welcome page, Support page, Home greeting) have a soft shadow so they stay readable over the sun (`.text-on-photo`).
+- Training-level buttons on Profile wrap neatly on small phones; admin quick links no longer squash on iPad.

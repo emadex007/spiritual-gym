@@ -2,8 +2,8 @@ import { createServerFn } from '@tanstack/react-start'
 import { db } from '~/lib/env'
 import { communityAccess, requireCommunityUser, requireUser } from '~/lib/auth'
 import { askCoach, coachReady } from '~/lib/coach'
-import { composeSermon } from '~/lib/sermon'
-import { SERMON_AUDIENCES, SERMON_MINUTES, SERMON_SERVICES } from '~/lib/content'
+import { composeSermon, reviseSermonText } from '~/lib/sermon'
+import { SERMON_AUDIENCES, SERMON_MINUTES, SERMON_SERVICES, cleanRole } from '~/lib/content'
 import { dayString, newId } from '~/lib/util'
 
 const clean = (v: unknown, max: number) => String(v ?? '').trim().slice(0, max)
@@ -11,30 +11,39 @@ const dateOrNull = (v: unknown) => (typeof v === 'string' && /^\d{4}-\d{2}-\d{2}
 
 async function requirePastor() {
   const user = await requireUser()
-  const p = await db().prepare('SELECT pastor_mode FROM profiles WHERE user_id = ?').bind(user.id).first<{ pastor_mode: number }>()
-  if (!p?.pastor_mode) throw new Error('Turn on Pastor Mode in your Profile first.')
-  return user
+  const p = await db().prepare('SELECT pastor_mode, ministry_role FROM profiles WHERE user_id = ?').bind(user.id).first<{ pastor_mode: number; ministry_role: string | null }>()
+  if (!p?.pastor_mode) throw new Error('Turn on your Ministry Corner in your Profile first.')
+  return Object.assign(user, { ministryRole: p.ministry_role || 'Minister' })
 }
 const log = (userId: string, kind: string) => db().prepare('INSERT INTO ministry_log (user_id, day, kind) VALUES (?, ?, ?)').bind(userId, dayString(), kind)
 
 export const setPastorMode = createServerFn({ method: 'POST' })
-  .validator((d: { on: boolean }) => ({ on: d?.on ? 1 : 0 }))
+  .validator((d: { on: boolean; role?: string }) => ({ on: d?.on ? 1 : 0, role: d?.role ? cleanRole(d.role) : null }))
   .handler(async ({ data }) => {
     const user = data.on ? await requireCommunityUser() : await requireUser()
-    await db().prepare('UPDATE profiles SET pastor_mode = ? WHERE user_id = ?').bind(data.on, user.id).run()
-    return { ok: true }
+    await db().prepare('UPDATE profiles SET pastor_mode = ?, ministry_role = COALESCE(?, ministry_role) WHERE user_id = ?').bind(data.on, data.role, user.id).run()
+    return { ok: true, role: data.role }
+  })
+
+/** Change the title shown on the corner: Pastor, Apostle, Prophet, Teacher… */
+export const setMinistryRole = createServerFn({ method: 'POST' })
+  .validator((d: { role: string }) => ({ role: cleanRole(d?.role) }))
+  .handler(async ({ data }) => {
+    const user = await requireUser()
+    await db().prepare('UPDATE profiles SET ministry_role = ? WHERE user_id = ?').bind(data.role, user.id).run()
+    return { role: data.role }
   })
 
 export const getPastorMode = createServerFn({ method: 'GET' }).handler(async () => {
   const user = await requireUser()
-  const p = await db().prepare('SELECT pastor_mode FROM profiles WHERE user_id = ?').bind(user.id).first<{ pastor_mode: number }>()
-  return { on: !!p?.pastor_mode, adult: communityAccess(user) === 'ok' }
+  const p = await db().prepare('SELECT pastor_mode, ministry_role FROM profiles WHERE user_id = ?').bind(user.id).first<{ pastor_mode: number; ministry_role: string | null }>()
+  return { on: !!p?.pastor_mode, adult: communityAccess(user) === 'ok', role: p?.ministry_role ?? null }
 })
 
 export const getPastor = createServerFn({ method: 'GET' }).handler(async () => {
   const user = await requireUser()
-  const p = await db().prepare('SELECT pastor_mode FROM profiles WHERE user_id = ?').bind(user.id).first<{ pastor_mode: number }>()
-  if (!p?.pastor_mode) return { enabled: false as const }
+  const p = await db().prepare('SELECT pastor_mode, ministry_role FROM profiles WHERE user_id = ?').bind(user.id).first<{ pastor_mode: number; ministry_role: string | null }>()
+  if (!p?.pastor_mode) return { enabled: false as const, role: p?.ministry_role ?? null }
   const today = dayString()
   const weekAgo = dayString(new Date(Date.now() - 6 * 86_400_000))
   const [communion, ministry, sermons, intercessions, tasks, mentees, ai] = await Promise.all([
@@ -43,7 +52,7 @@ export const getPastor = createServerFn({ method: 'GET' }).handler(async () => {
       .bind(user.id, today, weekAgo)
       .first<{ today: number; week: number; days: number }>(),
     db()
-      .prepare(`SELECT SUM(CASE WHEN day = ?2 THEN 1 ELSE 0 END) AS today, COUNT(*) AS week, COUNT(DISTINCT day) AS days FROM ministry_log WHERE user_id = ?1 AND day >= ?3`)
+      .prepare(`SELECT SUM(CASE WHEN day = ?2 THEN 1 ELSE 0 END) AS today, COUNT(*) AS week, COUNT(DISTINCT day) AS days FROM ministry_log WHERE user_id = ?1 AND day >= ?3 AND kind <> 'ai-revise'`)
       .bind(user.id, today, weekAgo)
       .first<{ today: number | null; week: number; days: number }>(),
     db()
@@ -66,6 +75,7 @@ export const getPastor = createServerFn({ method: 'GET' }).handler(async () => {
   ])
   return {
     enabled: true as const,
+    role: p.ministry_role || 'Minister',
     name: user.name.split(' ')[0],
     today,
     balance: {
@@ -96,13 +106,13 @@ export const getSermon = createServerFn({ method: 'GET' })
       .first<{ name: string }>()
       .catch(() => null)
     const churchName = church?.name ?? ''
-    if (id === 'new') return { sermon: null, aiReady: ai, churchName }
+    if (id === 'new') return { sermon: null, aiReady: ai, churchName, role: user.ministryRole }
     const s = await db()
       .prepare('SELECT id, title, scripture, preach_on, venue, status, big_idea, outline, updated_at FROM sermons WHERE id = ? AND user_id = ?')
       .bind(id, user.id)
       .first<{ id: string; title: string; scripture: string | null; preach_on: string | null; venue: string | null; status: string; big_idea: string | null; outline: string | null; updated_at: string }>()
     if (!s) throw new Error('Sermon not found.')
-    return { sermon: s, aiReady: ai, churchName }
+    return { sermon: s, aiReady: ai, churchName, role: user.ministryRole }
   })
 
 export const saveSermon = createServerFn({ method: 'POST' })
@@ -260,7 +270,7 @@ export const menteeAction = createServerFn({ method: 'POST' })
     return { ok: true }
   })
 
-/** A complete preaching manuscript (the SpiritualGym sermon brief): title, main Scripture, introduction, key terms, central truth,
+/** A complete preaching manuscript (the TheRenewGym sermon brief): title, main Scripture, introduction, key terms, central truth,
  *  about 5 points (explanation, Scriptures in exact KJV, Bible and everyday examples, steps, mistakes), application, warnings,
  *  takeaways, conclusion, response moment, prayer points with Scriptures, declarations, closing prayer and benediction. */
 export const writeSermon = createServerFn({ method: 'POST' })
@@ -284,8 +294,27 @@ export const writeSermon = createServerFn({ method: 'POST' })
     const user = await requirePastor()
     const used = await db().prepare(`SELECT COUNT(*) AS n FROM ministry_log WHERE user_id = ? AND day = ? AND kind = 'ai-sermon'`).bind(user.id, dayString()).first<{ n: number }>()
     if ((used?.n ?? 0) >= 3) throw new Error('You’ve written 3 sermons with AI today. Take time to study and pray over them, and come back tomorrow.')
-    const out = await composeSermon(data)
+    const out = await composeSermon({ ...data, role: user.ministryRole })
     if (!out) throw new Error('The AI helper isn’t switched on yet (Admin → AI coach).')
     await log(user.id, 'ai-sermon').run()
+    return out
+  })
+
+/** "Make it shorter", "reduce to 3 points", "add the story of Ruth": rewrite the sermon as the minister asks (Scripture stays exact KJV) */
+export const reviseSermon = createServerFn({ method: 'POST' })
+  .validator((d: { text: string; instruction: string }) => {
+    const text = String(d?.text ?? '').slice(0, 80000)
+    const instruction = clean(d?.instruction, 400)
+    if (text.trim().length < 40) throw new Error('There’s nothing to adjust yet.')
+    if (!instruction) throw new Error('Say what you would like changed.')
+    return { text, instruction }
+  })
+  .handler(async ({ data }) => {
+    const user = await requirePastor()
+    const used = await db().prepare(`SELECT COUNT(*) AS n FROM ministry_log WHERE user_id = ? AND day = ? AND kind = 'ai-revise'`).bind(user.id, dayString()).first<{ n: number }>()
+    if ((used?.n ?? 0) >= 15) throw new Error('You’ve made 15 AI changes today. You can still edit the notes yourself, and the AI will be ready again tomorrow.')
+    const out = await reviseSermonText(data.text, data.instruction, user.ministryRole)
+    if (!out) throw new Error('The AI helper isn’t switched on yet (Admin → AI coach).')
+    await log(user.id, 'ai-revise').run()
     return out
   })

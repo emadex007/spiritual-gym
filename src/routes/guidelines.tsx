@@ -5,7 +5,7 @@ import { LegalPage } from '~/components/LegalPage'
 
 export const Route = createFileRoute('/guidelines')({
   loader: () => getSiteSettings(),
-  head: () => ({ meta: [{ title: 'Community guidelines · SpiritualGym' }] }),
+  head: () => ({ meta: [{ title: 'Community guidelines · TheRenewGym' }] }),
   component: () => {
     const s = Route.useLoaderData()
     return <LegalPage title="Community guidelines" text={fillLegal(s.guidelines_text?.trim() || DEFAULT_GUIDELINES, s.contact_email)} />

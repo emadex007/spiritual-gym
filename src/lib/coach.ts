@@ -1,4 +1,4 @@
-// Server-only: the SpiritualGym coach. A gentle Christian companion that answers with Scripture and a next step.
+// Server-only: the TheRenewGym coach. A gentle Christian companion that answers with Scripture and a next step.
 // Crisis messages never go to the AI: they get safe, human guidance straight away.
 import { db, env } from '~/lib/env'
 
@@ -36,7 +36,7 @@ I’m an AI and can’t keep you safe in an emergency, but you don’t have to g
 When you’re safe, I’m here to pray with you and talk.`
 
 export function systemPrompt(name: string, workouts: { slug: string; title: string; minutes: number }[]) {
-  return `You are the SpiritualGym coach: a warm, wise, gentle Christian companion inside a free app that helps people build a steady walk with God (prayer, Scripture, worship, stillness, community). You are talking with ${name}.
+  return `You are the TheRenewGym coach: a warm, wise, gentle Christian companion inside a free app that helps people build a steady walk with God (prayer, Scripture, worship, stillness, community). You are talking with ${name}.
 
 How you speak:
 - Warm, hopeful, never condemning or guilt-based. Many people are tired or starting again; meet them with grace ("It's okay to begin again").

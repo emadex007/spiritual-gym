@@ -1,7 +1,7 @@
 import { createServerFn } from '@tanstack/react-start'
 import { db } from '~/lib/env'
 import { requireCommunityUser as requireUser } from '~/lib/auth'
-import { PRAYER_PURPOSES, POST_KINDS, REPORT_REASONS } from '~/lib/content'
+import { GROUP_KINDS, PRAYER_PURPOSES, POST_KINDS, REPORT_REASONS } from '~/lib/content'
 import { newId } from '~/lib/util'
 import { notify } from '~/lib/notify'
 
@@ -9,6 +9,7 @@ export type GroupCard = {
   id: string
   name: string
   purpose: string
+  kind: string
   description: string | null
   is_private: number
   is_featured: number
@@ -20,6 +21,7 @@ export type GroupCard = {
 
 const PURPOSE_KEYS = PRAYER_PURPOSES.map((p) => p.key) as string[]
 const KIND_KEYS = POST_KINDS.map((p) => p.key) as string[]
+const GROUP_KIND_KEYS = GROUP_KINDS.map((k) => k.key) as string[]
 
 function inviteCode() {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
@@ -52,7 +54,7 @@ export const listGroups = createServerFn({ method: 'GET' }).handler(async () => 
   const user = await requireUser()
   const { results } = await db()
     .prepare(
-      `SELECT g.id, g.name, g.purpose, g.description, g.is_private, g.is_featured, g.member_count, g.live_count, g.last_activity_at,
+      `SELECT g.id, g.name, g.purpose, g.kind, g.description, g.is_private, g.is_featured, g.member_count, g.live_count, g.last_activity_at,
               CASE WHEN m.user_id IS NULL THEN 0 ELSE 1 END AS is_member
        FROM prayer_groups g LEFT JOIN prayer_group_members m ON m.group_id = g.id AND m.user_id = ?
        WHERE g.is_hidden = 0 AND (g.is_private = 0 OR m.user_id IS NOT NULL)
@@ -71,11 +73,12 @@ export const listGroups = createServerFn({ method: 'GET' }).handler(async () => 
 })
 
 export const createGroup = createServerFn({ method: 'POST' })
-  .validator((d: { name: string; purpose: string; description?: string; isPrivate: boolean }) => {
+  .validator((d: { name: string; kind?: string; purpose: string; description?: string; isPrivate: boolean }) => {
     const name = String(d?.name ?? '').trim()
     if (name.length < 3) throw new Error('Give your group a name (at least 3 letters).')
     return {
       name: name.slice(0, 60),
+      kind: GROUP_KIND_KEYS.includes(String(d.kind)) ? String(d.kind) : 'prayer',
       purpose: PURPOSE_KEYS.includes(d.purpose) ? d.purpose : 'general',
       description: String(d.description ?? '').trim().slice(0, 300) || null,
       isPrivate: d.isPrivate ? 1 : 0,
@@ -88,8 +91,8 @@ export const createGroup = createServerFn({ method: 'POST' })
     const id = newId()
     await db().batch([
       db()
-        .prepare('INSERT INTO prayer_groups (id, name, purpose, description, is_private, invite_code, created_by, member_count) VALUES (?, ?, ?, ?, ?, ?, ?, 1)')
-        .bind(id, data.name, data.purpose, data.description, data.isPrivate, inviteCode(), user.id),
+        .prepare('INSERT INTO prayer_groups (id, name, kind, purpose, description, is_private, invite_code, created_by, member_count) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)')
+        .bind(id, data.name, data.kind, data.purpose, data.description, data.isPrivate, inviteCode(), user.id),
       db().prepare(`INSERT INTO prayer_group_members (group_id, user_id, role) VALUES (?, ?, 'owner')`).bind(id, user.id),
     ])
     return { id }
@@ -101,14 +104,14 @@ export const getGroup = createServerFn({ method: 'GET' })
     const user = await requireUser()
     const g = await db()
       .prepare(
-        `SELECT g.id, g.name, g.purpose, g.description, g.is_private, g.is_featured, g.invite_code, g.created_by, g.member_count, g.live_count, g.is_hidden,
+        `SELECT g.id, g.name, g.purpose, g.kind, g.description, g.is_private, g.is_featured, g.invite_code, g.created_by, g.member_count, g.live_count, g.is_hidden,
                 m.role AS my_role, m.notify AS my_notify
          FROM prayer_groups g LEFT JOIN prayer_group_members m ON m.group_id = g.id AND m.user_id = ?
          WHERE g.id = ?`,
       )
       .bind(user.id, id)
       .first<{
-        id: string; name: string; purpose: string; description: string | null; is_private: number; is_featured: number; invite_code: string
+        id: string; name: string; purpose: string; kind: string; description: string | null; is_private: number; is_featured: number; invite_code: string
         created_by: string | null; member_count: number; live_count: number; is_hidden: number; my_role: string | null; my_notify: number | null
       }>()
     if (!g || g.is_hidden || (g.is_private && !g.my_role)) throw new Error('This group isn’t available.')
@@ -179,6 +182,24 @@ export const joinGroup = createServerFn({ method: 'POST' })
     return { id: g.id }
   })
 
+/** Delete a group and everything in it: the group's leader (owner) or a site admin */
+export const deleteGroup = createServerFn({ method: 'POST' })
+  .validator((d: { id: string }) => ({ id: String(d?.id ?? '') }))
+  .handler(async ({ data }) => {
+    const user = await requireUser()
+    const m = await db().prepare('SELECT role FROM prayer_group_members WHERE group_id = ? AND user_id = ?').bind(data.id, user.id).first<{ role: string }>()
+    if (m?.role !== 'owner' && user.role !== 'admin') throw new Error('Only the group’s leader can delete it.')
+    await db().batch([
+      db().prepare('DELETE FROM prayer_replies WHERE post_id IN (SELECT id FROM prayer_posts WHERE group_id = ?)').bind(data.id),
+      db().prepare('DELETE FROM prayer_post_prayed WHERE post_id IN (SELECT id FROM prayer_posts WHERE group_id = ?)').bind(data.id),
+      db().prepare('DELETE FROM prayer_posts WHERE group_id = ?').bind(data.id),
+      db().prepare('DELETE FROM prayer_schedules WHERE group_id = ?').bind(data.id),
+      db().prepare('DELETE FROM prayer_group_members WHERE group_id = ?').bind(data.id),
+      db().prepare('DELETE FROM prayer_groups WHERE id = ?').bind(data.id),
+    ])
+    return { ok: true }
+  })
+
 export const leaveGroup = createServerFn({ method: 'POST' })
   .validator((d: { id: string }) => ({ id: String(d?.id ?? '') }))
   .handler(async ({ data }) => {
@@ -200,12 +221,13 @@ export const leaveGroup = createServerFn({ method: 'POST' })
 export const createPost = createServerFn({ method: 'POST' })
   .validator((d: { groupId: string; kind: string; body: string }) => {
     const body = String(d?.body ?? '').trim()
-    if (body.length < 3) throw new Error('Share a little about what you’re praying for.')
+    if (body.length < 3) throw new Error('Write a little more before sharing.')
     return { groupId: String(d.groupId), kind: KIND_KEYS.includes(d.kind) ? d.kind : 'request', body: body.slice(0, 2000) }
   })
   .handler(async ({ data }) => {
     const user = await requireUser()
-    await requireMember(data.groupId, user.id)
+    const m = await requireMember(data.groupId, user.id)
+    if (data.kind === 'announcement' && m.role !== 'owner' && user.role !== 'admin') throw new Error('Only the group leader can post announcements.')
     await checkRate('prayer_posts', user.id, 15)
     await db().batch([
       db().prepare('INSERT INTO prayer_posts (id, group_id, user_id, kind, body) VALUES (?, ?, ?, ?, ?)').bind(newId(), data.groupId, user.id, data.kind, data.body),

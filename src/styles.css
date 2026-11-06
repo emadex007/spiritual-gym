@@ -1,48 +1,97 @@
 @import 'tailwindcss';
 
-/* ---------- SpiritualGym design tokens ---------- */
+/* ---------- TheRenewGym design tokens ----------
+   These are the default brand colours. Admin → Branding can change them: the server then serves /brand.css,
+   which loads after this file and overrides these values (built by src/lib/brand.ts, light and dark). */
 :root {
-  --bg: #f7f3ea;          /* soft cream */
+  --brand-navy: #002e54;
+  --brand-navy-2: #244b6c;
+  --brand-gold: #e3b648;
+  --gold-ink: #7a5c1c;
+  --gold-mid: #c8a03f;
+  --gold-tint: #f9efd7;
+  --gold-tint-2: #fbf6e7;
+  --bg: #f6f4ee;
   --surface: #ffffff;
-  --surface-2: #efe9dc;
-  --ink: #12203a;         /* midnight navy */
-  --muted: #5b6477;
-  --line: #e4dccb;
-  --accent: #b88a2e;      /* warm gold (text-safe on cream) */
-  --accent-soft: #f3e6c6;
-  --sage: #4f7a63;        /* gentle green */
-  --sage-soft: #e1ece4;
+  --surface-2: #eaeae6;
+  --ink: #002e54;
+  --muted: #527088;
+  --line: #d8dcdc;
+  --accent: #866724;
+  --accent-soft: #f1e5c6;
+  /* the same colours as r, g, b (older iPhones/iPads use these for see-through colours) */
+  --brand-navy-rgb: 0, 46, 84; --brand-navy-2-rgb: 36, 75, 108; --brand-gold-rgb: 227, 182, 72; --gold-ink-rgb: 122, 92, 28; --gold-mid-rgb: 200, 160, 63; --gold-tint-rgb: 249, 239, 215; --gold-tint-2-rgb: 251, 246, 231; --bg-rgb: 246, 244, 238; --surface-rgb: 255, 255, 255; --surface-2-rgb: 234, 234, 230; --ink-rgb: 0, 46, 84; --muted-rgb: 82, 112, 136; --line-rgb: 216, 220, 220; --accent-rgb: 134, 103, 36; --accent-soft-rgb: 241, 229, 198;
 }
-/* Dark mode: follows the phone automatically (data-theme is set by the script in __root.tsx),
-   and people can override it in Profile → Appearance. The @media block is a no-JavaScript fallback. */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme='light']) {
-    --bg: #0c1424;
-    --surface: #131d31;
-    --surface-2: #1a2640;
-    --ink: #eef0f5;
-    --muted: #a3acbf;
-    --line: #26324b;
-    --accent: #e0b85e;
-    --accent-soft: #2e2a1f;
-    --sage: #86b89b;
-    --sage-soft: #1b2d27;
-    color-scheme: dark;
-  }
+  --brand-navy: #002e54;
+  --brand-navy-2: #335876;
+  --brand-gold: #e3b648;
+  --gold-ink: #7a5c1c;
+  --gold-mid: #c8a03f;
+  --gold-tint: #f9efd7;
+  --gold-tint-2: #fbf6e7;
+  --bg: #071629;
+  --surface: #132234;
+  --surface-2: #1d2b3c;
+  --ink: #eef1f6;
+  --muted: #9da4ae;
+  --line: #2c3949;
+  --accent: #e3b648;
+  --accent-soft: #3f4037;
+  /* the same colours as r, g, b (older iPhones/iPads use these for see-through colours) */
+  --brand-navy-rgb: 0, 46, 84; --brand-navy-2-rgb: 51, 88, 118; --brand-gold-rgb: 227, 182, 72; --gold-ink-rgb: 122, 92, 28; --gold-mid-rgb: 200, 160, 63; --gold-tint-rgb: 249, 239, 215; --gold-tint-2-rgb: 251, 246, 231; --bg-rgb: 7, 22, 41; --surface-rgb: 19, 34, 52; --surface-2-rgb: 29, 43, 60; --ink-rgb: 238, 241, 246; --muted-rgb: 157, 164, 174; --line-rgb: 44, 57, 73; --accent-rgb: 227, 182, 72; --accent-soft-rgb: 63, 64, 55;
+}
 }
 :root[data-theme='dark'] {
-  --bg: #0c1424;
-  --surface: #131d31;
-  --surface-2: #1a2640;
-  --ink: #eef0f5;
-  --muted: #a3acbf;
-  --line: #26324b;
-  --accent: #e0b85e;
-  --accent-soft: #2e2a1f;
-  --sage: #86b89b;
-  --sage-soft: #1b2d27;
-  color-scheme: dark;
+  --brand-navy: #002e54;
+  --brand-navy-2: #335876;
+  --brand-gold: #e3b648;
+  --gold-ink: #7a5c1c;
+  --gold-mid: #c8a03f;
+  --gold-tint: #f9efd7;
+  --gold-tint-2: #fbf6e7;
+  --bg: #071629;
+  --surface: #132234;
+  --surface-2: #1d2b3c;
+  --ink: #eef1f6;
+  --muted: #9da4ae;
+  --line: #2c3949;
+  --accent: #e3b648;
+  --accent-soft: #3f4037;
+  /* the same colours as r, g, b (older iPhones/iPads use these for see-through colours) */
+  --brand-navy-rgb: 0, 46, 84; --brand-navy-2-rgb: 51, 88, 118; --brand-gold-rgb: 227, 182, 72; --gold-ink-rgb: 122, 92, 28; --gold-mid-rgb: 200, 160, 63; --gold-tint-rgb: 249, 239, 215; --gold-tint-2-rgb: 251, 246, 231; --bg-rgb: 7, 22, 41; --surface-rgb: 19, 34, 52; --surface-2-rgb: 29, 43, 60; --ink-rgb: 238, 241, 246; --muted-rgb: 157, 164, 174; --line-rgb: 44, 57, 73; --accent-rgb: 227, 182, 72; --accent-soft-rgb: 63, 64, 55;
 }
+
+/* Light boxes (cream cards like "Verse of the day") keep light-mode colours inside, even in dark mode */
+.on-light {
+  --brand-navy: #002e54;
+  --brand-navy-2: #244b6c;
+  --brand-gold: #e3b648;
+  --gold-ink: #7a5c1c;
+  --gold-mid: #c8a03f;
+  --gold-tint: #f9efd7;
+  --gold-tint-2: #fbf6e7;
+  --bg: #f6f4ee;
+  --surface: #ffffff;
+  --surface-2: #eaeae6;
+  --ink: #002e54;
+  --muted: #527088;
+  --line: #d8dcdc;
+  --accent: #866724;
+  --accent-soft: #f1e5c6;
+  color: var(--ink);
+  /* the same colours as r, g, b (older iPhones/iPads use these for see-through colours) */
+  --brand-navy-rgb: 0, 46, 84; --brand-navy-2-rgb: 36, 75, 108; --brand-gold-rgb: 227, 182, 72; --gold-ink-rgb: 122, 92, 28; --gold-mid-rgb: 200, 160, 63; --gold-tint-rgb: 249, 239, 215; --gold-tint-2-rgb: 251, 246, 231; --bg-rgb: 246, 244, 238; --surface-rgb: 255, 255, 255; --surface-2-rgb: 234, 234, 230; --ink-rgb: 0, 46, 84; --muted-rgb: 82, 112, 136; --line-rgb: 216, 220, 220; --accent-rgb: 134, 103, 36; --accent-soft-rgb: 241, 229, 198;
+}
+[data-theme='dark'] .on-light .btn-primary { background-color: var(--brand-navy); color: #fff; }
+[data-theme='dark'] .on-light .chip-on { background-color: var(--brand-navy); border-color: var(--brand-navy); color: #fff; }
+[data-theme='dark'] .on-light .input { color-scheme: light; }
+
+/* Fixed colours (not part of the brand settings) */
+:root { --sage: #4f7a63; --sage-soft: #e1ece4; --sage-rgb: 79, 122, 99; --sage-soft-rgb: 225, 236, 228; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme='light']) { --sage: #86b89b; --sage-soft: #1b2d27; --sage-rgb: 134, 184, 155; --sage-soft-rgb: 27, 45, 39; color-scheme: dark; } }
+:root[data-theme='dark'] { --sage: #86b89b; --sage-soft: #1b2d27; --sage-rgb: 134, 184, 155; --sage-soft-rgb: 27, 45, 39; color-scheme: dark; }
 :root[data-theme='light'] {
   color-scheme: light;
 }
@@ -60,14 +109,34 @@
   --color-accent-soft: var(--accent-soft);
   --color-sage: var(--sage);
   --color-sage-soft: var(--sage-soft);
-  --color-navy: #12203a;
-  --color-gold: #d4a94a;
+  --color-navy: var(--brand-navy);
+  --color-navy-2: var(--brand-navy-2);
+  --color-gold: var(--brand-gold);
+  --color-gold-ink: var(--gold-ink);
+  --color-gold-mid: var(--gold-mid);
+  --color-gold-tint: var(--gold-tint);
+  --color-gold-tint-2: var(--gold-tint-2);
+  --font-logo: 'Poppins', 'Inter', ui-sans-serif, system-ui, sans-serif;
   --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
   --font-display: 'Fraunces', ui-serif, Georgia, serif;
 }
 
 html {
   -webkit-text-size-adjust: 100%;
+  touch-action: manipulation; /* no double-tap zoom */
+}
+html,
+body {
+  overflow-x: clip; /* nothing can push the page sideways */
+}
+/* Pop-ups: the box always fits on screen (Close stays reachable) and scrolls inside itself */
+[role='dialog'] {
+  overscroll-behavior: contain;
+}
+[role='dialog'] > * {
+  max-height: calc(100dvh - 1rem);
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 body {
   background: var(--bg);
@@ -78,10 +147,10 @@ body {
 
 @layer components {
   .card {
-    @apply rounded-3xl border border-line bg-surface p-5 shadow-[0_1px_2px_rgba(18,32,58,0.04),0_8px_24px_-12px_rgba(18,32,58,0.12)];
+    @apply rounded-3xl border border-line bg-surface p-5 shadow-[0_1px_2px_rgba(0,46,84,0.04),0_8px_24px_-12px_rgba(0,46,84,0.14)];
   }
   .btn-primary {
-    @apply inline-flex items-center justify-center gap-2 rounded-full bg-navy px-6 py-3.5 text-sm font-semibold tracking-wide text-white transition hover:bg-[#1c2e50] active:scale-[0.98] disabled:opacity-50;
+    @apply inline-flex items-center justify-center gap-2 rounded-full bg-navy px-6 py-3.5 text-sm font-semibold tracking-wide text-white transition hover:bg-navy-2 active:scale-[0.98] disabled:opacity-50 dark:bg-gold dark:text-navy dark:hover:brightness-105;
   }
   .btn-gold {
     @apply inline-flex items-center justify-center gap-2 rounded-full bg-gold px-6 py-3.5 text-sm font-semibold tracking-wide text-navy transition hover:brightness-105 active:scale-[0.98] disabled:opacity-50;
@@ -113,7 +182,7 @@ body {
 }
 
 .fade-in {
-  animation: fade-in 0.4s ease-out both;
+  animation: fade-in 0.4s ease-out backwards; /* "backwards": nothing stays applied afterwards, so pop-ups inside can always cover the whole screen */
 }
 @keyframes fade-in {
   from { opacity: 0; transform: translateY(6px); }
@@ -158,7 +227,7 @@ body {
 @keyframes kenburns { from { transform: scale(1); } to { transform: scale(1.12); } }
 
 /* Sections arrive one after another */
-.stagger > * { animation: fade-in 0.5s ease-out both; }
+.stagger > * { animation: fade-in 0.5s ease-out backwards; }
 .stagger > *:nth-child(2) { animation-delay: 0.05s; }
 .stagger > *:nth-child(3) { animation-delay: 0.1s; }
 .stagger > *:nth-child(4) { animation-delay: 0.15s; }
@@ -196,3 +265,16 @@ a.card:active, button.card:active { transform: translateY(0) scale(0.99); }
 .support-beat { display: inline-block; animation: support-beat 4s ease-in-out infinite; }
 @keyframes support-beat { 0%, 80%, 100% { transform: scale(1); } 85% { transform: scale(1.25); } 90% { transform: scale(1); } 95% { transform: scale(1.18); } }
 @media (prefers-reduced-motion: reduce) { .support-beat { animation: none; } }
+
+/* Bible games: a gentle shake for a wrong tap, a pop for a right one */
+.sg-shake { animation: sg-shake 0.35s ease-in-out; }
+@keyframes sg-shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-6px); } 75% { transform: translateX(6px); } }
+.sg-pop { animation: sg-pop 0.3s ease-out; }
+@keyframes sg-pop { 0% { transform: scale(0.92); } 60% { transform: scale(1.04); } 100% { transform: scale(1); } }
+
+/* Words written over a picture (sunrise heroes): a soft shadow keeps them readable over the bright sun */
+.text-on-photo { text-shadow: 0 1px 3px rgb(0 0 0 / 0.7), 0 0 24px rgb(0 0 0 / 0.55); }
+
+/* Sidebar "Support" button: a plain see-through gold that every Safari understands (older iPads drew bg-gold/20 as solid gold) */
+.support-link { background-color: rgba(227, 182, 72, 0.2); background-color: rgba(var(--brand-gold-rgb, 227, 182, 72), 0.2); }
+.support-link:hover { background-color: rgba(var(--brand-gold-rgb, 227, 182, 72), 0.3); }

@@ -14,7 +14,7 @@ const LEVEL_COLOR: Record<string, { bg: string; fg: string }> = {
   recovery: { bg: '#e1f1e6', fg: '#2f7a4a' },
   build: { bg: '#e3eefc', fg: '#1f5bb8' },
   deepen: { bg: '#ebe8fd', fg: '#4c3fb8' },
-  intensive: { bg: '#f8ecd0', fg: '#8a6310' },
+  intensive: { bg: 'var(--gold-tint)', fg: 'var(--gold-ink)' },
 }
 
 function Train() {

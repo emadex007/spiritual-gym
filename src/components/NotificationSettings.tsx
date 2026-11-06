@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
-import { getNotifySettings, getPushConfig, removePushSubscription, savePushSubscription, updateNotifySettings } from '~/fns/notifications'
+import { getNotifySettings, getPushConfig, removePushSubscription, savePushSubscription, setWeeklyEmail, updateNotifySettings } from '~/fns/notifications'
 import { disablePush, enablePush, pushState, type PushState } from '~/lib/push-client'
+import { LineIcon } from '~/components/LineIcon'
 
 const TIMES = Array.from({ length: 36 }, (_, i) => {
   const mins = 5 * 60 + i * 30 // 05:00 … 22:30
@@ -12,7 +13,7 @@ const TIMES = Array.from({ length: 36 }, (_, i) => {
 export function NotificationSettings() {
   const [state, setState] = useState<PushState | 'loading'>('loading')
   const [config, setConfig] = useState<{ publicKey: string; enabled: boolean } | null>(null)
-  const [prefs, setPrefs] = useState<{ reminderTime: string | null; wordTime: string | null; planTime: string | null; timezone: string; notifyPrayed: boolean; notifyReplies: boolean } | null>(null)
+  const [prefs, setPrefs] = useState<{ reminderTime: string | null; wordTime: string | null; planTime: string | null; timezone: string; notifyPrayed: boolean; notifyReplies: boolean; weeklyEmail: boolean } | null>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [saved, setSaved] = useState(false)
@@ -62,11 +63,11 @@ export function NotificationSettings() {
           <p className="font-medium">Phone notifications</p>
           <p className="text-sm text-muted">
             {!config?.enabled
-              ? 'Not switched on for this app yet. You’ll still see everything under the 🔔 bell.'
+              ? 'Not switched on for this app yet. You’ll still see everything under the bell icon.'
               : state === 'on'
                 ? 'On for this device.'
                 : state === 'needs-install'
-                  ? 'On iPhone, add SpiritualGym to your home screen first (see “Install app”), then turn this on from there.'
+                  ? 'On iPhone, add TheRenewGym to your home screen first (see “Install app”), then turn this on from there.'
                   : state === 'blocked'
                     ? 'Blocked. Allow notifications for this site in your browser settings.'
                     : state === 'unsupported'
@@ -90,7 +91,7 @@ export function NotificationSettings() {
       {error && <p className="text-sm text-red-600">{error}</p>}
 
       <label className="block">
-        <span className="label">🌅 Daily word &amp; declaration</span>
+        <span className="label"><LineIcon name="sunrise" className="mr-1.5 inline h-4 w-4 -translate-y-px" />Daily word &amp; declaration</span>
         <select className="input" value={prefs.wordTime ?? ''} onChange={(e) => savePrefs({ ...prefs, wordTime: e.target.value || null })}>
           <option value="">Off</option>
           {TIMES.map((t) => (
@@ -101,7 +102,7 @@ export function NotificationSettings() {
       </label>
 
       <label className="block">
-        <span className="label">📅 Bible plan reminder</span>
+        <span className="label"><LineIcon name="calendar" className="mr-1.5 inline h-4 w-4 -translate-y-px" />Bible plan reminder</span>
         <select className="input" value={prefs.planTime ?? ''} onChange={(e) => savePrefs({ ...prefs, planTime: e.target.value || null })}>
           <option value="">Off</option>
           {TIMES.map((t) => (
@@ -141,6 +142,13 @@ export function NotificationSettings() {
           </label>
         )
       })}
+      <label className="flex cursor-pointer items-center justify-between gap-4 border-t border-line pt-4">
+        <span className="text-sm">
+          <LineIcon name="mail" className="mr-1.5 inline h-4 w-4 -translate-y-px" />Weekly email: “Your week with God”
+          <span className="block text-xs text-muted">Sunday evening: your days and minutes with God, answered prayers, your reading plan and a word for the week ahead.</span>
+        </span>
+        <input type="checkbox" className="h-5 w-5 accent-[#4f7a63]" checked={prefs.weeklyEmail} onChange={async () => { const on = !prefs.weeklyEmail; setPrefs({ ...prefs, weeklyEmail: on }); setSaved(false); await setWeeklyEmail({ data: { on } }); setSaved(true) }} />
+      </label>
       {saved && <p className="text-xs text-sage">Saved</p>}
     </div>
   )

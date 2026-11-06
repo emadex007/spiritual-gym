@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react'
 import { useRouter } from '@tanstack/react-router'
 import { Avatar } from '~/components/Avatar'
+import { LineIcon } from '~/components/LineIcon'
 
 /** Crop to a square and shrink to 400×400 JPEG in the browser, so uploads are small (~40 KB) even on mobile data */
 export async function squareJpeg(file: File, size = 400): Promise<Blob> {
@@ -66,7 +67,7 @@ export function AvatarUpload({ name, current }: { name: string; current: string 
       <button type="button" onClick={() => input.current?.click()} className="group relative rounded-full" aria-label="Change profile photo" disabled={busy}>
         <Avatar name={name} src={key} size="xl" />
         <span className="absolute -right-1 -bottom-1 flex h-8 w-8 items-center justify-center rounded-full border-2 border-surface bg-navy text-sm text-white dark:bg-gold dark:text-navy">
-          {busy ? '…' : '📷'}
+          {busy ? '…' : <LineIcon name="camera" className="h-4 w-4" />}
         </span>
       </button>
       <div>
@@ -80,7 +81,7 @@ export function AvatarUpload({ name, current }: { name: string; current: string 
             </button>
           )}
         </div>
-        <p className="mt-1 text-xs text-muted">Shown to people in your prayer groups.</p>
+        <p className="mt-1 text-xs text-muted">Shown to people in your groups and meetings.</p>
         {error && <p className="mt-1 text-xs text-red-600">{error}</p>}
       </div>
       <input ref={input} type="file" accept="image/*" className="hidden" onChange={(e) => e.target.files?.[0] && choose(e.target.files[0])} />

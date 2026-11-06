@@ -17,6 +17,7 @@ import { Avatar, timeAgo } from '~/components/Avatar'
 import { squareJpeg } from '~/components/AvatarUpload'
 import { FormError, errorText } from '~/components/AuthShell'
 import { CHURCH_COLORS, PROGRAM_KINDS, programKind } from '~/lib/content'
+import { Glyph, LineIcon } from '~/components/LineIcon'
 
 export const Route = createFileRoute('/app/church/$id/manage')({
   loader: ({ params }) => getChurchManage({ data: params.id }),
@@ -90,7 +91,7 @@ function Overview({ d }: { d: Data }) {
   const [code, setCode] = useState(d.church.invite_code)
   const [msg, setMsg] = useState<string | null>(null)
   const link = typeof location !== 'undefined' ? `${location.origin}/app/church/join/${code}` : ''
-  const text = `Join ${d.church.name} on SpiritualGym 🙏 Grow in prayer, the Word and worship with our church. Tap to join: ${link}\nChurch code: ${code}`
+  const text = `Join ${d.church.name} on TheRenewGym 🙏 Grow in prayer, the Word and worship with our church. Tap to join: ${link}\nChurch code: ${code}`
   async function share() {
     try {
       if (navigator.share) await navigator.share({ title: d.church.name, text })
@@ -130,7 +131,7 @@ function Overview({ d }: { d: Data }) {
       </section>
       <section className="rounded-3xl bg-surface-2 p-5 text-sm text-muted">
         <p className="font-semibold text-ink">Privacy promise</p>
-        <p className="mt-1">You can see who joined and how many people take part in each program — never anyone’s journal, prayers, check-ins or personal progress. Please don’t use SpiritualGym to ask members for money.</p>
+        <p className="mt-1">You can see who joined and how many people take part in each program — never anyone’s journal, prayers, check-ins or personal progress. Please don’t use TheRenewGym to ask members for money.</p>
       </section>
     </div>
   )
@@ -169,7 +170,7 @@ function Posts({ d }: { d: Data }) {
       </section>
       {d.posts.map((p) => (
         <article key={p.id} className="card !p-4">
-          <p className="text-xs text-muted">{p.is_pinned ? '📌 Pinned · ' : ''}{timeAgo(p.created_at)}</p>
+          <p className="text-xs text-muted">{p.is_pinned ? 'Pinned · ' : ''}{timeAgo(p.created_at)}</p>
           <p className="mt-1 font-semibold">{p.title}</p>
           <p className="mt-1 line-clamp-3 text-sm whitespace-pre-line text-muted">{p.body}</p>
           <div className="mt-2 flex gap-4 text-sm font-semibold">
@@ -201,7 +202,7 @@ function Programs({ d }: { d: Data }) {
       <div className="flex flex-wrap gap-2">
         {PROGRAM_KINDS.map((k) => (
           <button key={k.key} className="chip" onClick={() => setDraft({ title: '', subtitle: '', kind: k.key, days: blankDays(k.key === 'fasting' ? 21 : 7, k.key) })}>
-            {k.emoji} New {k.label.toLowerCase()}
+            <Glyph e={k.emoji} className="mr-1.5 inline-block h-3.5 w-3.5 -translate-y-px" />New {k.label.toLowerCase()}
           </button>
         ))}
       </div>
@@ -210,7 +211,7 @@ function Programs({ d }: { d: Data }) {
         const k = programKind(p.kind)
         return (
           <div key={p.id} className="card flex flex-wrap items-center gap-3 !p-4">
-            <span className="text-2xl" aria-hidden>{k.emoji}</span>
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-accent-soft/70 text-accent" aria-hidden><Glyph e={k.emoji} className="h-5 w-5" /></span>
             <div className="min-w-0 flex-1">
               <p className="font-semibold">{p.title}</p>
               <p className="text-xs text-muted">{k.label} · {p.days} days · {p.started} joined · {p.completed} completed</p>
@@ -240,7 +241,7 @@ function ProgramEditor({ churchId, draft, onDone }: { churchId: string; draft: D
       <div className="card space-y-3">
         <p className="font-semibold">{f.id ? 'Edit program' : 'New program'}</p>
         <select className="input" value={f.kind} onChange={(e) => setF({ ...f, kind: e.target.value })}>
-          {PROGRAM_KINDS.map((k) => <option key={k.key} value={k.key}>{k.emoji} {k.label}</option>)}
+          {PROGRAM_KINDS.map((k) => <option key={k.key} value={k.key}>{k.label}</option>)}
         </select>
         <input className="input" placeholder="Title, e.g. 21 Days of Prayer and Fasting" value={f.title} onChange={(e) => setF({ ...f, title: e.target.value })} maxLength={80} />
         <input className="input" placeholder="Short description (optional)" value={f.subtitle} onChange={(e) => setF({ ...f, subtitle: e.target.value })} maxLength={200} />
@@ -291,7 +292,7 @@ function Plans({ d }: { d: Data }) {
       </section>
       {d.plans.map((p) => (
         <div key={p.id} className="card !p-4">
-          <p className="font-semibold">📅 {p.title}</p>
+          <p className="font-semibold"><LineIcon name="calendar" className="mr-1.5 inline h-4 w-4 -translate-y-px text-accent" />{p.title}</p>
           <p className="text-xs text-muted">Starts {new Date(p.start_date + 'T12:00:00Z').toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })} · {p.readers} reading together · {p.finished} finished</p>
         </div>
       ))}

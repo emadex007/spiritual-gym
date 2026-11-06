@@ -4,6 +4,7 @@ import { adminDeleteDevotion, adminListDevotions, adminSaveDevotion } from '~/fn
 import { lookupVerse } from '~/fns/bible'
 import { PageHead } from '~/components/AdminUI'
 import { FormError, errorText } from '~/components/AuthShell'
+import { LineIcon } from '~/components/LineIcon'
 import { dayOfYear, dayString } from '~/lib/util'
 
 export const Route = createFileRoute('/admin/devotions')({
@@ -50,7 +51,7 @@ function Devotions() {
               <p className="font-semibold"><span className="mr-2 text-xs text-muted">{dateOf(d.sort)}{d.sort === today ? ' · today' : ''}</span>{d.reference}</p>
               <p className="mt-1 text-sm text-muted">{d.text}</p>
               <p className="mt-2 text-sm"><b className="text-accent">I declare:</b> {d.declaration}</p>
-              {d.prayer && <p className="mt-1 text-sm text-muted italic">🙏 {d.prayer}</p>}
+              {d.prayer && <p className="mt-1 text-sm text-muted italic"><LineIcon name="prayer" className="mr-1 inline h-4 w-4 -translate-y-px" />{d.prayer}</p>}
             </div>
             <button type="button" className="shrink-0 text-sm font-semibold text-accent" onClick={() => { setEditing(d); window.scrollTo({ top: 0, behavior: 'smooth' }) }}>Edit</button>
           </div>
