@@ -51,7 +51,7 @@ function NotesList() {
           {busy ? 'Opening…' : 'New note'}
         </button>
       </div>
-      <FormError error={err} />
+      <FormError message={err} />
 
       <div className="mt-4 space-y-3">
         {notes.map((n) => {

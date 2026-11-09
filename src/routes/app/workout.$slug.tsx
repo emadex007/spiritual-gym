@@ -8,6 +8,7 @@ import { formatClock } from '~/lib/util'
 import { CheckIcon, CloseIcon, PauseIcon, PlayIcon } from '~/components/Icons'
 import { errorText } from '~/components/AuthShell'
 import { SunriseScene, stepStyle } from '~/components/Art'
+import { useKeepAwake } from '~/hooks/useKeepAwake'
 import { NEXT_LINES, WorkoutMusic, speak, speechSupported, unlockSpeech } from '~/lib/audio'
 import { AwardCelebration } from '~/components/AwardCelebration'
 import { SongPlayer } from '~/components/SongPlayer'
@@ -40,7 +41,6 @@ function WorkoutPlayer() {
   const [result, setResult] = useState<Result | null>(null)
   const spent = useRef<Record<string, number>>({})
   const last = useRef<number>(0)
-  const wakeLock = useRef<{ release: () => Promise<void> } | null>(null)
   const music = useRef<WorkoutMusic | null>(null)
   const announced = useRef(-1)
   const [voiceOn, setVoiceOn] = useState(true)
@@ -68,7 +68,7 @@ function WorkoutPlayer() {
 
   // ~10 seconds before a step ends, announce what comes next
   useEffect(() => {
-    if (phase !== 'running' || !step || announced.current === index) return
+    if (phase !== 'running' || !step || announced.current === index || remaining <= 0) return
     const lead = Math.min(10, Math.max(4, step.seconds * 0.2))
     if (remaining <= lead) {
       announced.current = index
@@ -90,29 +90,26 @@ function WorkoutPlayer() {
       const now = Date.now()
       const delta = (now - last.current) / 1000
       last.current = now
-      spent.current[step.kind] = (spent.current[step.kind] ?? 0) + delta
-      setRemaining((r) => r - delta)
+      setRemaining((r) => {
+        spent.current[step.kind] = (spent.current[step.kind] ?? 0) + Math.min(delta, Math.max(0, r))
+        return r - delta
+      })
     }, 250)
     return () => clearInterval(id)
   }, [phase, paused, index, step])
 
   useEffect(() => {
     if (phase === 'running' && remaining <= 0) {
-      chime()
-      next()
+      // Time that passed while the phone was locked or the app was in the background is carried on,
+      // so the workout is where it should be, not back at the start of a step.
+      const over = -remaining
+      if (over < 2) chime()
+      next(over)
     }
   }, [remaining, phase])
 
-  // Keep the screen awake during a workout (where supported)
-  useEffect(() => {
-    if (phase !== 'running') return
-    const nav = navigator as Navigator & { wakeLock?: { request: (t: 'screen') => Promise<{ release: () => Promise<void> }> } }
-    nav.wakeLock?.request('screen').then((l) => (wakeLock.current = l)).catch(() => {})
-    return () => {
-      wakeLock.current?.release().catch(() => {})
-      wakeLock.current = null
-    }
-  }, [phase])
+  // Keep the screen on for the whole workout, asking again whenever the app comes back to the front
+  useKeepAwake(phase === 'running')
 
   function begin() {
     if (voiceOn) unlockSpeech()
@@ -143,11 +140,18 @@ function WorkoutPlayer() {
     else music.current.resume()
   }, [phase, paused, singing, index])
 
-  function next() {
+  function next(over = 0) {
     setSinging(null) // the song stops when its step ends
     if (index + 1 < steps.length) {
+      const nxt = steps[index + 1]
+      if (over >= 2) {
+        // Catching up after the app was away: no "coming up" for steps already under way, just say where we are
+        spent.current[nxt.kind] = (spent.current[nxt.kind] ?? 0) + Math.min(over, nxt.seconds)
+        announced.current = over >= nxt.seconds ? -1 : index + 1
+        if (over < nxt.seconds) say(`Now: ${nxt.label}.`)
+      }
       setIndex(index + 1)
-      setRemaining(steps[index + 1].seconds)
+      setRemaining(nxt.seconds - over)
     } else {
       setPhase('complete')
       music.current?.stop()
@@ -297,7 +301,7 @@ function WorkoutPlayer() {
               >
                 {paused ? <PlayIcon className="h-7 w-7" /> : <PauseIcon className="h-7 w-7" />}
               </button>
-              <button type="button" onClick={next} className="rounded-full px-5 py-3 text-sm font-semibold text-white/60 hover:text-white">
+              <button type="button" onClick={() => next()} className="rounded-full px-5 py-3 text-sm font-semibold text-white/60 hover:text-white">
                 Next
               </button>
             </div>

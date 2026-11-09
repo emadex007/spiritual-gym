@@ -268,7 +268,7 @@ function NotePage() {
           </div>
         </article>
       )}
-      <FormError error={err} />
+      <FormError message={err} />
 
       {verse && <VersePopup reference={verse} onClose={() => setVerse(null)} />}
       {adding && <AddScripture onClose={() => setAdding(false)} onInsert={(t) => { setAdding(false); insert(t) }} />}

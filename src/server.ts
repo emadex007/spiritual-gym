@@ -7,6 +7,7 @@ import { runCron } from '~/lib/cron'
 import { flutterwaveWebhook, paystackWebhook } from '~/lib/donations'
 import { unsubscribe } from '~/lib/weekly'
 import { receiveMail } from '~/lib/mail'
+import { googleCallback, googleStart } from '~/lib/google'
 import { BRAND_KEYS, brandCss, cleanBrand } from '~/lib/brand'
 
 const COOKIE = 'sg_session'
@@ -137,6 +138,10 @@ export default {
     }
 
     // One-click unsubscribe from the weekly email
+    // "Continue with Google" (sign in or sign up)
+    if (url.pathname === '/api/auth/google' && request.method === 'GET') return googleStart(request, env)
+    if (url.pathname === '/api/auth/google/callback' && request.method === 'GET') return googleCallback(request, env)
+
     if (url.pathname === '/unsubscribe' && (request.method === 'GET' || request.method === 'POST')) return unsubscribe(request)
 
     // Payment webhooks (donations). Each is verified with the provider's signature, then re-checked with its API.
