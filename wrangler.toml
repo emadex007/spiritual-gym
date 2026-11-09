@@ -3,6 +3,14 @@ main = "./src/server.ts"
 compatibility_date = "2025-09-02"
 compatibility_flags = ["nodejs_compat"]
 
+# --- The app's address: therenewgym.org (www. and the old workers.dev link move there; see src/server.ts) ---
+# The domain must be in the same Cloudflare account as this Worker. Deploying sets up both addresses and their certificates.
+routes = [
+  { pattern = "therenewgym.org", custom_domain = true },
+  { pattern = "www.therenewgym.org", custom_domain = true },
+]
+workers_dev = true
+
 # --- D1 database (users, sessions, check-ins, journeys, workouts, journal, prayer, scripture memory) ---
 # Create with:  npx wrangler d1 create spiritual_gym_db
 # then paste the returned database_id below.
@@ -46,6 +54,8 @@ crons = ["*/5 * * * *"]
 
 [vars]
 SITE_ENV = "production"
+# The public address, used in email links, share links and the weekly summary
+APP_URL = "https://therenewgym.org"
 # Push notifications: run `node scripts/vapid.mjs`, paste the public key here, and save the private key as a secret
 VAPID_PUBLIC_KEY = "BMUAnllpFPiro5d06ph7PNTgKKDkY4tKdnd4DmtOf0ns67eCyNaNlznvlW3SBpojOKSVigAhimXgCnN5gLW9sy4"
 VAPID_SUBJECT = "mailto:emadexcreations@gmail.com"
