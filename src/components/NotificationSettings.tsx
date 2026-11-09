@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { getNotifySettings, getPushConfig, removePushSubscription, savePushSubscription, setWeeklyEmail, updateNotifySettings } from '~/fns/notifications'
+import { getNotifySettings, getPushConfig, removePushSubscription, savePushSubscription, setNewsEmail, setWeeklyEmail, updateNotifySettings } from '~/fns/notifications'
 import { disablePush, enablePush, pushState, type PushState } from '~/lib/push-client'
 import { LineIcon } from '~/components/LineIcon'
 
@@ -13,7 +13,7 @@ const TIMES = Array.from({ length: 36 }, (_, i) => {
 export function NotificationSettings() {
   const [state, setState] = useState<PushState | 'loading'>('loading')
   const [config, setConfig] = useState<{ publicKey: string; enabled: boolean } | null>(null)
-  const [prefs, setPrefs] = useState<{ reminderTime: string | null; wordTime: string | null; planTime: string | null; timezone: string; notifyPrayed: boolean; notifyReplies: boolean; weeklyEmail: boolean } | null>(null)
+  const [prefs, setPrefs] = useState<{ reminderTime: string | null; wordTime: string | null; planTime: string | null; timezone: string; notifyPrayed: boolean; notifyReplies: boolean; weeklyEmail: boolean; newsEmail: boolean } | null>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [saved, setSaved] = useState(false)
@@ -148,6 +148,13 @@ export function NotificationSettings() {
           <span className="block text-xs text-muted">Sunday evening: your days and minutes with God, answered prayers, your reading plan and a word for the week ahead.</span>
         </span>
         <input type="checkbox" className="h-5 w-5 accent-[#4f7a63]" checked={prefs.weeklyEmail} onChange={async () => { const on = !prefs.weeklyEmail; setPrefs({ ...prefs, weeklyEmail: on }); setSaved(false); await setWeeklyEmail({ data: { on } }); setSaved(true) }} />
+      </label>
+      <label className="flex cursor-pointer items-center justify-between gap-4 border-t border-line pt-4">
+        <span className="text-sm">
+          <LineIcon name="megaphone" className="mr-1.5 inline h-4 w-4 -translate-y-px" />News from TheRenewGym
+          <span className="block text-xs text-muted">Now and then: new features, special prayer seasons and important updates.</span>
+        </span>
+        <input type="checkbox" className="h-5 w-5 accent-[#4f7a63]" checked={prefs.newsEmail} onChange={async () => { const on = !prefs.newsEmail; setPrefs({ ...prefs, newsEmail: on }); setSaved(false); await setNewsEmail({ data: { on } }); setSaved(true) }} />
       </label>
       {saved && <p className="text-xs text-sage">Saved</p>}
     </div>

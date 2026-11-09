@@ -151,15 +151,18 @@ export async function unsubscribe(request: Request) {
   const url = new URL(request.url)
   const u = url.searchParams.get('u') ?? ''
   const t = url.searchParams.get('t') ?? ''
+  // list=news: emails to all members from Admin → Mail; otherwise the weekly email
+  const news = url.searchParams.get('list') === 'news'
   let ok = false
   if (u && t.length >= 16) {
-    const r = await db().prepare('UPDATE profiles SET weekly_email = 0 WHERE user_id = ? AND email_token = ?').bind(u, t).run()
+    const r = await db().prepare(`UPDATE profiles SET ${news ? 'news_email' : 'weekly_email'} = 0 WHERE user_id = ? AND email_token = ?`).bind(u, t).run()
     ok = !!r.meta.changes
   }
   if (request.method === 'POST') return new Response(ok ? 'ok' : 'not found', { status: ok ? 200 : 404 })
+  const what = news ? 'news emails from TheRenewGym' : 'the weekly email'
   const body = ok
-    ? '<h1>You’re unsubscribed</h1><p>You won’t get the weekly email any more. You can turn it back on any time in Profile → Notifications.</p>'
-    : '<h1>Link not recognised</h1><p>You can switch the weekly email off in the app: Profile → Notifications.</p>'
+    ? `<h1>You’re unsubscribed</h1><p>You won’t get ${what} any more. You can turn it back on any time in Profile → Notifications.</p>`
+    : `<h1>Link not recognised</h1><p>You can switch ${what} off in the app: Profile → Notifications.</p>`
   return new Response(
     `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>TheRenewGym</title></head><body style="font-family:Arial,sans-serif;background:#f4f1ea;color:#002e54;padding:40px 20px"><div style="max-width:440px;margin:auto;background:#fff;border-radius:20px;padding:28px">${body}<p><a href="/app" style="color:#12203a;font-weight:bold">Open TheRenewGym →</a></p></div></body></html>`,
     { status: ok ? 200 : 404, headers: { 'content-type': 'text/html; charset=utf-8' } },

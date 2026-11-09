@@ -36,6 +36,7 @@ const NAV = [
   { to: '/admin/community', label: 'Community', icon: '🙏', exact: false },
   { to: '/admin/usage', label: 'Meetings & usage', icon: '📶', exact: false },
   { to: '/admin/reports', label: 'Reports', icon: '🚩', exact: false },
+  { to: '/admin/mail', label: 'Mail', icon: '✉', exact: false },
   { to: '/admin/notifications', label: 'Notifications', icon: '🔔', exact: false },
   { to: '/admin/donations', label: 'Donations', icon: '💛', exact: false },
   { to: '/admin/payments', label: 'Payments', icon: '🔑', exact: false },

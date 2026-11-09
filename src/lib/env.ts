@@ -16,6 +16,10 @@ export type AppEnv = {
   EMAIL_FROM?: string
   /** Optional: public site address used in email links, e.g. https://therenewgym.org */
   APP_URL?: string
+  /** Team mail (Admin → Mail): the domain for addresses like info@… (default: APP_URL's domain) */
+  MAIL_DOMAIN?: string
+  /** Emails a day the app may send (Resend free plan: 100). Default 90, leaving room for password resets. */
+  MAIL_DAILY_LIMIT?: string
   /** Push notifications (generate with: node scripts/vapid.mjs) */
   VAPID_PUBLIC_KEY?: string
   VAPID_PRIVATE_KEY?: string
