@@ -56,6 +56,8 @@ crons = ["*/5 * * * *"]
 SITE_ENV = "production"
 # The public address, used in email links, share links and the weekly summary
 APP_URL = "https://therenewgym.org"
+# Emails the app sends (password resets, weekly email) come from here. The domain must be verified in Resend (MAIL.md).
+EMAIL_FROM = "TheRenewGym <info@therenewgym.org>"
 # Push notifications: run `node scripts/vapid.mjs`, paste the public key here, and save the private key as a secret
 VAPID_PUBLIC_KEY = "BMUAnllpFPiro5d06ph7PNTgKKDkY4tKdnd4DmtOf0ns67eCyNaNlznvlW3SBpojOKSVigAhimXgCnN5gLW9sy4"
 VAPID_SUBJECT = "mailto:emadexcreations@gmail.com"

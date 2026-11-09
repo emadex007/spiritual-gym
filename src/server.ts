@@ -6,6 +6,7 @@ export { PushDispatcher } from '~/lib/push-dispatcher'
 import { runCron } from '~/lib/cron'
 import { flutterwaveWebhook, paystackWebhook } from '~/lib/donations'
 import { unsubscribe } from '~/lib/weekly'
+import { receiveMail } from '~/lib/mail'
 import { BRAND_KEYS, brandCss, cleanBrand } from '~/lib/brand'
 
 const COOKIE = 'sg_session'
@@ -25,6 +26,16 @@ export default {
     ctx.waitUntil(runCron())
   },
 
+  // Email to any @therenewgym.org address (Cloudflare Email Routing → catch-all → "Send to a Worker") lands in Admin → Mail
+  async email(message: ForwardableEmailMessage, _env: AppEnv, _ctx: ExecutionContext) {
+    try {
+      await receiveMail(message)
+    } catch (err) {
+      console.error('receiveMail failed', err)
+      message.setReject('Temporary problem receiving mail, please try again later.')
+    }
+  },
+
   async fetch(request: Request, env: AppEnv) {
     const url = new URL(request.url)
 
@@ -39,6 +50,8 @@ export default {
     // Public media from R2:  /media/<key>  (supports Range requests so audio streams and loops smoothly)
     if (url.pathname.startsWith('/media/') && (request.method === 'GET' || request.method === 'HEAD')) {
       const key = decodeURIComponent(url.pathname.slice('/media/'.length))
+      // Team mail attachments are private: only /api/mail-file serves them (to admins)
+      if (key.startsWith('mail/') || key.startsWith('mail-out/')) return new Response('Not found', { status: 404 })
       const rangeHeader = request.headers.get('range')
       const m = rangeHeader?.match(/^bytes=(\d*)-(\d*)$/)
       let range: R2Range | undefined
@@ -80,6 +93,47 @@ export default {
         if (obj) return new Response(obj.body, { headers: { ...cache, 'content-type': obj.httpMetadata?.contentType ?? 'image/png' } })
       }
       return new Response(null, { status: 302, headers: { ...cache, location: dark ? '/brand/mark-dark.png' : '/brand/mark.png' } })
+    }
+
+    // Team mail (Admin → Mail): attach a file to an email  POST /api/mail-upload (multipart "file", up to 10 MB). Admins only.
+    if (url.pathname === '/api/mail-upload' && request.method === 'POST') {
+      const user = await userFromCookie(request, env)
+      if (!user || user.role !== 'admin') return json({ error: 'Admins only.' }, 403)
+      const max = 10 * 1024 * 1024
+      if (Number(request.headers.get('content-length') || 0) > max + 64 * 1024) return json({ error: 'File is too large (max 10 MB).' }, 413)
+      const form = await request.formData().catch(() => null)
+      const file = form?.get('file')
+      if (!(file instanceof File)) return json({ error: 'No file received.' }, 400)
+      if (file.size > max) return json({ error: 'File is too large (max 10 MB).' }, 413)
+      const name = (file.name || 'file').slice(0, 160)
+      const key = `mail-out/${user.id}/${crypto.randomUUID()}-${name.replace(/[^\w.-]+/g, '_')}`
+      const type = file.type || 'application/octet-stream'
+      await env.MEDIA.put(key, file.stream(), { httpMetadata: { contentType: type } })
+      return json({ key, filename: name, content_type: type, size: file.size })
+    }
+
+    // Team mail: open an attachment  GET /api/mail-file?id=…  (admins who can open that address)
+    if (url.pathname === '/api/mail-file' && request.method === 'GET') {
+      const user = await userFromCookie(request, env)
+      if (!user || user.role !== 'admin') return new Response('Sign in as an admin to open this file.', { status: 403 })
+      const f = await env.DB.prepare(
+        'SELECT f.filename, f.content_type, f.r2_key, b.owner_id FROM mail_files f JOIN mail_messages m ON m.id = f.mail_id LEFT JOIN mail_boxes b ON b.name = m.mailbox WHERE f.id = ?',
+      )
+        .bind(Number(url.searchParams.get('id')) || 0)
+        .first<{ filename: string; content_type: string; r2_key: string; owner_id: string | null }>()
+      if (!f || (f.owner_id && f.owner_id !== user.id)) return new Response('Not found', { status: 404 })
+      const obj = await env.MEDIA.get(f.r2_key)
+      if (!obj) return new Response('Not found', { status: 404 })
+      const inline = /^(image\/(png|jpe?g|gif|webp)|application\/pdf)$/.test(f.content_type) && url.searchParams.get('dl') !== '1'
+      return new Response(obj.body, {
+        headers: {
+          'content-type': f.content_type || 'application/octet-stream',
+          'content-disposition': `${inline ? 'inline' : 'attachment'}; filename="${f.filename.replace(/["\\]/g, '_')}"`,
+          'x-content-type-options': 'nosniff',
+          'cache-control': 'private, max-age=3600',
+          'content-security-policy': "default-src 'none'; img-src 'self'; style-src 'unsafe-inline'; sandbox",
+        },
+      })
     }
 
     // One-click unsubscribe from the weekly email

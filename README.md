@@ -296,3 +296,10 @@ Or push to GitHub and connect the repo in Cloudflare (same as Ronia).
 - Safari before iOS/iPadOS 16.2 doesn't understand `color-mix()`, so Tailwind's see-through brand colours (`bg-gold/20`, …) fell back to the **solid** colour there: "Support TheRenewGym" became gold text on a solid gold box (blank), and soft tints became solid blocks. `scripts/legacy-colors.mjs` (a Vite plugin, see `vite.config.ts`) adds a proper see-through fallback using `--name-rgb` colour channels, which `styles.css` and `/brand.css` now include. Newer browsers are unchanged.
 - Words over the sunrise pictures (welcome page, Support page, Home greeting) have a soft shadow so they stay readable over the sun (`.text-on-photo`).
 - Training-level buttons on Profile wrap neatly on small phones; admin quick links no longer squash on iPad.
+
+## Team email: info@therenewgym.org (migration `0034_team_mail.sql`)
+Admin → Mail is TheRenewGym's own email: the shared **info@therenewgym.org** inbox (every admin reads and replies),
+extra shared addresses (hello@, prayer@…) or your own (sogo@), attachments, signatures and new-mail alerts to your
+personal email. **Email all members** sends everyone their own copy (with an unsubscribe link), a little at a time
+within Resend's daily limit. Members can turn these off in Profile → Notifications. Receiving uses Cloudflare Email
+Routing (catch-all → this Worker), sending uses Resend. To switch it on, follow **MAIL.md**.

@@ -8,6 +8,7 @@ import { nextStart, type Schedule } from '~/lib/schedule'
 import { env } from '~/lib/env'
 import { buildWeekly, newToken, sendBatch } from '~/lib/weekly'
 import { usageAlerts } from '~/lib/usage'
+import { runMailQueue } from '~/lib/mail'
 
 const REMINDERS = [
   'Your time with God is waiting.',
@@ -21,7 +22,7 @@ const REMINDERS = [
 export async function runCron(now = Date.now()) {
   const jobs: [string, () => Promise<void>][] = [['schedules', () => scheduleReminders(now)], ['meetings', () => meetingReminders(now)]]
   if (pushConfigured()) jobs.push(['daily', () => dailyReminders(now)], ['word', () => dailyWord(now)], ['plans', () => planReminders(now)], ['fasts', () => fastReminders(now)], ['walk', () => walkPrayerReminders(now)])
-  if (env().RESEND_API_KEY) jobs.push(['weekly', () => weeklyEmails(now)])
+  if (env().RESEND_API_KEY) jobs.push(['weekly', () => weeklyEmails(now)], ['mail-queue', () => runMailQueue()])
   const d = new Date(now)
   // Meetings usage meter: check once an hour whether admins should be alerted
   if (d.getUTCMinutes() < 5) jobs.push(['usage', () => usageAlerts(now)])
