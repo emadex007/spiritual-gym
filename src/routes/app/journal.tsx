@@ -8,10 +8,15 @@ export const Route = createFileRoute('/app/journal')({
 
 const TABS = [
   { to: '/app/journal', label: 'Journal', exact: true, Icon: LampIcon, color: '#1f9a8f' },
+  { to: '/app/journal/notes', label: 'Notes', exact: false, Icon: PenIcon, color: '#2f6fd0' },
   { to: '/app/journal/prayer', label: 'Prayer', exact: false, Icon: HandsIcon, color: '#6f5ce6' },
   { to: '/app/journal/memory', label: 'Memory', exact: false, Icon: BibleIcon, color: '#c9971f' },
   { to: '/app/journal/worship', label: 'Worship', exact: false, Icon: MusicIcon, color: '#d9548a' },
 ] as const
+
+function PenIcon({ className = '' }: { className?: string }) {
+  return <LineIcon name="pen" className={className} />
+}
 
 function MusicIcon({ className = '' }: { className?: string }) {
   return (
@@ -36,10 +41,10 @@ function JournalLayout() {
             key={t.to}
             to={t.to}
             activeOptions={{ exact: t.exact }}
-            className="flex flex-1 items-center justify-center gap-1 rounded-full px-1.5 py-2 text-center text-[13px] font-medium text-muted transition sm:gap-1.5 sm:px-3 sm:text-sm"
+            className="flex min-w-0 flex-1 items-center justify-center gap-1 rounded-full px-1 py-2 text-center text-[12.5px] font-medium min-[400px]:px-1.5 min-[400px]:text-[13px] text-muted transition sm:gap-1.5 sm:px-3 sm:text-sm"
             activeProps={{ className: '!bg-surface !text-ink shadow-sm' }}
           >
-            <span style={{ color: t.color }}><t.Icon className="h-4 w-4" /></span>
+            <span style={{ color: t.color }} className="hidden min-[380px]:inline"><t.Icon className="h-4 w-4" /></span>
             {t.label}
           </Link>
         ))}

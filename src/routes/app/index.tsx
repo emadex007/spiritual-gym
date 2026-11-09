@@ -275,7 +275,7 @@ const EXPLORE = [
       { to: '/app/walk', emoji: '👫', title: 'Walk with me' },
       { to: '/app/testimonies', emoji: '🎉', title: 'Testimonies' },
       { to: '/app/train', emoji: '🏋️', title: 'All workouts' },
-      { to: '/app/notifications', emoji: '🔔', title: 'Notifications' },
+      { to: '/app/journal/notes', emoji: '✍', title: 'Sermon notes' },
     ],
   },
 ] as const
