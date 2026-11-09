@@ -12,6 +12,9 @@ export type AppEnv = {
   TURN_KEY_API_TOKEN?: string
   /** Optional: Resend API key for password-reset emails (resend.com, free tier) */
   RESEND_API_KEY?: string
+  /** "Continue with Google" sign-in (see GOOGLE-LOGIN.md). Both are secrets: wrangler secret put … */
+  GOOGLE_CLIENT_ID?: string
+  GOOGLE_CLIENT_SECRET?: string
   /** Sender, e.g. "TheRenewGym <hello@yourdomain.com>" (the domain must be verified in Resend) */
   EMAIL_FROM?: string
   /** Optional: public site address used in email links, e.g. https://therenewgym.org */

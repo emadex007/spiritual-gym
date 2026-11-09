@@ -1,5 +1,6 @@
 import { createServerFn } from '@tanstack/react-start'
-import { db } from '~/lib/env'
+import { db, env } from '~/lib/env'
+import { googleEnabled } from '~/lib/google'
 import { communityAccess, createSession, currentUser, destroySession, hashPassword, requireUser, verifyPassword } from '~/lib/auth'
 import { newId } from '~/lib/util'
 
@@ -17,6 +18,9 @@ export const getMe = createServerFn({ method: 'GET' }).handler(async (): Promise
     .first<{ onboarded_at: string | null }>()
   return { user, onboarded: !!p?.onboarded_at }
 })
+
+/** Which sign-in options are switched on (the Google button shows only when Google is set up) */
+export const authOptions = createServerFn({ method: 'GET' }).handler(async () => ({ google: googleEnabled(env()) }))
 
 export const signUp = createServerFn({ method: 'POST' })
   .validator((d: { name: string; email: string; password: string; birthYear: number }) => {
@@ -63,6 +67,7 @@ export const signIn = createServerFn({ method: 'POST' })
       .prepare('SELECT id, password_hash FROM users WHERE email = ?')
       .bind(data.email)
       .first<{ id: string; password_hash: string }>()
+    if (u?.password_hash === 'google$') throw new Error('This account uses Google. Tap “Continue with Google” to sign in.')
     if (!u || !(await verifyPassword(data.password, u.password_hash))) {
       await db()
         .batch([

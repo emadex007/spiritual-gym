@@ -1,22 +1,25 @@
 import { useState, type FormEvent } from 'react'
 import { Link, createFileRoute, redirect, useRouter } from '@tanstack/react-router'
-import { getMe, signUp } from '~/fns/auth'
+import { authOptions, getMe, signUp } from '~/fns/auth'
 import { AuthShell, FormError, errorText } from '~/components/AuthShell'
 import { validateNext } from '~/lib/next'
+import { GoogleButton } from '~/components/GoogleButton'
 
 export const Route = createFileRoute('/signup')({
-  validateSearch: validateNext,
+  validateSearch: (s: Record<string, unknown>): { next?: string; google?: string } => ({ ...validateNext(s), google: typeof s.google === 'string' ? s.google.slice(0, 20) : undefined }),
   beforeLoad: async ({ search }) => {
     const me = await getMe()
     if (me && !me.onboarded) throw redirect({ to: '/onboarding', search: { next: search.next } })
     if (me) throw redirect({ href: search.next ?? '/app' })
   },
+  loader: () => authOptions().catch(() => ({ google: false })),
   component: SignUp,
 })
 
 function SignUp() {
   const router = useRouter()
-  const { next } = Route.useSearch()
+  const { next, google: problem } = Route.useSearch()
+  const options = Route.useLoaderData()
   const [form, setForm] = useState({ name: '', email: '', password: '', birthYear: '' })
   const thisYear = new Date().getFullYear()
   const [error, setError] = useState<string | null>(null)
@@ -49,6 +52,7 @@ function SignUp() {
         </>
       }
     >
+      {options.google && <GoogleButton next={next} problem={problem} />}
       <form onSubmit={submit} className="space-y-4">
         <div>
           <label className="label" htmlFor="name">Your name</label>
