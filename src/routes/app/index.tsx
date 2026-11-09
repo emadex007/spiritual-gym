@@ -284,7 +284,7 @@ type HomeData = ReturnType<typeof Route.useLoaderData>['h']
 
 /** "Pick up where you left off": journey, Bible plan, book and memory verses as short rows in one card */
 function Continue({ h, dayNo, journeyPct }: { h: HomeData; dayNo: number; journeyPct: number }) {
-  const rows: { key: string; icon: ReactNode; title: string; sub: string; pct?: number; action: ReactNode }[] = []
+  const rows: { key: string; icon: ReactNode; title: string; sub: string; pct?: number; done?: boolean; action: ReactNode }[] = []
   if (h.journey)
     rows.push({
       key: 'journey',
@@ -294,27 +294,33 @@ function Continue({ h, dayNo, journeyPct }: { h: HomeData; dayNo: number; journe
       pct: journeyPct,
       action: null,
     })
-  if (h.activePlan)
+  for (const pl of h.plans)
     rows.push({
-      key: 'plan',
+      key: 'plan-' + pl.id,
       icon: <LineIcon name="calendar" className="h-5 w-5" />,
-      title: `Day ${h.activePlan.day} · ${h.activePlan.label}`,
-      sub: `${h.activePlan.title}${h.activePlan.caughtUp ? ' · up to date' : ''}`,
-      pct: h.activePlan.pct,
-      action: h.activePlan.caughtUp ? (
-        <Link to="/app/plans/$id" params={{ id: h.activePlan.id }} className="btn-ghost !px-3 !py-1.5 text-sm">Open</Link>
+      title: pl.caughtUp ? pl.title : `Day ${pl.day} · ${pl.label}`,
+      sub: pl.caughtUp ? (pl.doneToday ? '✓ Done today' : '✓ Up to date') : pl.title,
+      pct: pl.pct,
+      done: pl.caughtUp,
+      action: pl.caughtUp ? (
+        <Link to="/app/plans/$id" params={{ id: pl.id }} className="btn-ghost !px-3 !py-1.5 text-sm">Open</Link>
       ) : (
-        <Link to="/app/bible/$book/$chapter" params={{ book: bookSlug(h.activePlan.book), chapter: String(h.activePlan.chapter) }} search={{ plan: h.activePlan.id, day: h.activePlan.day, pk: h.activePlan.planKey }} className="btn-primary !px-4 !py-1.5 text-sm">Read</Link>
+        <Link to="/app/bible/$book/$chapter" params={{ book: bookSlug(pl.book), chapter: String(pl.chapter) }} search={{ plan: pl.id, day: pl.day, pk: pl.planKey }} className="btn-primary !px-4 !py-1.5 text-sm">Read</Link>
       ),
     })
-  if (h.book)
+  for (const bk of h.books)
     rows.push({
-      key: 'book',
+      key: 'book-' + bk.id,
       icon: <LineIcon name="library" className="h-5 w-5" />,
-      title: h.book.title,
-      sub: `Book · day ${h.book.day} of ${h.book.days}`,
-      pct: Math.round((h.book.done / h.book.days) * 100),
-      action: <Link to="/app/books/$id/read" params={{ id: h.book.id }} search={{ day: h.book.day }} className="btn-primary !px-4 !py-1.5 text-sm">Read</Link>,
+      title: bk.title,
+      sub: bk.caughtUp ? `✓ Up to date · day ${bk.done} of ${bk.days}` : `Book · day ${bk.day} of ${bk.days}`,
+      pct: Math.round((bk.done / bk.days) * 100),
+      done: bk.caughtUp,
+      action: bk.caughtUp ? (
+        <Link to="/app/books/$id" params={{ id: bk.id }} className="btn-ghost !px-3 !py-1.5 text-sm">Open</Link>
+      ) : (
+        <Link to="/app/books/$id/read" params={{ id: bk.id }} search={{ day: bk.day }} className="btn-primary !px-4 !py-1.5 text-sm">Read</Link>
+      ),
     })
   rows.push({
     key: 'memory',
@@ -329,10 +335,10 @@ function Continue({ h, dayNo, journeyPct }: { h: HomeData; dayNo: number; journe
       <ul className="divide-y divide-line">
         {rows.map((r) => (
           <li key={r.key} className="flex items-center gap-3 px-4 py-3">
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-accent-soft/70 text-accent" aria-hidden>{r.icon}</span>
+            <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${r.done ? 'bg-sage-soft text-sage' : 'bg-accent-soft/70 text-accent'}`} aria-hidden>{r.done ? <LineIcon name="check" className="h-5 w-5" /> : r.icon}</span>
             <div className="min-w-0 flex-1">
               <p className="truncate font-semibold">{r.title}</p>
-              <p className="truncate text-xs text-muted">{r.sub}</p>
+              <p className={`truncate text-xs ${r.done ? 'font-medium text-sage' : 'text-muted'}`}>{r.sub}</p>
               {r.pct !== undefined && <div className="mt-1.5 h-1 rounded-full bg-surface-2"><div className="h-1 rounded-full" style={{ width: `${r.pct}%`, background: 'linear-gradient(90deg,var(--gold-mid),#e98a2b)' }} /></div>}
             </div>
             {r.action && <div className="shrink-0">{r.action}</div>}
