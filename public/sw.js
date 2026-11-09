@@ -1,8 +1,8 @@
 // TheRenewGym service worker: installable app + offline fallback.
 // Never caches private data: server functions (/_serverFn), /api and signed-in pages always go to the network.
-const VERSION = 'sg-v6'
+const VERSION = 'sg-v7'
 const STATIC = `${VERSION}-static`
-const PRECACHE = ['/offline.html', '/icons/icon-192.png', '/manifest.webmanifest']
+const PRECACHE = ['/offline.html', '/icons/icon-192.png', '/icons/badge-96.png', '/manifest.webmanifest']
 
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(STATIC).then((c) => c.addAll(PRECACHE)).then(() => self.skipWaiting()))
@@ -56,7 +56,7 @@ self.addEventListener('push', (e) => {
     self.registration.showNotification(title, {
       body: data.body || '',
       icon: '/icons/icon-192.png',
-      badge: '/icons/icon-192.png',
+      badge: '/icons/badge-96.png', // white-on-clear silhouette: Android paints it in the status bar
       tag: data.tag || undefined,
       renotify: !!data.tag,
       // The daily reminder behaves like an alarm: strong vibration and it stays until tapped

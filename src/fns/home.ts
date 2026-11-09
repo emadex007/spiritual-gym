@@ -54,47 +54,56 @@ export const getHome = createServerFn({ method: 'GET' }).handler(async () => {
     .bind(today, user.id)
     .first<{ pastor_mode: number; ministry_role: string | null; ministry: number }>()
     .catch(() => null)
-  const [devotion, tongues, unseen, header, planRow] = await Promise.all([
+  const [devotion, tongues, unseen, header, planRows] = await Promise.all([
     devotionOfTheDay(),
     includeTongues(user.id),
     db().prepare('SELECT award_key FROM user_awards WHERE user_id = ? AND seen_at IS NULL').bind(user.id).all<{ award_key: string }>().then((r) => r.results.map((x) => x.award_key)).catch(() => [] as string[]),
     weeklyHeader(),
     db()
       .prepare(
-        `SELECT up.id, up.plan_key, up.start_date, (SELECT COUNT(*) FROM plan_days_done d WHERE d.user_plan_id = up.id) AS done
-         FROM user_plans up WHERE up.user_id = ? AND up.status = 'active' ORDER BY up.created_at DESC LIMIT 1`,
+        `SELECT up.id, up.plan_key, up.start_date,
+                (SELECT COUNT(*) FROM plan_days_done d WHERE d.user_plan_id = up.id) AS done,
+                (SELECT MAX(completed_at) FROM plan_days_done d WHERE d.user_plan_id = up.id) AS last_done
+         FROM user_plans up WHERE up.user_id = ? AND up.status = 'active' ORDER BY up.created_at DESC LIMIT 5`,
       )
       .bind(user.id)
-      .first<{ id: string; plan_key: string; start_date: string; done: number }>()
-      .catch(() => null),
+      .all<{ id: string; plan_key: string; start_date: string; done: number; last_done: string | null }>()
+      .then((r) => r.results)
+      .catch(() => []),
   ])
-  let activePlan: { id: string; planKey: string; title: string; day: number; label: string; book: number; chapter: number; caughtUp: boolean; pct: number } | null = null
-  const planDef = planRow ? planByKey(planRow.plan_key) : undefined
-  if (planRow && planDef) {
-    const days = planDays(planDef)
-    const todayIdx = Math.min(days.length, Math.max(1, daysBetween(planRow.start_date, today) + 1))
-    const nextDay = days[Math.min(planRow.done, days.length - 1)]
-    activePlan = {
-      id: planRow.id,
-      planKey: planDef.key,
-      title: planDef.title,
+  // Every plan the member is following (up to 5), not just the newest, so starting a second plan doesn't hide the first
+  const plans: { id: string; planKey: string; title: string; day: number; label: string; book: number; chapter: number; caughtUp: boolean; doneToday: boolean; pct: number }[] = []
+  for (const row of planRows) {
+    const def = planByKey(row.plan_key)
+    if (!def) continue
+    const days = planDays(def)
+    const todayIdx = Math.min(days.length, Math.max(1, daysBetween(row.start_date, today) + 1))
+    const nextDay = days[Math.min(row.done, days.length - 1)]
+    plans.push({
+      id: row.id,
+      planKey: def.key,
+      title: def.title,
       day: nextDay.day,
       label: dayLabel(nextDay),
       book: nextDay.readings[0].book,
       chapter: nextDay.readings[0].from,
-      caughtUp: planRow.done >= todayIdx,
-      pct: Math.round((planRow.done / days.length) * 100),
-    }
+      caughtUp: row.done >= todayIdx,
+      doneToday: !!row.last_done && dayString(new Date(row.last_done.replace(' ', 'T') + 'Z')) === today,
+      pct: Math.round((row.done / days.length) * 100),
+    })
   }
-  // The book I'm reading (Books)
-  const book = await db()
+  // Plans still to read today first, then the ones already done
+  plans.sort((a, b) => Number(a.caughtUp) - Number(b.caughtUp))
+  // The books I'm reading (Books): all of them, like plans
+  const books = await db()
     .prepare(
-      `SELECT b.id, b.title, b.cover_key, ub.days, ub.done FROM user_books ub JOIN books b ON b.id = ub.book_id
-       WHERE ub.user_id = ? AND ub.status = 'active' ORDER BY ub.created_at DESC LIMIT 1`,
+      `SELECT b.id, b.title, b.cover_key, ub.days, ub.done, ub.start_date FROM user_books ub JOIN books b ON b.id = ub.book_id
+       WHERE ub.user_id = ? AND ub.status = 'active' ORDER BY ub.created_at DESC LIMIT 5`,
     )
     .bind(user.id)
-    .first<{ id: string; title: string; cover_key: string | null; days: number; done: number }>()
-    .catch(() => null)
+    .all<{ id: string; title: string; cover_key: string | null; days: number; done: number; start_date: string }>()
+    .then((r) => r.results)
+    .catch(() => [])
   const steps = workout
     ? (
         await db()
@@ -133,8 +142,8 @@ export const getHome = createServerFn({ method: 'GET' }).handler(async () => {
     workout: workout ? { ...workout, steps: adaptSteps(steps, tongues) } : null,
     devotion,
     header,
-    activePlan,
-    book: book ? { ...book, day: Math.min(book.days, book.done + 1) } : null,
+    plans,
+    books: books.map((b) => ({ ...b, day: Math.min(b.days, b.done + 1), caughtUp: b.done >= Math.min(b.days, Math.max(1, daysBetween(b.start_date, today) + 1)) })),
     pastor: pastorRow?.pastor_mode ? { ministryToday: pastorRow.ministry, role: pastorRow.ministry_role || 'Minister' } : null,
     unseenAwards: unseen,
     journey,
