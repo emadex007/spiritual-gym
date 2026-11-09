@@ -5,7 +5,7 @@ import { planByKey } from '~/lib/plans'
 import { dayOfYear } from '~/lib/util'
 import { cleanBrand, mix, palette } from '~/lib/brand'
 
-export const DEFAULT_SITE = 'https://spiritual-gym.emadexcreations.workers.dev'
+export const DEFAULT_SITE = 'https://therenewgym.org'
 export const siteUrl = () => (env().APP_URL || DEFAULT_SITE).replace(/\/$/, '')
 const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!)
 

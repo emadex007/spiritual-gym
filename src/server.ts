@@ -28,6 +28,14 @@ export default {
   async fetch(request: Request, env: AppEnv) {
     const url = new URL(request.url)
 
+    // One home address: pages opened on the old workers.dev link or on www. move to the main domain (APP_URL).
+    // Only page visits (GET of HTML) move, so an old installed copy still works while it reloads onto the new address.
+    const home = env.APP_URL ? new URL(env.APP_URL) : null
+    if (home && url.hostname !== home.hostname && (url.hostname.endsWith('.workers.dev') || url.hostname === 'www.' + home.hostname)) {
+      const wantsPage = request.method === 'GET' && (request.headers.get('accept') ?? '').includes('text/html')
+      if (wantsPage) return Response.redirect(home.origin + url.pathname + url.search, 301)
+    }
+
     // Public media from R2:  /media/<key>  (supports Range requests so audio streams and loops smoothly)
     if (url.pathname.startsWith('/media/') && (request.method === 'GET' || request.method === 'HEAD')) {
       const key = decodeURIComponent(url.pathname.slice('/media/'.length))

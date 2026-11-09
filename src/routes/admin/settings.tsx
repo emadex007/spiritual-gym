@@ -109,7 +109,7 @@ function Settings() {
             TheRenewGym ships with starter drafts. Leave a box empty to keep the draft, or paste your own version. Format: <code>## Heading</code>, <code>- bullet</code>, blank line for a new paragraph, and <code>{'{{email}}'}</code> for the contact email. Have these reviewed for your organisation before a public launch.
           </p>
           <Field label="Contact email (shown in the legal pages)">
-            <input type="email" className="input" placeholder="e.g. hello@therenewgym.com" value={f.contact_email ?? ''} onChange={set('contact_email')} />
+            <input type="email" className="input" placeholder="e.g. hello@therenewgym.org" value={f.contact_email ?? ''} onChange={set('contact_email')} />
           </Field>
           {([
             ['privacy_text', 'Privacy policy', DEFAULT_PRIVACY, '/privacy'],
