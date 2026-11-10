@@ -1,4 +1,23 @@
-import { TIER_COLOR, type AwardDef } from '~/lib/awards'
+import { TIER_COLOR, timesLabel, type AwardDef } from '~/lib/awards'
+
+/** A medal with "×3" on top when it has been earned more than once */
+export function MedalWithCount({ award, size = 72, locked = false, times }: { award: AwardDef; size?: number; locked?: boolean; times?: number }) {
+  const label = locked ? '' : timesLabel(times)
+  return (
+    <div className="relative w-fit">
+      <Medal award={award} size={size} locked={locked} />
+      {label && (
+        <span
+          className="absolute rounded-full border-2 border-white bg-navy px-1.5 font-bold text-gold tabular-nums shadow-md"
+          style={{ top: Math.round(size * 0.22), right: -Math.round(size * 0.14), fontSize: Math.max(11, Math.round(size * 0.18)), lineHeight: 1.35 }}
+          aria-label={`Earned ${times} times`}
+        >
+          {label}
+        </span>
+      )}
+    </div>
+  )
+}
 
 export function Medal({ award, size = 72, locked = false }: { award: AwardDef; size?: number; locked?: boolean }) {
   const c = locked ? '#9ca3af' : TIER_COLOR[award.tier]

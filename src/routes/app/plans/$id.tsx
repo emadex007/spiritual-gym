@@ -30,7 +30,7 @@ function MyPlan() {
   const firstUnread = d.days.find((x) => !done.has(x.day))?.day ?? d.days.length
   const [sel, setSel] = useState(Math.min(d.today, firstUnread))
   const search = Route.useSearch()
-  const [won, setWon] = useState<AwardDef[]>(() => (search.won ?? '').split(',').map((k) => awardByKey(k)).filter((a): a is AwardDef => !!a))
+  const [won, setWon] = useState<AwardDef[]>(() => (search.won ?? '').split(',').flatMap((w) => { const [k, t] = w.split(':'); const a = awardByKey(k); return a ? [{ ...a, times: Number(t) || 1 }] : [] }))
   const [justRead] = useState(search.done)
   const [note, setNote] = useState('')
   const [share, setShare] = useState(!!d.circle)

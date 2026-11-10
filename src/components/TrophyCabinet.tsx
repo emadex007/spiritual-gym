@@ -1,11 +1,11 @@
 import { Portal } from '~/components/Portal'
 import { LineIcon } from '~/components/LineIcon'
 import { useState } from 'react'
-import { Medal } from '~/components/Medal'
+import { MedalWithCount } from '~/components/Medal'
 import { ShareButton } from '~/components/ShareButton'
 import { TIER_COLOR, type AwardDef } from '~/lib/awards'
 
-type Item = AwardDef & { earnedAt: string | null }
+type Item = AwardDef & { earnedAt: string | null; times?: number }
 
 export function TrophyCabinet({ items, name }: { items: Item[]; name: string }) {
   const [open, setOpen] = useState<Item | null>(null)
@@ -19,7 +19,7 @@ export function TrophyCabinet({ items, name }: { items: Item[]; name: string }) 
       <div className="mt-4 grid grid-cols-4 gap-3 sm:grid-cols-5">
         {items.map((a) => (
           <button key={a.key} type="button" onClick={() => setOpen(a)} className="flex flex-col items-center gap-1 rounded-2xl p-1 text-center hover:bg-surface-2">
-            <Medal award={a} size={52} locked={!a.earnedAt} />
+            <MedalWithCount award={a} size={52} locked={!a.earnedAt} times={a.times} />
             <span className={`text-[11px] leading-tight ${a.earnedAt ? 'font-semibold' : 'text-muted'}`}>{a.title}</span>
           </button>
         ))}
@@ -28,14 +28,18 @@ export function TrophyCabinet({ items, name }: { items: Item[]; name: string }) 
       {open && (
         <Portal><div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-5" onClick={() => setOpen(null)} role="dialog" aria-modal="true" aria-label={open.title}>
           <div className="card fade-in w-full max-w-xs text-center" onClick={(e) => e.stopPropagation()}>
-            <div className="mx-auto w-fit"><Medal award={open} size={96} locked={!open.earnedAt} /></div>
+            <div className="mx-auto w-fit"><MedalWithCount award={open} size={96} locked={!open.earnedAt} times={open.times} /></div>
             <p className="mt-2 font-display text-2xl font-semibold">{open.title}</p>
             <p className="mt-1 text-sm text-muted">{open.subtitle}</p>
             {open.earnedAt ? (
               <>
-                <p className="mt-2 text-xs text-muted">Earned {new Date(open.earnedAt.replace(' ', 'T') + 'Z').toLocaleDateString()}</p>
+                {(open.times ?? 1) > 1 ? (
+                  <p className="mt-2 text-sm"><b>Earned {open.times} times</b><span className="block text-xs text-muted">One for each {open.again}. First on {new Date(open.earnedAt.replace(' ', 'T') + 'Z').toLocaleDateString()}</span></p>
+                ) : (
+                  <p className="mt-2 text-xs text-muted">Earned {new Date(open.earnedAt.replace(' ', 'T') + 'Z').toLocaleDateString()}{open.again ? `. You can earn it again with each ${open.again}.` : ''}</p>
+                )}
                 <div className="mt-4">
-                  <ShareButton className="btn-gold w-full" label="Share my victory" card={{ kind: 'medal', title: open.title, subtitle: open.subtitle, emoji: open.emoji, color: TIER_COLOR[open.tier], name }} text={`I earned “${open.title}” on TheRenewGym: ${open.subtitle}. 🙏`} />
+                  <ShareButton className="btn-gold w-full" label="Share my victory" card={{ kind: 'medal', title: open.title, subtitle: open.subtitle, emoji: open.emoji, color: TIER_COLOR[open.tier], name }} text={`I earned “${open.title}”${(open.times ?? 1) > 1 ? ` ${open.times} times` : ''} on TheRenewGym: ${open.subtitle}. 🙏`} />
                 </div>
               </>
             ) : (

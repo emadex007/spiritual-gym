@@ -58,7 +58,7 @@ export const getHome = createServerFn({ method: 'GET' }).handler(async () => {
   const [devotion, tongues, unseen, header, planRows] = await Promise.all([
     devotionOfTheDay(),
     includeTongues(user.id),
-    db().prepare('SELECT award_key FROM user_awards WHERE user_id = ? AND seen_at IS NULL').bind(user.id).all<{ award_key: string }>().then((r) => r.results.map((x) => x.award_key)).catch(() => [] as string[]),
+    db().prepare('SELECT award_key, times FROM user_awards WHERE user_id = ? AND seen_at IS NULL').bind(user.id).all<{ award_key: string; times: number }>().then((r) => r.results.map((x) => ({ key: x.award_key, times: x.times }))).catch(() => [] as { key: string; times: number }[]),
     weeklyHeader(),
     db()
       .prepare(

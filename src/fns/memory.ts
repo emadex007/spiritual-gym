@@ -102,7 +102,7 @@ export const recordPractice = createServerFn({ method: 'POST' })
       )
       .bind(mastery, next, data.id, user.id)
       .run()
-    const awards = mastery >= 5 ? await checkAwards(user.id, 'memory') : []
+    const awards = mastery >= 5 ? await checkAwards(user.id, 'memory', { again: v.mastery < 5 }) : []
     return { mastery, nextReview: next, awards }
   })
 
