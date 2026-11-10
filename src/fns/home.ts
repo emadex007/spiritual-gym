@@ -115,6 +115,26 @@ export const getHome = createServerFn({ method: 'GET' }).handler(async () => {
     })
     .filter((x): x is NonNullable<typeof x> => !!x)
 
+  // Topic plans I'm reading (written by members)
+  const topicPlans = await db()
+    .prepare(
+      `SELECT p.id, p.title, p.days, u.start_date, (SELECT COUNT(*) FROM topic_days_done d WHERE d.user_plan_id = u.id) AS done
+       FROM user_topic_plans u JOIN topic_plans p ON p.id = u.plan_id WHERE u.user_id = ? AND u.status = 'active' ORDER BY u.created_at DESC LIMIT 5`,
+    )
+    .bind(user.id)
+    .all<{ id: string; title: string; days: number; start_date: string; done: number }>()
+    .then(async (r) =>
+      Promise.all(
+        r.results.map(async (t) => {
+          const day = Math.min(t.days, t.done + 1)
+          const row = await db().prepare('SELECT title FROM topic_plan_days WHERE plan_id = ? AND day = ?').bind(t.id, day).first<{ title: string }>()
+          const todayIdx = Math.min(t.days, Math.max(1, daysBetween(t.start_date, today) + 1))
+          return { id: t.id, title: t.title, days: t.days, done: t.done, day, dayTitle: row?.title ?? '', caughtUp: t.done >= todayIdx }
+        }),
+      ),
+    )
+    .catch(() => [])
+
   // The books I'm reading (Books): all of them, like plans
   const books = await db()
     .prepare(
@@ -165,6 +185,7 @@ export const getHome = createServerFn({ method: 'GET' }).handler(async () => {
     header,
     plans,
     retreats,
+    topicPlans,
     books: books.map((b) => ({ ...b, day: Math.min(b.days, b.done + 1), caughtUp: b.done >= Math.min(b.days, Math.max(1, daysBetween(b.start_date, today) + 1)) })),
     pastor: pastorRow?.pastor_mode ? { ministryToday: pastorRow.ministry, role: pastorRow.ministry_role || 'Minister' } : null,
     unseenAwards: unseen,

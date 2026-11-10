@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { Link, createFileRoute, useNavigate } from '@tanstack/react-router'
 import { explainBookText, finishBookDay, readBook, saveHighlight } from '~/fns/books'
+import { Discussion } from '~/components/Discussion'
 import { paragraphs } from '~/lib/books'
 import { mediaUrl } from '~/lib/util'
 import { openPdf, renderPage, type PdfDoc } from '~/lib/pdf'
@@ -197,6 +198,11 @@ function Reader() {
             </div>
           )}
           {!d.plan && <Link to="/app/books/$id" params={{ id: b.id }} className="mt-4 block text-center text-sm font-semibold text-[#7a4a1f] dark:text-[#e3b648]">Start a reading plan for this book →</Link>}
+          {day && d.plan && (b.visibility !== 'private' || d.inCircle) && (
+            <div className="mt-8 font-sans">
+              <Discussion kind="book" targetId={b.id} day={day} comments={d.comments} inCircle={d.inCircle} reading />
+            </div>
+          )}
         </div>
       </main>
 

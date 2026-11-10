@@ -30,6 +30,7 @@ const NAV = [
   { to: '/admin/music', label: 'Music', icon: '🎵', exact: false },
   { to: '/admin/growth', label: 'Plans & medals', icon: '🏅', exact: false },
   { to: '/admin/books', label: 'Books', icon: '📚', exact: false },
+  { to: '/admin/topics', label: 'Topic plans', icon: '✍', exact: false },
   { to: '/admin/churches', label: 'Churches', icon: '⛪', exact: false },
   { to: '/admin/coach', label: 'AI coach', icon: '🕊️', exact: false },
   { to: '/admin/testimonies', label: 'Testimonies', icon: '🎉', exact: false },

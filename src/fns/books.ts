@@ -6,9 +6,12 @@ import { askCoach } from '~/lib/coach'
 import { dayString, newId } from '~/lib/util'
 import { BOOK_CATEGORIES, splitDays } from '~/lib/books'
 import { notify } from '~/lib/notify'
+import { sendEmail } from '~/lib/email'
+import { env } from '~/lib/env'
+import { circleInfo, inviteCode, listComments } from '~/lib/reading'
 
-type BookRow = { id: string; title: string; author: string | null; description: string | null; category: string | null; pdf_key: string | null; cover_key: string | null; pages: number; words: number; status: string; owner_id: string | null; check_note: string | null; share_status: string; share_note: string | null; author_bio: string | null }
-const BOOK_COLS = 'b.id, b.title, b.author, b.description, b.category, b.pdf_key, b.cover_key, b.pages, b.words, b.status, b.owner_id, b.check_note, b.share_status, b.share_note, b.author_bio'
+type BookRow = { id: string; title: string; author: string | null; description: string | null; category: string | null; pdf_key: string | null; cover_key: string | null; pages: number; words: number; status: string; owner_id: string | null; check_note: string | null; share_status: string; share_note: string | null; author_bio: string | null; visibility: string }
+const BOOK_COLS = 'b.id, b.title, b.author, b.description, b.category, b.pdf_key, b.cover_key, b.pages, b.words, b.status, b.owner_id, b.check_note, b.share_status, b.share_note, b.author_bio, b.visibility'
 const MAX_BOOKS = 20
 type PlanRow = { id: string; days: number; start_date: string; done: number; status: string; last_page: number | null }
 const DAILY_EXPLAIN = 15
@@ -28,10 +31,15 @@ async function getRow(id: string) {
 /** An author's book that an admin approved for the shared library */
 const inLibrary = (b: Pick<BookRow, 'owner_id' | 'share_status' | 'status'>) => !!b.owner_id && b.share_status === 'approved' && b.status === 'ready'
 /** A book I can read: one I uploaded (and that passed the check), a shared one, or an author's approved book */
-async function readable(id: string, user: { id: string; role?: string }) {
+async function readable(id: string, user: { id: string; role?: string; email?: string }) {
   const b = await getRow(id)
-  if (b.owner_id ? b.owner_id !== user.id && user.role !== 'admin' && !inLibrary(b) : b.status !== 'published' && user.role !== 'admin') throw new Error('This book isn’t available.')
+  if (b.owner_id ? b.owner_id !== user.id && user.role !== 'admin' && !inLibrary(b) && !(await invitedTo(b, user)) : b.status !== 'published' && user.role !== 'admin') throw new Error('This book isn’t available.')
   return b
+}
+/** The owner chose "people I invite" and invited this person */
+async function invitedTo(b: BookRow, user: { email?: string }) {
+  if (b.visibility !== 'invited' || !user.email || b.status !== 'ready') return false
+  return !!(await db().prepare('SELECT 1 AS x FROM book_shares WHERE book_id = ? AND email = ?').bind(b.id, user.email.toLowerCase()).first())
 }
 const canRead = (b: BookRow) => (b.owner_id ? b.status === 'ready' : b.status === 'published')
 /** A book I uploaded (to change or delete it) */
@@ -52,9 +60,10 @@ export const listBooks = createServerFn({ method: 'GET' }).handler(async () => {
               (SELECT COUNT(*) FROM user_books x WHERE x.book_id = b.id) AS readers
        FROM books b LEFT JOIN user_books ub ON ub.book_id = b.id AND ub.user_id = ?1
        WHERE b.owner_id = ?1 OR (b.owner_id IS NULL AND b.status = 'published') OR (b.share_status = 'approved' AND b.status = 'ready') OR ub.id IS NOT NULL
+          OR (b.visibility = 'invited' AND b.status = 'ready' AND b.id IN (SELECT book_id FROM book_shares WHERE email = ?2))
        ORDER BY (b.owner_id IS NULL), b.created_at DESC`,
     )
-    .bind(user.id)
+    .bind(user.id, user.email.toLowerCase())
     .all<BookRow & { plan_days: number | null; plan_done: number | null; plan_status: string | null; plan_start: string | null; readers: number }>()
   return { books: results, today: dayString(), me: user.id }
 })
@@ -68,23 +77,48 @@ export const getBook = createServerFn({ method: 'GET' })
     const plan = await db().prepare('SELECT id, days, start_date, done, status, last_page FROM user_books WHERE user_id = ? AND book_id = ?').bind(user.id, id).first<PlanRow>()
     const lengths = await pageLengths(id, book.pages)
     const highlights = await db().prepare('SELECT COUNT(*) AS n FROM book_highlights WHERE user_id = ? AND book_id = ?').bind(user.id, id).first<{ n: number }>()
-    return { book, plan, days: plan ? splitDays(lengths, plan.days) : [], hasText: lengths.some((n) => n > 40), highlights: highlights?.n ?? 0, today: dayString(), mine: book.owner_id === user.id, ready: canRead(book) }
+    const mine = book.owner_id === user.id
+    const circleId = plan ? (await db().prepare('SELECT circle_id FROM user_books WHERE id = ?').bind(plan.id).first<{ circle_id: string | null }>())?.circle_id : null
+    const [circle, shares] = await Promise.all([
+      circleId ? circleInfo(circleId, user.id) : Promise.resolve(null),
+      mine ? db().prepare('SELECT email, created_at FROM book_shares WHERE book_id = ? ORDER BY created_at DESC').bind(id).all<{ email: string; created_at: string }>().then((r) => r.results) : Promise.resolve([]),
+    ])
+    return { book, plan, days: plan ? splitDays(lengths, plan.days) : [], hasText: lengths.some((n) => n > 40), highlights: highlights?.n ?? 0, today: dayString(), mine, ready: canRead(book), circle, shares }
   })
 
 /** Start (or restart) reading a book over a number of days */
 export const startBook = createServerFn({ method: 'POST' })
-  .validator((d: { id: string; days: number }) => ({ id: String(d?.id ?? ''), days: Math.max(1, Math.min(365, Math.round(Number(d?.days) || 7))) }))
+  .validator((d: { id: string; days: number; together?: boolean; code?: string }) => ({
+    id: String(d?.id ?? ''),
+    days: Math.max(1, Math.min(365, Math.round(Number(d?.days) || 7))),
+    together: !!d?.together,
+    code: String(d?.code ?? '').trim().toUpperCase().slice(0, 12),
+  }))
   .handler(async ({ data }) => {
     const user = await requireUser()
     const book = await readable(data.id, user)
     if (!canRead(book)) throw new Error(book.status === 'rejected' ? 'This book can’t be read here.' : 'This book isn’t ready yet.')
-    const days = Math.min(data.days, Math.max(1, book.pages))
+    let days = Math.min(data.days, Math.max(1, book.pages))
+    // Reading together: join friends with their code (same number of days as them), or start a circle
+    let circleId: string | null = null
+    if (data.code) {
+      const c = await db().prepare(`SELECT id, days FROM read_circles WHERE invite_code = ? AND kind = 'book' AND target_id = ?`).bind(data.code, data.id).first<{ id: string; days: number | null }>()
+      if (!c) throw new Error('That code isn’t for this book. Check it with your friend.')
+      circleId = c.id
+      days = c.days ?? days
+    } else if (data.together) {
+      circleId = newId()
+      await db()
+        .prepare(`INSERT INTO read_circles (id, kind, target_id, name, invite_code, days, created_by) VALUES (?, 'book', ?, ?, ?, ?, ?)`)
+        .bind(circleId, data.id, `${user.name.split(' ')[0]}’s circle`, inviteCode(), days, user.id)
+        .run()
+    }
     await db()
       .prepare(
-        `INSERT INTO user_books (id, user_id, book_id, days, start_date) VALUES (?, ?, ?, ?, ?)
-         ON CONFLICT(user_id, book_id) DO UPDATE SET days = excluded.days, start_date = excluded.start_date, done = 0, status = 'active', last_page = NULL`,
+        `INSERT INTO user_books (id, user_id, book_id, days, start_date, circle_id) VALUES (?, ?, ?, ?, ?, ?)
+         ON CONFLICT(user_id, book_id) DO UPDATE SET days = excluded.days, start_date = excluded.start_date, done = 0, status = 'active', last_page = NULL, circle_id = excluded.circle_id`,
       )
-      .bind(newId(), user.id, data.id, days, dayString())
+      .bind(newId(), user.id, data.id, days, dayString(), circleId)
       .run()
     return { ok: true, days }
   })
@@ -119,7 +153,10 @@ export const readBook = createServerFn({ method: 'GET' })
       db().prepare('SELECT id, page, text FROM book_highlights WHERE user_id = ? AND book_id = ? AND page BETWEEN ? AND ?').bind(user.id, data.id, range.from, range.to).all<{ id: string; page: number; text: string }>(),
     ])
     if (plan) await db().prepare('UPDATE user_books SET last_page = ? WHERE id = ?').bind(range.from, plan.id).run()
-    return { book, plan, days, range, pages: pages.results, highlights: highlights.results, today: dayString() }
+    // The conversation about this day: my circle's, or everyone's reading it alone
+    const circleId = plan ? (await db().prepare('SELECT circle_id FROM user_books WHERE id = ?').bind(plan.id).first<{ circle_id: string | null }>())?.circle_id ?? null : null
+    const comments = plan && range.day ? await listComments('book', data.id, range.day, circleId, user.id) : []
+    return { book, plan, days, range, pages: pages.results, highlights: highlights.results, today: dayString(), comments, inCircle: !!circleId }
   })
 
 /** Finished a day's reading */
@@ -347,7 +384,68 @@ export const withdrawBook = createServerFn({ method: 'POST' })
   .handler(async ({ data }) => {
     const user = await requireUser()
     await mine(data, user)
-    await db().prepare(`UPDATE books SET share_status = '', approved_at = NULL WHERE id = ?`).bind(data).run()
+    await db()
+      .prepare(`UPDATE books SET share_status = '', approved_at = NULL, visibility = CASE WHEN EXISTS (SELECT 1 FROM book_shares WHERE book_id = books.id) THEN 'invited' ELSE 'private' END WHERE id = ?`)
+      .bind(data)
+      .run()
+    return { ok: true }
+  })
+
+/** Who can read my book: only me, or me and people I invite. ("Everyone" goes through submitBook and an admin's approval.) */
+export const setBookVisibility = createServerFn({ method: 'POST' })
+  .validator((d: { id: string; visibility: string }) => ({ id: String(d?.id ?? ''), visibility: d?.visibility === 'invited' ? 'invited' : 'private' }))
+  .handler(async ({ data }) => {
+    const user = await requireUser()
+    await mine(data.id, user)
+    await db().prepare(`UPDATE books SET visibility = ?, share_status = '', approved_at = NULL WHERE id = ?`).bind(data.visibility, data.id).run()
+    return { ok: true }
+  })
+
+/** Invite someone to read my book. Members get a notification; anyone else gets an email. */
+export const inviteToBook = createServerFn({ method: 'POST' })
+  .validator((d: { id: string; email: string }) => {
+    const email = String(d?.email ?? '').trim().toLowerCase()
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 200) throw new Error('Enter a valid email address.')
+    return { id: String(d?.id ?? ''), email }
+  })
+  .handler(async ({ data }) => {
+    const user = await requireUser()
+    const b = await mine(data.id, user)
+    if (b.status !== 'ready') throw new Error('The book needs to finish uploading and pass the check first.')
+    if (data.email === user.email.toLowerCase()) throw new Error('That’s you!')
+    const count = await db().prepare('SELECT COUNT(*) AS n FROM book_shares WHERE book_id = ?').bind(data.id).first<{ n: number }>()
+    if ((count?.n ?? 0) >= 200) throw new Error('You can invite up to 200 people to one book.')
+    await db().batch([
+      db().prepare('INSERT OR IGNORE INTO book_shares (book_id, email, invited_by) VALUES (?, ?, ?)').bind(data.id, data.email, user.id),
+      db().prepare(`UPDATE books SET visibility = 'invited' WHERE id = ? AND visibility = 'private'`).bind(data.id),
+    ])
+    const from = user.name.split(' ')[0]
+    const them = await db().prepare('SELECT id FROM users WHERE email = ?').bind(data.email).first<{ id: string }>()
+    if (them) {
+      await notify({ userIds: [them.id] }, { kind: 'book', title: `${from} shared a book with you: ${b.title}`, body: 'Tap to read it a little each day.', url: `/app/books/${data.id}` })
+      return { sent: 'notified' as const }
+    }
+    const link = `${env().APP_URL || ''}/signup?next=${encodeURIComponent(`/app/books/${data.id}`)}`
+    const esc = (t: string) => t.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!)
+    const ok = await sendEmail(
+      data.email,
+      `${from} shared “${b.title}” with you on TheRenewGym`,
+      `<div style="font-family:Arial,sans-serif;max-width:480px;margin:auto;padding:24px;color:#002e54"><p style="font-size:20px;font-weight:bold;margin:0 0 16px">TheRenewGym</p>
+       <p>${esc(from)} shared the book <b>${esc(b.title)}</b> with you on TheRenewGym, the free app for daily prayer, worship and the Word.</p>
+       <p style="margin:28px 0"><a href="${link}" style="background:#002e54;color:#fff;padding:14px 22px;border-radius:999px;text-decoration:none;font-weight:bold">Read it</a></p>
+       <p style="color:#5b6477;font-size:13px">Create your free account with this email address (${esc(data.email)}) to open it.</p></div>`,
+      `${from} shared "${b.title}" with you on TheRenewGym.\n\nRead it here: ${link}\nCreate your free account with this email address to open it.`,
+    )
+    if (!ok) throw new Error('We couldn’t send the email just now. Please try again later.')
+    return { sent: 'emailed' as const }
+  })
+
+export const removeBookShare = createServerFn({ method: 'POST' })
+  .validator((d: { id: string; email: string }) => ({ id: String(d?.id ?? ''), email: String(d?.email ?? '').toLowerCase() }))
+  .handler(async ({ data }) => {
+    const user = await requireUser()
+    await mine(data.id, user)
+    await db().prepare('DELETE FROM book_shares WHERE book_id = ? AND email = ?').bind(data.id, data.email).run()
     return { ok: true }
   })
 
@@ -361,8 +459,8 @@ export const reviewBook = createServerFn({ method: 'POST' })
     if (data.approve && b.status !== 'ready') throw new Error('This book isn’t ready to read yet.')
     if (!data.approve && !data.note) throw new Error('Tell the author why, so they can fix it.')
     await db()
-      .prepare(`UPDATE books SET share_status = ?, share_note = ?, approved_at = CASE WHEN ? THEN datetime('now') ELSE NULL END WHERE id = ?`)
-      .bind(data.approve ? 'approved' : 'declined', data.note, data.approve ? 1 : 0, data.id)
+      .prepare(`UPDATE books SET share_status = ?, share_note = ?, approved_at = CASE WHEN ? THEN datetime('now') ELSE NULL END, visibility = CASE WHEN ? THEN 'public' ELSE visibility END WHERE id = ?`)
+      .bind(data.approve ? 'approved' : 'declined', data.note, data.approve ? 1 : 0, data.approve ? 1 : 0, data.id)
       .run()
     await audit(admin, data.approve ? 'book.approve' : 'book.decline', data.id, b.title)
     await notify(

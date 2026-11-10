@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Link, createFileRoute } from '@tanstack/react-router'
+import { PlansTabs } from '~/components/PlansTabs'
 import { listBooks } from '~/fns/books'
 import { bookDay } from '~/lib/books'
 import { BookCover as Cover } from '~/components/BookCover'
@@ -25,6 +26,7 @@ function Library() {
   const shown = shared.filter((b) => !cat || b.category === cat)
   return (
     <main className="stagger mx-auto max-w-3xl px-5 pt-6 pb-12 md:pt-10">
+      <PlansTabs />
       <section className="relative overflow-hidden rounded-[1.75rem] p-6 text-white" style={{ background: 'linear-gradient(140deg,#3b2a1a,#7a4a1f 55%,#c08a3e)' }}>
         <LineIcon name="library" className="absolute -right-3 -bottom-6 h-32 w-32 opacity-15" strokeWidth={1.25} />
         <p className="text-xs font-semibold tracking-[0.14em] text-[#fde7b0] uppercase">Books</p>

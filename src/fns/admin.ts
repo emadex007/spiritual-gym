@@ -468,6 +468,7 @@ export const adminListReports = createServerFn({ method: 'GET' }).handler(async 
            WHEN 'group' THEN (SELECT name || ' — ' || COALESCE(description, '') FROM prayer_groups WHERE id = r.target_id)
            WHEN 'church' THEN (SELECT '⛪ ' || name || ' — ' || COALESCE(description, '') FROM churches WHERE id = r.target_id)
            WHEN 'note' THEN (SELECT '📖 ' || body FROM plan_notes WHERE id = r.target_id)
+           WHEN 'comment' THEN (SELECT '💬 ' || body FROM read_comments WHERE id = r.target_id)
            WHEN 'testimony' THEN (SELECT '🎉 ' || title || ' — ' || body FROM testimonies WHERE id = r.target_id)
            ELSE NULL END AS content,
          CASE r.target_type
@@ -476,6 +477,7 @@ export const adminListReports = createServerFn({ method: 'GET' }).handler(async 
            WHEN 'group' THEN (SELECT COALESCE(u.name || ' <' || u.email || '>', 'Official') FROM prayer_groups x LEFT JOIN users u ON u.id = x.created_by WHERE x.id = r.target_id)
            WHEN 'church' THEN (SELECT u.name || ' <' || u.email || '>' FROM churches x JOIN users u ON u.id = x.created_by WHERE x.id = r.target_id)
            WHEN 'note' THEN (SELECT u.name || ' <' || u.email || '>' FROM plan_notes x JOIN users u ON u.id = x.user_id WHERE x.id = r.target_id)
+           WHEN 'comment' THEN (SELECT u.name || ' <' || u.email || '>' FROM read_comments x JOIN users u ON u.id = x.user_id WHERE x.id = r.target_id)
            WHEN 'testimony' THEN (SELECT u.name || ' <' || u.email || '>' FROM testimonies x JOIN users u ON u.id = x.user_id WHERE x.id = r.target_id)
            ELSE NULL END AS author,
          CASE r.target_type
@@ -484,6 +486,7 @@ export const adminListReports = createServerFn({ method: 'GET' }).handler(async 
            WHEN 'group' THEN (SELECT is_hidden FROM prayer_groups WHERE id = r.target_id)
            WHEN 'church' THEN (SELECT CASE WHEN status = 'suspended' THEN 1 ELSE 0 END FROM churches WHERE id = r.target_id)
            WHEN 'note' THEN (SELECT is_hidden FROM plan_notes WHERE id = r.target_id)
+           WHEN 'comment' THEN (SELECT is_hidden FROM read_comments WHERE id = r.target_id)
            WHEN 'testimony' THEN (SELECT CASE WHEN status = 'hidden' THEN 1 ELSE 0 END FROM testimonies WHERE id = r.target_id)
            ELSE 0 END AS is_hidden
        FROM reports r LEFT JOIN users ru ON ru.id = r.reporter_id
@@ -505,7 +508,7 @@ export const adminResolveReport = createServerFn({ method: 'POST' })
         .bind(data.action === 'hide' ? 'actioned' : 'dismissed', admin.id, r.target_type, r.target_id),
     ]
     if (data.action === 'hide') {
-      const table = { post: 'prayer_posts', reply: 'prayer_replies', group: 'prayer_groups', note: 'plan_notes' }[r.target_type]
+      const table = { post: 'prayer_posts', reply: 'prayer_replies', group: 'prayer_groups', note: 'plan_notes', comment: 'read_comments' }[r.target_type]
       if (table) stmts.push(db().prepare(`UPDATE ${table} SET is_hidden = 1 WHERE id = ?`).bind(r.target_id))
       if (r.target_type === 'church') stmts.push(db().prepare(`UPDATE churches SET status = 'suspended' WHERE id = ?`).bind(r.target_id))
       if (r.target_type === 'testimony') stmts.push(db().prepare(`UPDATE testimonies SET status = 'hidden' WHERE id = ?`).bind(r.target_id))
