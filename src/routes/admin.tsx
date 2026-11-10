@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
 import { Link, Outlet, createFileRoute, redirect, useRouter, useRouterState } from '@tanstack/react-router'
+import { UpdateBanner } from '~/components/UpdateBanner'
 import { getAdminMe } from '~/fns/admin'
 import { signOut } from '~/fns/auth'
 import { Logo } from '~/components/Logo'
@@ -31,6 +32,7 @@ const NAV = [
   { to: '/admin/growth', label: 'Plans & medals', icon: '🏅', exact: false },
   { to: '/admin/books', label: 'Books', icon: '📚', exact: false },
   { to: '/admin/topics', label: 'Topic plans', icon: '✍', exact: false },
+  { to: '/admin/errors', label: 'Errors', icon: '⚠', exact: false },
   { to: '/admin/churches', label: 'Churches', icon: '⛪', exact: false },
   { to: '/admin/coach', label: 'AI coach', icon: '🕊️', exact: false },
   { to: '/admin/testimonies', label: 'Testimonies', icon: '🎉', exact: false },
@@ -114,6 +116,7 @@ function AdminLayout() {
 
       <main className="min-w-0 flex-1 px-4 py-6 md:px-10 md:py-10">
         <div className="mx-auto max-w-5xl">
+          <UpdateBanner />
           <Outlet />
         </div>
       </main>

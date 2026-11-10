@@ -1,18 +1,18 @@
 // First-time welcome tour: three short screens shown once on Home, so a new member knows
-// (1) what the daily workout is, (2) where their church and groups are, (3) where the Bible and Books are.
+// (1) what the daily workout is, (2) where their church and groups are, (3) where the Bible, plans and books are.
 import { useEffect, useRef, useState } from 'react'
 import { Link } from '@tanstack/react-router'
 import { Portal } from '~/components/Portal'
 import { LineIcon } from '~/components/LineIcon'
 import { finishTour } from '~/fns/home'
 
-type Tab = 'Home' | 'Train' | 'Bible' | 'Community' | 'Journal' | 'Profile'
+// The same five tabs as the menu at the bottom of the app
+type Tab = 'Home' | 'Train' | 'Bible' | 'Explore' | 'Profile'
 const TABS: { name: Tab; icon: string }[] = [
   { name: 'Home', icon: 'home' },
   { name: 'Train', icon: 'clock' },
   { name: 'Bible', icon: 'bible' },
-  { name: 'Community', icon: 'users' },
-  { name: 'Journal', icon: 'journal' },
+  { name: 'Explore', icon: 'explore' },
   { name: 'Profile', icon: 'user' },
 ]
 
@@ -43,21 +43,21 @@ function screens(minutes: number): Screen[] {
         ['users', 'Pray and study with a group'],
         ['mic', 'Join live meetings right in the app'],
       ],
-      find: ['Community'],
-      where: 'Everything together lives under Community.',
+      find: ['Explore'],
+      where: 'Tap Explore, then Community or My church.',
     },
     {
       eyebrow: 'The Word',
-      title: 'Your Bible and your books',
-      text: 'Read the whole Bible, follow a reading plan, colour and save verses, and have it read aloud. Add Christian books and read them a little each day.',
-      art: ['bible', 'library', 'calendar', 'gem'],
+      title: 'Your Bible, plans and books',
+      text: 'Read the whole Bible and have it read aloud. Follow a plan on what you’re facing (anxiety, marriage, hope…), read Christian books a little each day, and keep your journal and sermon notes.',
+      art: ['bible', 'calendar', 'library', 'pen'],
       points: [
         ['bible', 'Tap any verse to colour it or save it'],
-        ['calendar', 'Pick a reading plan, alone or with friends'],
-        ['library', 'Books, memory verses and games are in Explore on Home'],
+        ['calendar', 'Pick a plan or a book, alone or with friends'],
+        ['pen', 'Journal, sermon notes and prayer list are in Explore'],
       ],
-      find: ['Bible', 'Home'],
-      where: 'Open Bible at the bottom. Books are in Explore on Home.',
+      find: ['Bible', 'Explore'],
+      where: 'Bible has its own tab. Plans, books and your journal are in Explore.',
     },
   ]
 }
@@ -146,7 +146,7 @@ export function WelcomeTour({ name, minutes, workoutSlug, onDone }: { name: stri
             {/* Where to find it: a small copy of the bar at the bottom of the app */}
             <div className="mt-5 rounded-2xl bg-surface-2 p-3">
               <p className="text-xs font-semibold text-muted">Where to find it</p>
-              <div className="mt-2 grid grid-cols-6 gap-0.5">
+              <div className="mt-2 grid grid-cols-5 gap-0.5">
                 {TABS.map((t) => {
                   const on = s.find.includes(t.name)
                   return (

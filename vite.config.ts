@@ -6,7 +6,11 @@ import tailwindcss from '@tailwindcss/vite'
 import tsconfigPaths from 'vite-tsconfig-paths'
 import { legacyColorsPlugin } from './scripts/legacy-colors.mjs'
 
+// A new ID for every build: the app compares it with the server's to offer "New version ready"
+const BUILD_ID = Date.now().toString(36)
+
 export default defineConfig({
+  define: { __BUILD_ID__: JSON.stringify(BUILD_ID) },
   plugins: [
     cloudflare({ viteEnvironment: { name: 'ssr' } }),
     tsconfigPaths(),

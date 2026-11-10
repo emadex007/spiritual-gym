@@ -1,5 +1,6 @@
 // Runs every 5 minutes (Cron Trigger). Kept small to fit the free plan's per-run limits.
 import { db } from '~/lib/env'
+import { logError } from '~/lib/errors'
 import { kickDispatcher, notify, notifyMany, pushConfigured } from '~/lib/notify'
 import { dayLabel, planByKey, planDays, type PlanDay } from '~/lib/plans'
 import { dayOfYear, daysBetween } from '~/lib/util'
@@ -32,6 +33,7 @@ export async function runCron(now = Date.now()) {
       async () => {
         await db().batch([
           db().prepare(`DELETE FROM notifications WHERE created_at < datetime('now', '-60 days')`),
+          db().prepare(`DELETE FROM error_log WHERE last_at < datetime('now', '-30 days')`),
           db().prepare(`DELETE FROM schedule_sent WHERE occurrence < ?`).bind(new Date(now - 7 * 86_400_000).toISOString()),
         ])
       },
@@ -42,6 +44,7 @@ export async function runCron(now = Date.now()) {
       await job()
     } catch (e) {
       console.error(`cron ${name} failed`, e)
+      await logError({ source: 'job', message: `Scheduled job “${name}” failed: ${(e as Error)?.message ?? e}`, stack: (e as Error)?.stack, build: __BUILD_ID__ })
     }
   }
   await kickDispatcher()

@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
 import { Link, Outlet, createFileRoute, redirect, useRouterState } from '@tanstack/react-router'
+import { UpdateBanner } from '~/components/UpdateBanner'
 import { getMe } from '~/fns/auth'
 import { ExploreIcon, HomeIcon, ProfileIcon, TrainIcon } from '~/components/Icons'
 import { EXPLORE_PATHS } from '~/lib/explore'
@@ -86,6 +87,7 @@ function AppLayout() {
         </div>
       )}
       <InstallPrompt />
+      <UpdateBanner />
 
       {/* Mobile bottom navigation */}
       <nav className="fixed inset-x-0 bottom-0 z-20 border-t border-line bg-bg/92 backdrop-blur md:hidden safe-bottom" aria-label="Main">
