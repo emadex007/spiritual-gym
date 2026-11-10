@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { Link, createFileRoute, useNavigate } from '@tanstack/react-router'
+import { createFileRoute, useNavigate } from '@tanstack/react-router'
+import { BackLink } from '~/components/BackLink'
 import { checkMyBook, createMyBook, deleteMyBook, saveMyBookPages } from '~/fns/books'
 import { FormError, errorText } from '~/components/AuthShell'
 import { IconBadge } from '~/components/LineIcon'
@@ -83,7 +84,7 @@ function AddBook() {
   const busy = !!step
   return (
     <main className="fade-in mx-auto max-w-xl px-5 pt-6 pb-12 md:pt-10">
-      <Link to="/app/books" className="text-sm font-semibold text-accent">← Books</Link>
+      <BackLink to="/app/books" className="text-sm font-semibold text-accent">← Books</BackLink>
       <h1 className="mt-2 font-display text-3xl font-semibold tracking-tight">Add a book</h1>
       <p className="mt-1 text-muted">Choose a PDF of a Christian book. Only you can see it. Then pick how many days you want to read it over.</p>
 

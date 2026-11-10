@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { Link, createFileRoute, useRouter } from '@tanstack/react-router'
+import { createFileRoute, useRouter } from '@tanstack/react-router'
+import { BackLink } from '~/components/BackLink'
 import { requestChurch } from '~/fns/church'
 import { FormError, errorText } from '~/components/AuthShell'
 import { IconBadge } from '~/components/LineIcon'
@@ -42,7 +43,7 @@ function NewChurch() {
 
   return (
     <main className="fade-in mx-auto max-w-xl px-5 pt-6 pb-12 md:pt-10">
-      <Link to="/app/church" className="text-sm font-semibold text-accent">← Church</Link>
+      <BackLink to="/app/church" className="text-sm font-semibold text-accent">← Church</BackLink>
       <h1 className="mt-3 font-display text-3xl font-semibold">Register your church</h1>
       <p className="mt-2 text-sm text-muted">Free for every church. We review each request (usually within a day or two) before it goes live.</p>
       <form onSubmit={submit} className="mt-6 space-y-4">

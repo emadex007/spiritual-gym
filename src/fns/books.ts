@@ -4,10 +4,11 @@ import { requireUser } from '~/lib/auth'
 import { audit, requireAdmin } from '~/lib/admin'
 import { askCoach } from '~/lib/coach'
 import { dayString, newId } from '~/lib/util'
-import { splitDays } from '~/lib/books'
+import { BOOK_CATEGORIES, splitDays } from '~/lib/books'
+import { notify } from '~/lib/notify'
 
-type BookRow = { id: string; title: string; author: string | null; description: string | null; category: string | null; pdf_key: string | null; cover_key: string | null; pages: number; words: number; status: string; owner_id: string | null; check_note: string | null }
-const BOOK_COLS = 'b.id, b.title, b.author, b.description, b.category, b.pdf_key, b.cover_key, b.pages, b.words, b.status, b.owner_id, b.check_note'
+type BookRow = { id: string; title: string; author: string | null; description: string | null; category: string | null; pdf_key: string | null; cover_key: string | null; pages: number; words: number; status: string; owner_id: string | null; check_note: string | null; share_status: string; share_note: string | null; author_bio: string | null }
+const BOOK_COLS = 'b.id, b.title, b.author, b.description, b.category, b.pdf_key, b.cover_key, b.pages, b.words, b.status, b.owner_id, b.check_note, b.share_status, b.share_note, b.author_bio'
 const MAX_BOOKS = 20
 type PlanRow = { id: string; days: number; start_date: string; done: number; status: string; last_page: number | null }
 const DAILY_EXPLAIN = 15
@@ -24,10 +25,12 @@ async function getRow(id: string) {
   if (!b) throw new Error('Book not found.')
   return b
 }
-/** A book I can read: one I uploaded (and that passed the check), or a shared one */
+/** An author's book that an admin approved for the shared library */
+const inLibrary = (b: Pick<BookRow, 'owner_id' | 'share_status' | 'status'>) => !!b.owner_id && b.share_status === 'approved' && b.status === 'ready'
+/** A book I can read: one I uploaded (and that passed the check), a shared one, or an author's approved book */
 async function readable(id: string, user: { id: string; role?: string }) {
   const b = await getRow(id)
-  if (b.owner_id ? b.owner_id !== user.id && user.role !== 'admin' : b.status !== 'published' && user.role !== 'admin') throw new Error('This book isn’t available.')
+  if (b.owner_id ? b.owner_id !== user.id && user.role !== 'admin' && !inLibrary(b) : b.status !== 'published' && user.role !== 'admin') throw new Error('This book isn’t available.')
   return b
 }
 const canRead = (b: BookRow) => (b.owner_id ? b.status === 'ready' : b.status === 'published')
@@ -48,12 +51,12 @@ export const listBooks = createServerFn({ method: 'GET' }).handler(async () => {
       `SELECT ${BOOK_COLS}, ub.days AS plan_days, ub.done AS plan_done, ub.status AS plan_status, ub.start_date AS plan_start,
               (SELECT COUNT(*) FROM user_books x WHERE x.book_id = b.id) AS readers
        FROM books b LEFT JOIN user_books ub ON ub.book_id = b.id AND ub.user_id = ?1
-       WHERE b.owner_id = ?1 OR (b.owner_id IS NULL AND b.status = 'published') OR ub.id IS NOT NULL
+       WHERE b.owner_id = ?1 OR (b.owner_id IS NULL AND b.status = 'published') OR (b.share_status = 'approved' AND b.status = 'ready') OR ub.id IS NOT NULL
        ORDER BY (b.owner_id IS NULL), b.created_at DESC`,
     )
     .bind(user.id)
     .all<BookRow & { plan_days: number | null; plan_done: number | null; plan_status: string | null; plan_start: string | null; readers: number }>()
-  return { books: results, today: dayString() }
+  return { books: results, today: dayString(), me: user.id }
 })
 
 /** One book: details, my reading plan and its daily readings */
@@ -311,6 +314,66 @@ async function removeBook(id: string) {
   ])
 }
 
+// ---------------- Authors: share a book with everyone (an admin approves it first) ----------------
+
+/** An author submits their uploaded book to the library */
+export const submitBook = createServerFn({ method: 'POST' })
+  .validator((d: { id: string; author: string; description: string; authorBio?: string; category?: string; rights: boolean }) => {
+    const description = String(d?.description ?? '').trim().slice(0, 1200)
+    const author = String(d?.author ?? '').trim().slice(0, 120)
+    if (!d?.rights) throw new Error('Please confirm you wrote this book or have the right to share it for free.')
+    if (author.length < 2) throw new Error('Add the author’s name.')
+    if (description.length < 30) throw new Error('Tell readers what the book is about (a few sentences).')
+    const category = (BOOK_CATEGORIES as readonly string[]).includes(String(d?.category)) ? String(d.category) : null
+    return { id: String(d?.id ?? ''), author, description, authorBio: String(d?.authorBio ?? '').trim().slice(0, 600) || null, category }
+  })
+  .handler(async ({ data }) => {
+    const user = await requireUser()
+    const b = await mine(data.id, user)
+    if (b.status !== 'ready') throw new Error('The book needs to finish uploading and pass the check first.')
+    if (b.share_status === 'approved') throw new Error('This book is already in the library.')
+    await db()
+      .prepare(`UPDATE books SET author = ?, description = ?, author_bio = ?, category = ?, share_status = 'submitted', share_note = NULL, submitted_at = datetime('now') WHERE id = ?`)
+      .bind(data.author, data.description, data.authorBio, data.category, data.id)
+      .run()
+    const admins = await db().prepare(`SELECT id FROM users WHERE role = 'admin'`).all<{ id: string }>()
+    await notify({ userIds: admins.results.map((a) => a.id) }, { kind: 'admin', title: `New book to review: ${b.title}`, body: `By ${data.author}. Read it and approve it for the library.`, url: '/admin/books' })
+    return { ok: true }
+  })
+
+/** The author takes their book out of the library (or withdraws it from review). Readers keep their place if they've started. */
+export const withdrawBook = createServerFn({ method: 'POST' })
+  .validator((id: string) => String(id ?? ''))
+  .handler(async ({ data }) => {
+    const user = await requireUser()
+    await mine(data, user)
+    await db().prepare(`UPDATE books SET share_status = '', approved_at = NULL WHERE id = ?`).bind(data).run()
+    return { ok: true }
+  })
+
+/** Admin: approve a submitted book for the library, or decline it with a note to the author */
+export const reviewBook = createServerFn({ method: 'POST' })
+  .validator((d: { id: string; approve: boolean; note?: string }) => ({ id: String(d?.id ?? ''), approve: !!d?.approve, note: String(d?.note ?? '').trim().slice(0, 600) || null }))
+  .handler(async ({ data }) => {
+    const admin = await requireAdmin()
+    const b = await db().prepare('SELECT title, owner_id, status FROM books WHERE id = ?').bind(data.id).first<{ title: string; owner_id: string | null; status: string }>()
+    if (!b?.owner_id) throw new Error('Book not found.')
+    if (data.approve && b.status !== 'ready') throw new Error('This book isn’t ready to read yet.')
+    if (!data.approve && !data.note) throw new Error('Tell the author why, so they can fix it.')
+    await db()
+      .prepare(`UPDATE books SET share_status = ?, share_note = ?, approved_at = CASE WHEN ? THEN datetime('now') ELSE NULL END WHERE id = ?`)
+      .bind(data.approve ? 'approved' : 'declined', data.note, data.approve ? 1 : 0, data.id)
+      .run()
+    await audit(admin, data.approve ? 'book.approve' : 'book.decline', data.id, b.title)
+    await notify(
+      { userIds: [b.owner_id] },
+      data.approve
+        ? { kind: 'book', title: `“${b.title}” is now in the library 🎉`, body: 'Everyone on TheRenewGym can read it now. Thank you for sharing it.', url: `/app/books/${data.id}` }
+        : { kind: 'book', title: `“${b.title}” wasn’t added to the library yet`, body: data.note ?? '', url: `/app/books/${data.id}` },
+    )
+    return { ok: true }
+  })
+
 // ---------------- Admin: an overview of uploaded books (and removing any that break the rules) ----------------
 
 export const adminListBooks = createServerFn({ method: 'GET' }).handler(async () => {
@@ -320,7 +383,7 @@ export const adminListBooks = createServerFn({ method: 'GET' }).handler(async ()
       `SELECT ${BOOK_COLS}, b.size, b.created_at, u.name AS owner_name,
               (SELECT COUNT(*) FROM user_books x WHERE x.book_id = b.id) AS readers,
               (SELECT COUNT(*) FROM user_books x WHERE x.book_id = b.id AND x.status = 'finished') AS finished
-       FROM books b LEFT JOIN users u ON u.id = b.owner_id ORDER BY b.created_at DESC LIMIT 300`,
+       FROM books b LEFT JOIN users u ON u.id = b.owner_id ORDER BY b.share_status = 'submitted' DESC, b.created_at DESC LIMIT 300`,
     )
     .all<BookRow & { size: number; created_at: string; owner_name: string | null; readers: number; finished: number }>()
   const totals = await db().prepare(`SELECT COUNT(*) AS n, COALESCE(SUM(size),0) AS bytes, COUNT(DISTINCT owner_id) AS people FROM books WHERE status != 'rejected'`).first<{ n: number; bytes: number; people: number }>()

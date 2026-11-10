@@ -168,6 +168,7 @@ function Welcome() {
           <p>{site.footer_text}</p>
           <p className="mt-1 text-xs">{site.tagline}</p>
           <p className="mt-3 flex justify-center gap-4 text-xs font-semibold">
+            <Link to="/features">Features</Link>
             <Link to="/privacy">Privacy</Link>
             <Link to="/terms">Terms</Link>
             <Link to="/guidelines">Community guidelines</Link>

@@ -45,3 +45,6 @@ export function bookDay(plan: { days: number; done: number; start_date: string }
   const cal = Math.floor((Date.parse(today + 'T12:00:00Z') - Date.parse(plan.start_date + 'T12:00:00Z')) / 86_400_000) + 1
   return { next: Math.min(plan.days, plan.done + 1), calendar: Math.max(1, Math.min(plan.days, cal)), finished: plan.done >= plan.days }
 }
+
+/** Categories an author can choose when sharing a book with the library */
+export const BOOK_CATEGORIES = ['Devotional', 'Prayer', 'Christian living', 'Bible study', 'Marriage and family', 'Testimony and biography', 'Youth', 'Children', 'Leadership and ministry', 'Fiction', 'Poetry'] as const

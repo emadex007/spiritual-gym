@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react'
-import { Link, createFileRoute, useRouter } from '@tanstack/react-router'
+import { createFileRoute, useRouter } from '@tanstack/react-router'
+import { BackLink } from '~/components/BackLink'
 import { deleteNote, getNote, saveNote, type SermonNote } from '~/fns/notes'
 import { lookupVerse } from '~/fns/bible'
 import { findReferences, parseReference } from '~/lib/bible'
@@ -178,7 +179,7 @@ function NotePage() {
   return (
     <div className="fade-in mt-5">
       <div className="flex items-center justify-between gap-3">
-        <Link to="/app/journal/notes" className="text-sm text-muted hover:text-ink">← All notes</Link>
+        <BackLink to="/app/journal/notes" className="text-sm text-muted hover:text-ink">← All notes</BackLink>
         <div className="flex items-center gap-2">
           <span className={`text-xs ${status === 'offline' ? 'text-amber-700' : 'text-muted'}`} aria-live="polite">
             {status === 'saved' ? <><LineIcon name="check" className="mr-0.5 inline h-3.5 w-3.5 -translate-y-px" />{statusText}</> : statusText}

@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react'
-import { Link, createFileRoute, useRouter } from '@tanstack/react-router'
+import { createFileRoute, useRouter } from '@tanstack/react-router'
+import { BackLink } from '~/components/BackLink'
 import {
   createChurchPlan,
   deleteProgram,
@@ -41,7 +42,7 @@ function Manage() {
   const c = d.church
   return (
     <main className="fade-in mx-auto max-w-3xl px-5 pt-6 pb-12 md:pt-10">
-      <Link to="/app/church/$id" params={{ id: c.id }} className="text-sm font-semibold text-accent">← {c.name}</Link>
+      <BackLink to="/app/church/$id" params={{ id: c.id }} className="text-sm font-semibold text-accent">← {c.name}</BackLink>
       <div className="mt-3 flex items-center gap-3">
         <ChurchBadge name={c.name} logo={c.logo_key} color={c.color} />
         <div>

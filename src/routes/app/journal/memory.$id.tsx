@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Link, createFileRoute, useRouter } from '@tanstack/react-router'
+import { BackLink } from '~/components/BackLink'
 import { deleteMemory, getMemoryVerse, recordPractice } from '~/fns/memory'
 import { MASTERY_LABELS } from '~/lib/content'
 import { accuracy, blanks, firstLetters, normalize } from '~/lib/memory'
@@ -44,9 +45,9 @@ function Practice() {
 
   return (
     <div className="fade-in">
-      <Link to="/app/journal/memory" className="mt-6 inline-block text-sm font-semibold text-muted hover:text-ink">
+      <BackLink to="/app/journal/memory" className="mt-6 inline-block text-sm font-semibold text-muted hover:text-ink">
         ← All verses
-      </Link>
+      </BackLink>
       <div className="mt-2 flex items-baseline justify-between gap-3">
         <h2 className="font-display text-2xl font-semibold">{v.reference}</h2>
         <span className="text-xs text-muted">

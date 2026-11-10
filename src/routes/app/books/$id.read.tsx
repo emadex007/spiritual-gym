@@ -192,8 +192,8 @@ function Reader() {
             )
           ) : (
             <div className="flex justify-between gap-3">
-              {d.range.from > 1 ? <Link to="/app/books/$id/read" params={{ id: b.id }} search={{ page: Math.max(1, d.range.from - 5) }} className="btn-ghost">← Earlier pages</Link> : <span />}
-              {d.range.to < b.pages && <Link to="/app/books/$id/read" params={{ id: b.id }} search={{ page: d.range.to + 1 }} className="btn-ghost">Next pages →</Link>}
+              {d.range.from > 1 ? <Link to="/app/books/$id/read" params={{ id: b.id }} search={{ page: Math.max(1, d.range.from - 5) }} replace className="btn-ghost">← Earlier pages</Link> : <span />}
+              {d.range.to < b.pages && <Link to="/app/books/$id/read" params={{ id: b.id }} search={{ page: d.range.to + 1 }} replace className="btn-ghost">Next pages →</Link>}
             </div>
           )}
           {!d.plan && <Link to="/app/books/$id" params={{ id: b.id }} className="mt-4 block text-center text-sm font-semibold text-[#7a4a1f] dark:text-[#e3b648]">Start a reading plan for this book →</Link>}

@@ -6,6 +6,7 @@ import { getActiveJourney, isRecovery, lastSessionDay, verseOfTheDay, weeklyHead
 import { dayString, newId } from '~/lib/util'
 import { adaptSteps, devotionOfTheDay, includeTongues } from '~/lib/devotion'
 import { dayLabel, planByKey, planDays } from '~/lib/plans'
+import { retreatByKey } from '~/lib/retreats'
 import { daysBetween } from '~/lib/util'
 
 export const getHome = createServerFn({ method: 'GET' }).handler(async () => {
@@ -94,6 +95,26 @@ export const getHome = createServerFn({ method: 'GET' }).handler(async () => {
   }
   // Plans still to read today first, then the ones already done
   plans.sort((a, b) => Number(a.caughtUp) - Number(b.caughtUp))
+  // Retreats in progress (or starting soon)
+  const retreatRows = await db()
+    .prepare(
+      `SELECT r.id, r.retreat_key, r.start_date, (SELECT COUNT(*) FROM retreat_days_done d WHERE d.user_retreat_id = r.id) AS done
+       FROM user_retreats r WHERE r.user_id = ? AND r.status = 'active' ORDER BY r.created_at DESC LIMIT 3`,
+    )
+    .bind(user.id)
+    .all<{ id: string; retreat_key: string; start_date: string; done: number }>()
+    .then((r) => r.results)
+    .catch(() => [])
+  const retreats = retreatRows
+    .map((r) => {
+      const def = retreatByKey(r.retreat_key)
+      if (!def) return null
+      const offset = daysBetween(r.start_date, today)
+      const day = Math.min(def.days.length, Math.max(1, offset + 1))
+      return { id: r.id, key: def.key, title: def.title, days: def.days.length, day, dayTitle: def.days[day - 1].title, done: r.done, upcoming: offset < 0, startsIn: -offset, caughtUp: r.done >= day }
+    })
+    .filter((x): x is NonNullable<typeof x> => !!x)
+
   // The books I'm reading (Books): all of them, like plans
   const books = await db()
     .prepare(
@@ -143,6 +164,7 @@ export const getHome = createServerFn({ method: 'GET' }).handler(async () => {
     devotion,
     header,
     plans,
+    retreats,
     books: books.map((b) => ({ ...b, day: Math.min(b.days, b.done + 1), caughtUp: b.done >= Math.min(b.days, Math.max(1, daysBetween(b.start_date, today) + 1)) })),
     pastor: pastorRow?.pastor_mode ? { ministryToday: pastorRow.ministry, role: pastorRow.ministry_role || 'Minister' } : null,
     unseenAwards: unseen,

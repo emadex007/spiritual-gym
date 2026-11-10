@@ -25,7 +25,7 @@ export type MeetPeer = {
   /** Still not connected after ~20 seconds */
   trouble: boolean
 }
-export type MeetStatus = 'idle' | 'connecting' | 'waiting' | 'live' | 'full' | 'error' | 'ended' | 'removed' | 'denied'
+export type MeetStatus = 'idle' | 'connecting' | 'waiting' | 'live' | 'full' | 'error' | 'ended' | 'removed' | 'denied' | 'not-started'
 export type WaitPeer = { id: string; name: string; avatar: string }
 export type Caption = { id: string; name: string; text: string; final: boolean; at: number; translated?: string }
 export type ChatMsg = { id: string; name: string; text: string; at: number; mine: boolean }
@@ -766,6 +766,11 @@ export function useMeeting(wsPath: string) {
           case 'full':
             cleanup()
             setStatus('full')
+            break
+          case 'not-started':
+            // Only a group leader can start the live meeting
+            cleanup()
+            setStatus('not-started')
             break
         }
       }

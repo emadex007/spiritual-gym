@@ -10,6 +10,7 @@
 // - Church meetings end on their own at their scheduled end time (a Durable Object alarm), with a 5-minute warning.
 import { DurableObject } from 'cloudflare:workers'
 import type { AppEnv } from '~/lib/env'
+import { notify } from '~/lib/notify'
 
 export const LIVE_ROOM_LIMIT = 12
 const CAMERA_LIMIT = 4
@@ -78,6 +79,12 @@ export class PrayerRoom extends DurableObject<AppEnv> {
     }
 
     const me: Peer = { id: crypto.randomUUID(), userId, name, avatar, muted: false, groupId, meetingId, host, adult, video: false, hand: false, screen: false }
+    // Community groups: only a leader can start the live meeting. Everyone else joins once it's going.
+    if (groupId && !meetingId && !host && this.peers().length === 0) {
+      server.send(JSON.stringify({ t: 'not-started' }))
+      server.close(4001, 'Not started')
+      return new Response(null, { status: 101, webSocket: client })
+    }
     const waitingRoom = !!(await this.ctx.storage.get<boolean>('waitingRoom'))
     if (waitingRoom && !host) {
       me.waiting = true
@@ -111,6 +118,7 @@ export class PrayerRoom extends DurableObject<AppEnv> {
     )
     this.broadcast({ t: 'peer-joined', peer: publicPeer(me) }, me.id)
     await this.syncCount(me, others.length + 1, me.userId)
+    if (me.host && me.groupId && !me.meetingId && others.length === 0) await this.announceStart(me)
     if (me.host) for (const w of this.waitingSockets()) w.send(JSON.stringify({ t: 'waiting', hostHere: true }))
   }
 
@@ -377,6 +385,24 @@ export class PrayerRoom extends DurableObject<AppEnv> {
         s.send(text)
       } catch {}
     }
+  }
+
+  /** A leader started the group's live meeting: tell the members (at most once every 20 minutes, so a reconnect doesn't alert everyone again) */
+  private async announceStart(me: Peer) {
+    try {
+      const r = await this.env.DB.prepare(
+        `UPDATE prayer_groups SET live_alert_at = datetime('now')
+         WHERE id = ? AND (live_alert_at IS NULL OR live_alert_at < datetime('now', '-20 minutes')) RETURNING name, kind`,
+      )
+        .bind(me.groupId)
+        .first<{ name: string; kind: string }>()
+      if (!r) return
+      const what = r.kind === 'prayer' ? 'live prayer' : 'a live meeting'
+      await notify(
+        { groupId: me.groupId, exceptUserId: me.userId },
+        { kind: 'group', title: `🔴 ${me.name} started ${what} in ${r.name}`, body: 'Tap to join now.', url: `/app/community/${me.groupId}/live`, tag: `live-${me.groupId}` },
+      )
+    } catch {}
   }
 
   /** Keep "🔴 Live · N praying" (groups) or "N in the meeting" (church meetings) up to date, and log joins for the admin dashboard */

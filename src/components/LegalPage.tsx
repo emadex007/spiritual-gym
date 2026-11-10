@@ -25,6 +25,7 @@ export function LegalPage({ title, text, updated }: { title: string; text: strin
       <header className="mx-auto flex max-w-2xl items-center justify-between px-5 py-5">
         <Link to="/"><Logo /></Link>
         <nav className="flex gap-4 text-sm font-medium text-muted">
+          <Link to="/features" activeProps={{ className: 'text-ink' }}>Features</Link>
           <Link to="/privacy" activeProps={{ className: 'text-ink' }}>Privacy</Link>
           <Link to="/terms" activeProps={{ className: 'text-ink' }}>Terms</Link>
           <Link to="/guidelines" activeProps={{ className: 'text-ink' }}>Guidelines</Link>

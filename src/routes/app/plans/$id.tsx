@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Link, createFileRoute, useRouter } from '@tanstack/react-router'
+import { BackLink } from '~/components/BackLink'
 import { addPlanNote, deletePlanNote, getMyPlan, markPlanDay, stopPlan } from '~/fns/plans'
 import { bookSlug } from '~/lib/bible'
 import { dayLabel, dayMinutes, readingLabel } from '~/lib/plans'
@@ -70,7 +71,7 @@ function MyPlan() {
       <div className="relative isolate flex min-h-36 flex-col justify-end overflow-hidden md:rounded-[1.75rem]">
         <JourneyCover focus={d.plan.focus} className="absolute inset-0 -z-10 h-full w-full" />
         <div className="absolute inset-0 -z-10 bg-gradient-to-t from-black/60 to-transparent" />
-        <Link to="/app/plans" className="absolute top-4 left-4 rounded-full bg-black/30 px-3 py-1.5 text-sm font-semibold text-white backdrop-blur">← Plans</Link>
+        <BackLink to="/app/plans" className="absolute top-4 left-4 rounded-full bg-black/30 px-3 py-1.5 text-sm font-semibold text-white backdrop-blur">← Plans</BackLink>
         <div className="px-5 pt-16 pb-4 text-white">
           <p className="text-xs font-semibold tracking-[0.12em] uppercase opacity-90">{d.circle ? <><LineIcon name="users" className="mr-1 inline h-3.5 w-3.5 -translate-y-px" />{d.circle.name}</> : 'Reading plan'}</p>
           <h1 className="mt-1 font-display text-2xl leading-tight font-semibold break-words drop-shadow sm:text-3xl">{d.plan.title}</h1>

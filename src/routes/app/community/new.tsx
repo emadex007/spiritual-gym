@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { Link, createFileRoute, useRouter } from '@tanstack/react-router'
+import { createFileRoute, useRouter } from '@tanstack/react-router'
+import { BackLink } from '~/components/BackLink'
 import { createGroup } from '~/fns/community'
 import { GROUP_KINDS, PRAYER_PURPOSES, groupKind, groupLook } from '~/lib/content'
 import { FormError, errorText } from '~/components/AuthShell'
@@ -34,7 +35,7 @@ function NewGroup() {
 
   return (
     <main className="fade-in mx-auto max-w-xl px-5 pt-6 pb-10 md:pt-10">
-      <Link to="/app/community" className="text-sm font-semibold text-muted hover:text-ink">← Community</Link>
+      <BackLink to="/app/community" className="text-sm font-semibold text-muted hover:text-ink">← Community</BackLink>
       <h1 className="mt-2 font-display text-3xl font-semibold tracking-tight">Start a group</h1>
       <p className="mt-1 text-muted">{kind.hint} Every group gets a wall, set meeting times, and can meet live by voice and video.</p>
 

@@ -1,5 +1,7 @@
 import { useState } from 'react'
 import { Link, createFileRoute, useRouter } from '@tanstack/react-router'
+import { BackLink } from '~/components/BackLink'
+import { ShareInLibrary } from '~/components/SubmitBook'
 import { deleteMyBook, getBook, startBook, stopBook, updateMyBook } from '~/fns/books'
 import { BOOK_PLANS, bookDay } from '~/lib/books'
 import { BookCover } from '~/components/BookCover'
@@ -49,7 +51,7 @@ function BookPage() {
 
   return (
     <main className="fade-in mx-auto max-w-2xl px-5 pt-6 pb-12 md:pt-10">
-      <Link to="/app/books" className="text-sm font-semibold text-accent">← Books</Link>
+      <BackLink to="/app/books" className="text-sm font-semibold text-accent">← Books</BackLink>
       <section className="mt-4 flex gap-5">
         <BookCover b={b} className="h-44 w-30 sm:h-56 sm:w-38" />
         <div className="min-w-0">
@@ -60,6 +62,12 @@ function BookPage() {
         </div>
       </section>
       {b.description && <p className="mt-5 whitespace-pre-line text-[15px] leading-relaxed">{b.description}</p>}
+      {b.author_bio && (
+        <div className="mt-4 rounded-2xl bg-surface-2 px-4 py-3 text-sm">
+          <p className="font-semibold">About {b.author ?? 'the author'}</p>
+          <p className="mt-0.5 whitespace-pre-line text-muted">{b.author_bio}</p>
+        </div>
+      )}
 
       {!d.ready && (
         <section className="mt-6 rounded-3xl bg-gold/15 p-5 text-sm">
@@ -150,6 +158,13 @@ function BookPage() {
         </section>
       )}
       {!d.hasText && <p className="mt-4 text-xs text-muted">This book is made of page pictures, so read-aloud isn’t available for it.</p>}
+      {d.mine && d.ready && (
+        <section className="card mt-8">
+          <p className="font-semibold">Did you write this book?</p>
+          <p className="mb-3 text-sm text-muted">Share it in the library so everyone on TheRenewGym can read it.</p>
+          <ShareInLibrary b={b} />
+        </section>
+      )}
       {d.mine && <OwnerTools id={b.id} title={b.title} author={b.author} />}
     </main>
   )

@@ -14,12 +14,13 @@ type B = Awaited<ReturnType<typeof listBooks>>['books'][number]
 
 /** Books: the ones I'm reading, then the library */
 function Library() {
-  const { books, today } = Route.useLoaderData()
+  const { books, today, me } = Route.useLoaderData()
   const [cat, setCat] = useState<string | null>(null)
   const reading = books.filter((b) => b.plan_status === 'active')
   const finished = books.filter((b) => b.plan_status === 'finished')
-  const mine = books.filter((b) => b.owner_id && b.plan_status !== 'active')
-  const shared = books.filter((b) => !b.owner_id && b.status === 'published')
+  const mine = books.filter((b) => b.owner_id === me && b.plan_status !== 'active')
+  // The shared library: books the team added, and authors' books an admin approved
+  const shared = books.filter((b) => (!b.owner_id && b.status === 'published') || (b.owner_id !== me && b.share_status === 'approved' && b.status === 'ready' && b.plan_status !== 'active'))
   const cats = [...new Set(shared.map((b) => b.category).filter((c): c is string => !!c))].sort()
   const shown = shared.filter((b) => !cat || b.category === cat)
   return (
@@ -29,7 +30,10 @@ function Library() {
         <p className="text-xs font-semibold tracking-[0.14em] text-[#fde7b0] uppercase">Books</p>
         <h1 className="mt-1 font-display text-3xl font-semibold">Read a good book, a little each day</h1>
         <p className="mt-2 max-w-md text-sm text-white/85">Add a Christian book (PDF) and choose how long you want to take: a week, two weeks, a month or more. You get a short reading each day, and it can be read aloud to you.</p>
-        <Link to="/app/books/new" className="btn-gold mt-5">+ Add a book</Link>
+        <div className="mt-5 flex flex-wrap items-center gap-3">
+          <Link to="/app/books/new" className="btn-gold">+ Add a book</Link>
+          <Link to="/app/books/authors" className="text-sm font-semibold text-white/90 underline decoration-white/40 underline-offset-4 hover:decoration-white">Wrote a book? Share it →</Link>
+        </div>
       </section>
 
       {reading.length > 0 && (

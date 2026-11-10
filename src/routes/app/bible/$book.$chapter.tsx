@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link, createFileRoute, notFound, useNavigate } from '@tanstack/react-router'
+import { BackLink } from '~/components/BackLink'
 import { getChapter } from '~/fns/bible'
 import { addMemory } from '~/fns/memory'
 import { getVerseMarks, saveVerseToJournal, setVerseMarks } from '~/fns/verses'
@@ -183,7 +184,7 @@ function Reader() {
   return (
     <main className="fade-in mx-auto max-w-2xl px-5 pt-5 pb-40 md:pt-10">
       <div className="sticky top-0 z-10 -mx-5 flex items-center justify-between border-b border-line bg-bg/90 px-5 py-3 backdrop-blur">
-        <Link to="/app/bible" className="text-sm font-semibold text-muted hover:text-ink">← Books</Link>
+        <BackLink to="/app/bible" className="text-sm font-semibold text-muted hover:text-ink">← Books</BackLink>
         <p className="font-display text-lg font-semibold">{book.name === 'Psalms' ? 'Psalm' : book.name} {chapter}</p>
         <div className="flex gap-1">
           <button type="button" aria-label="Smaller text" onClick={() => changeSize(-1)} className="h-8 w-8 rounded-full bg-surface-2 text-xs font-bold">A−</button>
@@ -261,10 +262,10 @@ function Reader() {
 
       <nav className="mt-8 flex justify-between gap-3">
         {prev ? (
-          <Link to="/app/bible/$book/$chapter" params={{ book: bookSlug(prev.book), chapter: String(prev.chapter) }} search={keep(prev.book, prev.chapter)} className="btn-ghost">← Previous</Link>
+          <Link to="/app/bible/$book/$chapter" params={{ book: bookSlug(prev.book), chapter: String(prev.chapter) }} search={keep(prev.book, prev.chapter)} replace className="btn-ghost">← Previous</Link>
         ) : <span />}
         {next && !inPlan && (
-          <Link to="/app/bible/$book/$chapter" params={{ book: bookSlug(next.book), chapter: String(next.chapter) }} className="btn-primary">Next chapter →</Link>
+          <Link to="/app/bible/$book/$chapter" params={{ book: bookSlug(next.book), chapter: String(next.chapter) }} replace className="btn-primary">Next chapter →</Link>
         )}
       </nav>
       {inPlan && selected.length === 0 && !listen && <PlanReadingBar search={search} bookId={book.id} chapter={chapter} />}
@@ -316,7 +317,7 @@ function Reader() {
           }}
           nextLabel={next && !inPlan ? 'Keeps going into the next chapter' : undefined}
           onFinished={() => {
-            if (next && !inPlan) navigate({ to: '/app/bible/$book/$chapter', params: { book: bookSlug(next.book), chapter: String(next.chapter) }, search: { listen: 1 } })
+            if (next && !inPlan) navigate({ to: '/app/bible/$book/$chapter', params: { book: bookSlug(next.book), chapter: String(next.chapter) }, search: { listen: 1 }, replace: true })
           }}
           onClose={() => {
             setListen(false)

@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Link, createFileRoute } from '@tanstack/react-router'
+import { BackLink } from '~/components/BackLink'
 import { getMeeting, meetingAction } from '~/fns/meetings'
 import { useMeeting } from '~/hooks/useMeeting'
 import { MeetingShell, shareInvite, type Meet } from '~/components/MeetingRoom'
@@ -25,7 +26,7 @@ function MeetingPage() {
       title={m.title}
       emoji={k.emoji}
       me={d.me}
-      back={<Link to="/app/church/$id" params={{ id: m.church_id }} className="flex h-9 items-center rounded-full bg-white/10 px-3 text-sm font-semibold hover:bg-white/15">← Church</Link>}
+      back={<BackLink to="/app/church/$id" params={{ id: m.church_id }} className="flex h-9 items-center rounded-full bg-white/10 px-3 text-sm font-semibold hover:bg-white/15">← Church</BackLink>}
       invite={() => shareInvite(m.title, `Join “${m.title}” (${m.church_name}) on TheRenewGym:`, `${location.origin}/app/meet/${m.id}`)}
       onEndForAll={() => meetingAction({ data: { id: m.id, action: 'end' } }).catch((e) => setHostError(errorText(e)))}
       lobby={

@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Link, createFileRoute } from '@tanstack/react-router'
+import { BackLink } from '~/components/BackLink'
 import { deleteHighlight, getBook, listHighlights } from '~/fns/books'
 import { LineIcon } from '~/components/LineIcon'
 
@@ -25,7 +26,7 @@ function Highlights() {
   }
   return (
     <main className="fade-in mx-auto max-w-2xl px-5 pt-6 pb-12 md:pt-10">
-      <Link to="/app/books/$id" params={{ id: book.id }} className="text-sm font-semibold text-accent">← {book.title}</Link>
+      <BackLink to="/app/books/$id" params={{ id: book.id }} className="text-sm font-semibold text-accent">← {book.title}</BackLink>
       <h1 className="mt-2 font-display text-3xl font-semibold"><LineIcon name="star" className="mr-2 inline h-7 w-7 -translate-y-1" />My highlights</h1>
       <p className="mt-1 text-sm text-muted">Words you picked while reading. To add more, select words in the book and tap Save.</p>
       <div className="mt-6 space-y-3">

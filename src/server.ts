@@ -345,8 +345,9 @@ export default {
       headers.set('x-user-name', encodeURIComponent(user.name.split(' ')[0].slice(0, 30)))
       headers.set('x-group-id', groupId)
       headers.set('x-user-avatar', encodeURIComponent(user.avatar_key ?? ''))
-      // The group leader (or a site admin) hosts: mute, camera off, remove, record, end. Community members are all adults.
-      headers.set('x-host', member.role === 'owner' || user.role === 'admin' ? '1' : '0')
+      // The group's leaders (owner or appointed leaders) and site admins host: start the meeting, mute, camera off, remove, record, end.
+      // Community members are all adults.
+      headers.set('x-host', member.role === 'owner' || member.role === 'leader' || user.role === 'admin' ? '1' : '0')
       headers.set('x-adult', '1')
       const stub = env.PRAYER_ROOMS.get(env.PRAYER_ROOMS.idFromName(groupId))
       return stub.fetch(new Request(request.url, { headers }))
