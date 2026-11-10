@@ -58,7 +58,7 @@ export function MeetingShell({ meet, title, emoji, me, back, invite, lobby, onEn
   /** A side panel in the room, e.g. the group's prayer requests or study notes */
   roomExtra?: { label: string; content: ReactNode } | null
 }) {
-  const inRoom = meet.status === 'live' || meet.status === 'connecting'
+  const inRoom = meet.status === 'live' || meet.status === 'connecting' || meet.status === 'reconnecting'
   const [panel, setPanel] = useState<Panel>(null)
   const [view, setView] = useState<'stage' | 'grid'>('stage')
   const [recorded, setRecorded] = useState<Recording | null>(null)
@@ -105,9 +105,11 @@ export function MeetingShell({ meet, title, emoji, me, back, invite, lobby, onEn
         <div className="min-w-0 flex-1">
           <p className="flex items-center gap-1.5 truncate text-sm font-semibold"><Glyph e={emoji} className="h-4 w-4 text-gold" /><span className="truncate">{title}</span></p>
           {inRoom && (
-            <p className="flex items-center gap-1.5 text-[11px] text-white/60">
+            <p className="flex items-center gap-1.5 overflow-hidden text-[11px] whitespace-nowrap text-white/60">
               {meet.recordingBy ? (
                 <span className="flex items-center gap-1 font-semibold text-red-400"><span className="h-2 w-2 animate-pulse rounded-full bg-red-500" /> REC{rec.active ? ` ${clock(rec.seconds)}` : ` · ${meet.recordingBy}`}</span>
+              ) : meet.status === 'reconnecting' ? (
+                <span className="flex items-center gap-1 font-semibold text-amber-300"><span className="h-2 w-2 animate-pulse rounded-full bg-amber-400" /> Reconnecting</span>
               ) : (
                 <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-emerald-400" /> Live</span>
               )}
@@ -137,6 +139,12 @@ export function MeetingShell({ meet, title, emoji, me, back, invite, lobby, onEn
 
       {/* Messages at the top of the room, stacked so they never cover each other */}
       <div className="pointer-events-none absolute inset-x-0 top-14 z-30 flex flex-col items-center gap-2 px-3 [&>*]:pointer-events-auto">
+        {meet.status === 'reconnecting' && (
+          <div className="fade-in flex w-fit max-w-full items-center gap-2.5 rounded-2xl bg-[#b45309] px-4 py-2 text-sm shadow-xl" role="status">
+            <span className="h-4 w-4 shrink-0 animate-spin rounded-full border-2 border-white/40 border-t-white" />
+            <p><b>Connection lost. Reconnecting…</b> <span className="text-white/85">You’ll be back in by yourself.</span></p>
+          </div>
+        )}
         {meet.notice && <p className="fade-in w-fit max-w-full rounded-2xl bg-white px-4 py-2 text-center text-sm text-[#08131f] shadow-xl">{meet.notice}</p>}
         {inRoom && <EndingSoon meet={meet} />}
         {inRoom && meet.host && meet.knocks.length > 0 && <KnockBar meet={meet} openPeople={() => openPanel('people')} />}
@@ -285,7 +293,7 @@ function Room({ meet, me, view, openPeople }: { meet: Meet; me: Me; view: 'stage
             <Tile key={p.id} p={p} version={meet.streamsVersion} onClick={() => togglePin(p.id)} pinned={pin === p.id} className="aspect-[4/3] sm:aspect-video" />
           ))}
         </div>
-        {n === 1 && <FirstHere />}
+        {n === 1 && meet.status === 'live' && <FirstHere />}
       </main>
     )
   }
@@ -308,7 +316,7 @@ function Room({ meet, me, view, openPeople }: { meet: Meet; me: Me; view: 'stage
           {focus.why === 'spotlight' && <span className="flex items-center gap-1 rounded-full bg-gold px-2.5 py-1 text-xs font-semibold text-navy"><Icon name="star" className="h-3.5 w-3.5" /> Spotlight</span>}
           {focus.kind === 'screen' && <span className="rounded-full bg-black/60 px-2.5 py-1 text-xs font-semibold backdrop-blur">{focus.p.me ? 'You are presenting' : `${focus.p.name} is presenting`}</span>}
         </div>
-        {people.length === 1 && <div className="absolute inset-x-0 bottom-4"><FirstHere /></div>}
+        {people.length === 1 && meet.status === 'live' && <div className="absolute inset-x-0 bottom-4"><FirstHere /></div>}
       </div>
       {strip.length > 0 && (
         <div className="flex shrink-0 gap-2 overflow-x-auto overscroll-contain pb-0.5 lg:w-52 lg:flex-col lg:overflow-x-hidden lg:overflow-y-auto xl:w-60">
@@ -648,9 +656,16 @@ function Controls({ meet, panel, openPanel, view, setView, rec, hasExtra, extraL
                   <input type="checkbox" className="h-5 w-5" checked={meet.waitingRoom} onChange={(e) => meet.setWaitingRoom(e.target.checked)} />
                 </label>
                 {meet.endsAt && (
-                  <button type="button" className="option !py-3 text-left" onClick={() => { setSheet(null); meet.extend(15) }}>
-                    <span><LineIcon name="clock" className="mr-2 inline h-[18px] w-[18px] -translate-y-px text-accent" />Add 15 minutes <span className="block text-xs font-normal text-muted">Ends at {new Date(meet.endsAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</span></span>
-                  </button>
+                  <div className="rounded-2xl border border-line px-4 py-3">
+                    <p className="text-sm font-semibold"><LineIcon name="clock" className="mr-2 inline h-[18px] w-[18px] -translate-y-px text-accent" />Add time <span className="font-normal text-muted">· ends at {new Date(meet.endsAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</span></p>
+                    <div className="mt-2 grid grid-cols-3 gap-2">
+                      {[15, 30, 60].map((n) => (
+                        <button key={n} type="button" className="rounded-full bg-surface-2 py-2 text-sm font-semibold hover:bg-accent-soft" onClick={() => { setSheet(null); meet.extend(n) }}>
+                          +{n < 60 ? `${n} min` : '1 hour'}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                 )}
                 {canRecord() ? (
                   <button type="button" className="option !py-3 text-left" onClick={() => { setSheet(null); toggleRecord() }}>

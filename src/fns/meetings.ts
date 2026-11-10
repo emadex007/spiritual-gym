@@ -105,13 +105,18 @@ export const meetingAction = createServerFn({ method: 'POST' })
 
 /** "Start a meeting now" in one tap (church admins): creates it and opens it */
 export const startInstantMeeting = createServerFn({ method: 'POST' })
-  .validator((d: { churchId: string; title?: string; kind?: string }) => ({ churchId: String(d?.churchId ?? ''), title: cleanText(d?.title, 100) || 'Prayer meeting', kind: MEETING_KINDS.some((k) => k.key === d?.kind) ? String(d.kind) : 'prayer' }))
+  .validator((d: { churchId: string; title?: string; kind?: string; durationMin?: number }) => ({
+    churchId: String(d?.churchId ?? ''),
+    title: cleanText(d?.title, 100) || 'Prayer meeting',
+    kind: MEETING_KINDS.some((k) => k.key === d?.kind) ? String(d.kind) : 'prayer',
+    durationMin: Math.max(15, Math.min(240, Math.round(Number(d?.durationMin) || 120))),
+  }))
   .handler(async ({ data }) => {
     const user = await requireChurchAdmin(data.churchId)
     const id = newId()
     await db()
-      .prepare(`INSERT INTO church_meetings (id, church_id, title, kind, starts_at, duration_min, status, started_at, reminded, created_by) VALUES (?, ?, ?, ?, ?, 60, 'live', datetime('now'), 1, ?)`)
-      .bind(id, data.churchId, data.title, data.kind, new Date().toISOString(), user.id)
+      .prepare(`INSERT INTO church_meetings (id, church_id, title, kind, starts_at, duration_min, status, started_at, reminded, created_by) VALUES (?, ?, ?, ?, ?, ?, 'live', datetime('now'), 1, ?)`)
+      .bind(id, data.churchId, data.title, data.kind, new Date().toISOString(), data.durationMin, user.id)
       .run()
     await notify({ churchId: data.churchId, exceptUserId: user.id }, { kind: 'church', title: `🔴 ${data.title} has started`, body: 'Tap to join now.', url: `/app/meet/${id}`, tag: `meet-${id}` })
     return { id }

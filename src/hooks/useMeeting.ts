@@ -8,8 +8,17 @@
 //
 // Connecting: newcomers make the offers. If a connection hasn't come up after a few seconds we restart it (ICE restart),
 // and when a network blocks direct calls the TURN relay (if configured) carries it instead.
+//
+// Staying in a long meeting (2 hours and more on mobile data):
+// - If the connection to the room drops (a network blip, switching to Wi-Fi, the phone locking, an app update going live),
+//   we reconnect by ourselves and keep your microphone, camera and presentation. You don't go back to the waiting room.
+// - A heartbeat every 20 s notices a dead connection within a minute, even when the phone doesn't say so.
+// - The screen stays on for the whole meeting (asked again whenever the app comes back to the front).
+// - If the microphone stops (a phone call, headphones unplugged) we get it back.
+// - Upload is shared fairly: the more people, the lighter each camera / screen picture, so voices never break up.
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { translateCaption } from '~/fns/meetings'
+import { useKeepAwake } from '~/hooks/useKeepAwake'
 
 export type MeetPeer = {
   id: string
@@ -25,7 +34,7 @@ export type MeetPeer = {
   /** Still not connected after ~20 seconds */
   trouble: boolean
 }
-export type MeetStatus = 'idle' | 'connecting' | 'waiting' | 'live' | 'full' | 'error' | 'ended' | 'removed' | 'denied' | 'not-started'
+export type MeetStatus = 'idle' | 'connecting' | 'waiting' | 'live' | 'reconnecting' | 'full' | 'error' | 'ended' | 'removed' | 'denied' | 'not-started'
 export type WaitPeer = { id: string; name: string; avatar: string }
 export type Caption = { id: string; name: string; text: string; final: boolean; at: number; translated?: string }
 export type ChatMsg = { id: string; name: string; text: string; at: number; mine: boolean }
@@ -38,6 +47,11 @@ const VIDEO_BITRATE = 250_000 // ~250 kbps per camera: clear faces, gentle on mo
 const SCREEN_BITRATE = 700_000 // slides and screens need sharper text, at a low frame rate
 const RESTART_AFTER = 9_000
 const TROUBLE_AFTER = 20_000
+const PING_EVERY = 20_000
+const DEAD_AFTER = 50_000 // no answer to two pings: the connection is gone even if the phone hasn't noticed
+const GIVE_UP_AFTER = 4 * 60_000 // keep trying to reconnect for this long
+/** Upload shared between everyone: each camera / screen picture gets less as the room grows */
+const share = (total: number, n: number, min: number, max: number) => Math.round(Math.max(min, Math.min(max, total / Math.max(1, n))))
 
 export function useMeeting(wsPath: string) {
   const [status, setStatus] = useState<MeetStatus>('idle')
@@ -95,10 +109,18 @@ export function useMeeting(wsPath: string) {
   const audioCtx = useRef<AudioContext | null>(null)
   const analysers = useRef(new Map<string, AnalyserNode>())
   const timers = useRef<number[]>([])
-  const wake = useRef<{ release: () => Promise<void> } | null>(null)
+  const lastPong = useRef(0)
+  const droppedAt = useRef(0)
+  const retries = useRef(0)
+  const retryTimer = useRef<number | null>(null)
+  const joinOpts = useRef<{ camera?: boolean }>({})
+  const openRef = useRef<() => void>(() => {})
+  const mutedRef = useRef(false)
   const warned = useRef(new Set<string>())
   const statusRef = useRef<MeetStatus>('idle')
   statusRef.current = status
+  mutedRef.current = muted
+  useKeepAwake(status === 'live' || status === 'reconnecting' || status === 'waiting')
   const chatOpen = useRef(false)
   const usageLast = useRef(new Map<string, { pair: string; bytes: number }>())
   const usageAt = useRef(0) // when we last reported (0 = not in the room)
@@ -151,6 +173,30 @@ export function useMeeting(wsPath: string) {
     } catch {}
   }
 
+  /** Camera and screen pictures for each connection, shared out by how many people are here */
+  const caps = () => {
+    const n = pcs.current.size
+    return { cam: share(1_200_000, n, 120_000, VIDEO_BITRATE), screen: share(3_000_000, n, 300_000, SCREEN_BITRATE) }
+  }
+  const rebalance = () => {
+    const c = caps()
+    for (const [id, s] of camSenders.current) if (pcs.current.get(id)?.up) capBitrate(s, c.cam, 15)
+    for (const [id, s] of screenSenders.current) if (pcs.current.get(id)?.up) capBitrate(s, c.screen, 10)
+  }
+  /** Voice comes first when the network is busy */
+  const voiceFirst = async (pc: RTCPeerConnection) => {
+    for (const s of pc.getSenders()) {
+      if (s.track?.kind !== 'audio') continue
+      try {
+        const p = s.getParameters() as RTCRtpSendParameters & { encodings: (RTCRtpEncodingParameters & { priority?: string; networkPriority?: string })[] }
+        if (!p.encodings?.length) p.encodings = [{}]
+        p.encodings[0].priority = 'high'
+        p.encodings[0].networkPriority = 'high'
+        await s.setParameters(p)
+      } catch {}
+    }
+  }
+
   const playAudio = (el: HTMLAudioElement) =>
     el.play().catch((e) => {
       // Phones (iPhones especially) can block sound until the person taps the screen
@@ -174,6 +220,7 @@ export function useMeeting(wsPath: string) {
     remoteScreen.current.delete(id)
     analysers.current.delete(id)
     warned.current.delete(id)
+    rebalance()
     bump()
     setPeers((p) => {
       const { [id]: _, ...rest } = p
@@ -231,10 +278,8 @@ export function useMeeting(wsPath: string) {
       const up = pc.connectionState === 'connected' || pc.iceConnectionState === 'connected' || pc.iceConnectionState === 'completed'
       if (up && !info.up) {
         info.up = true
-        const cs = camSenders.current.get(id)
-        const ss = screenSenders.current.get(id)
-        if (cs) capBitrate(cs, VIDEO_BITRATE, 15)
-        if (ss) capBitrate(ss, SCREEN_BITRATE, 10)
+        rebalance()
+        voiceFirst(pc)
         patchPeer(id, { connected: true, trouble: false })
       } else if (!up && info.up && (pc.connectionState === 'failed' || pc.iceConnectionState === 'failed' || pc.iceConnectionState === 'disconnected')) {
         info.up = false
@@ -398,10 +443,8 @@ export function useMeeting(wsPath: string) {
     try {
       const s = await navigator.mediaDevices.getUserMedia({ video: { width: { ideal: 480 }, height: { ideal: 360 }, frameRate: { max: 15 }, facingMode: 'user' } })
       cam.current = s.getVideoTracks()[0]
-      for (const sender of camSenders.current.values()) {
-        await sender.replaceTrack(cam.current).catch(() => {})
-        capBitrate(sender, VIDEO_BITRATE, 15)
-      }
+      for (const sender of camSenders.current.values()) await sender.replaceTrack(cam.current).catch(() => {})
+      rebalance()
       setCamOn(true)
       bump()
     } catch {
@@ -440,10 +483,8 @@ export function useMeeting(wsPath: string) {
     if (!t || t.readyState !== 'live') return stopPresenting()
     screen.current = t
     t.onended = () => stopPresenting() // the browser's own "Stop sharing" button
-    for (const sender of screenSenders.current.values()) {
-      await sender.replaceTrack(t).catch(() => {})
-      capBitrate(sender, SCREEN_BITRATE, 10)
-    }
+    for (const sender of screenSenders.current.values()) await sender.replaceTrack(t).catch(() => {})
+    rebalance()
     setScreenOn(true)
     bump()
   }
@@ -553,6 +594,10 @@ export function useMeeting(wsPath: string) {
   const cleanup = useCallback(() => {
     timers.current.forEach((t) => clearInterval(t))
     timers.current = []
+    if (retryTimer.current) clearTimeout(retryTimer.current)
+    retryTimer.current = null
+    retries.current = 0
+    droppedAt.current = 0
     reportUsage()
     usageAt.current = 0
     usageLast.current.clear()
@@ -578,8 +623,6 @@ export function useMeeting(wsPath: string) {
     analysers.current.clear()
     audioCtx.current?.close().catch(() => {})
     audioCtx.current = null
-    wake.current?.release().catch(() => {})
-    wake.current = null
     setPeers({})
     setCamOn(false)
     setScreenOn(false)
@@ -592,6 +635,91 @@ export function useMeeting(wsPath: string) {
     setCaptions([])
     setAskUnmute(null)
   }, [dropPeer])
+
+  /** The connection to the room dropped. While in the meeting (or waiting to be let in), reconnect by ourselves. */
+  const dropped = () => {
+    const st = statusRef.current
+    if (st === 'connecting') {
+      cleanup()
+      setStatus('error')
+      setError('Couldn’t join. The meeting may have ended, or check your internet and try again.')
+      return
+    }
+    if (st !== 'live' && st !== 'waiting' && st !== 'reconnecting') return
+    if (st !== 'reconnecting') {
+      // Everyone's connections start again with the new link (they get new ids from the room)
+      for (const id of [...pcs.current.keys()]) dropPeer(id)
+      setPeers({})
+      setKnocks([])
+      droppedAt.current = Date.now()
+      setStatus('reconnecting')
+      statusRef.current = 'reconnecting'
+    }
+    if (Date.now() - droppedAt.current > GIVE_UP_AFTER) {
+      cleanup()
+      setStatus('error')
+      setError('You were disconnected and we couldn’t get you back in. Check your internet and join again.')
+      return
+    }
+    const wait = Math.min(10_000, 1000 * 2 ** retries.current)
+    retries.current++
+    if (retryTimer.current) clearTimeout(retryTimer.current)
+    retryTimer.current = window.setTimeout(() => {
+      retryTimer.current = null
+      if (statusRef.current === 'reconnecting' && !ws.current) openRef.current()
+    }, wait)
+  }
+
+  /** If the microphone stops (a phone call, headphones unplugged, another app took it), get it back on every connection */
+  const keepMic = (stream: MediaStream) => {
+    const track = stream.getAudioTracks()[0]
+    if (!track) return
+    track.onended = async () => {
+      if (mic.current !== stream) return
+      try {
+        const fresh = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }, video: false })
+        if (mic.current !== stream) return fresh.getTracks().forEach((t) => t.stop())
+        const t = fresh.getAudioTracks()[0]
+        t.enabled = !mutedRef.current
+        mic.current = fresh
+        // Voice is always the first slot on every connection
+        for (const { pc } of pcs.current.values()) await pc.getTransceivers()[0]?.sender.replaceTrack(t).catch(() => {})
+        analysers.current.delete('me')
+        watchLevel('me', fresh)
+        keepMic(fresh)
+        flash('Your microphone is back on.', 3000)
+      } catch {
+        flash('Your microphone stopped. Leave and join again to speak.', 9000)
+      }
+    }
+  }
+
+  // Coming back to the app, or the internet coming back: reconnect straight away instead of waiting
+  useEffect(() => {
+    const nudge = () => {
+      if (document.visibilityState !== 'visible') return
+      const st = statusRef.current
+      if (st === 'reconnecting' && !ws.current) {
+        if (retryTimer.current) clearTimeout(retryTimer.current)
+        retryTimer.current = null
+        retries.current = 0
+        openRef.current()
+      } else if ((st === 'live' || st === 'waiting') && ws.current?.readyState === WebSocket.OPEN) {
+        try {
+          ws.current.send(JSON.stringify({ t: 'ping' })) // a quick check that the connection survived
+        } catch {}
+      } else if ((st === 'live' || st === 'waiting') && ws.current && ws.current.readyState !== WebSocket.CONNECTING) {
+        ws.current = null
+        dropped()
+      }
+    }
+    document.addEventListener('visibilitychange', nudge)
+    window.addEventListener('online', nudge)
+    return () => {
+      document.removeEventListener('visibilitychange', nudge)
+      window.removeEventListener('online', nudge)
+    }
+  }, [])
 
   const join = useCallback(
     async (opts: { camera?: boolean } = {}) => {
@@ -618,171 +746,210 @@ export function useMeeting(wsPath: string) {
         return
       }
       watchLevel('me', mic.current)
-      const nav = navigator as Navigator & { wakeLock?: { request: (t: 'screen') => Promise<{ release: () => Promise<void> }> } }
-      nav.wakeLock?.request('screen').then((l) => (wake.current = l)).catch(() => {})
+      keepMic(mic.current)
+      joinOpts.current = opts
 
-      const sock = new WebSocket(`${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}${wsPath}`)
-      ws.current = sock
-      sock.onmessage = async (ev) => {
-        if (ws.current !== sock) return
-        const m = JSON.parse(ev.data as string)
-        switch (m.t) {
-          case 'welcome':
-            myId.current = m.you
-            setHost(!!m.host)
-            setAdult(!!m.adult)
-            setSpotlight(m.spotlight ?? null)
-            setCaptionsOn(!!m.captions)
-            setWaitingRoomState(!!m.waitingRoom)
-            setKnocks(m.waiting ?? [])
-            setEndsAt(m.endsAt ?? null)
-            setStatus('live')
-            usageAt.current = Date.now()
-            setPeers(Object.fromEntries(m.peers.map((p: MeetPeer) => [p.id, { ...p, screen: !!p.screen, speaking: false, connected: false, trouble: false }])))
-            for (const p of m.peers) await createPc(p.id, true)
-            if (opts.camera && m.adult) send({ t: 'video', on: true })
-            break
-          case 'peer-joined':
-            setPeers((ps) => ({ ...ps, [m.peer.id]: { ...m.peer, screen: !!m.peer.screen, speaking: false, connected: false, trouble: false } }))
-            break
-          case 'peer-left':
-            dropPeer(m.id)
-            setSpotlight((s) => (s === m.id ? null : s))
-            break
-          case 'mute':
-            patchPeer(m.id, { muted: m.muted })
-            break
-          case 'video':
-            patchPeer(m.id, { video: m.on })
-            break
-          case 'screen':
-            patchPeer(m.id, { screen: m.on })
-            bump()
-            break
-          case 'hand':
-            if (m.id === myId.current) setHand(m.on)
-            else patchPeer(m.id, { hand: m.on })
-            break
-          case 'video-ok':
-            if (m.on) await startCamera()
-            break
-          case 'video-full':
-            flash(`${m.limit} cameras are already on. You can still be heard. Try again when someone turns theirs off.`)
-            break
-          case 'video-denied':
-            flash('Cameras are for adults (18+). You can still talk and chat.')
-            break
-          case 'screen-ok':
-            if (m.on) await attachScreen()
-            break
-          case 'screen-busy':
-            stopPresenting(false)
-            flash(`${m.name} is presenting. Ask the host if you need to present.`)
-            break
-          case 'screen-denied':
-            stopPresenting(false)
-            flash('Presenting is for adults (18+).')
-            break
-          case 'force-screen-off':
-            stopPresenting(false)
-            flash('The host stopped your presentation.')
-            break
-          case 'spotlight':
-            setSpotlight(m.id ?? null)
-            break
-          case 'chat':
-            setChat((c) => [...c.slice(-199), { id: m.id, name: m.name, text: m.text, at: m.at, mine: m.id === myId.current }])
-            if (m.id !== myId.current && !chatOpen.current) setUnread((u) => u + 1)
-            break
-          case 'force-mute':
-            mic.current?.getAudioTracks().forEach((t) => (t.enabled = false))
-            setMuted(true)
-            send({ t: 'mute', muted: true })
-            flash('The host muted you. Tap the microphone to speak again.')
-            break
-          case 'force-video-off':
-            send({ t: 'video', on: false })
-            stopCamera()
-            flash('The host turned your camera off.')
-            break
-          case 'recording':
-            setRecordingBy(m.on ? m.by : null)
-            break
-          case 'removed':
-            cleanup()
-            setStatus('removed')
-            break
-          case 'ended':
-            cleanup()
-            setEndReason(m.reason ?? null)
-            setStatus('ended')
-            break
-          case 'waiting':
-            setHostHere(!!m.hostHere)
-            setStatus('waiting')
-            break
-          case 'denied':
-            cleanup()
-            setStatus('denied')
-            break
-          case 'knock':
-            setKnocks((k) => [...k.filter((x) => x.id !== m.peer.id), m.peer])
-            break
-          case 'knock-done':
-            setKnocks((k) => k.filter((x) => x.id !== m.id))
-            break
-          case 'waiting-room':
-            setWaitingRoomState(!!m.on)
-            break
-          case 'captions':
-            setCaptionsOn(!!m.on)
-            if (m.on) flash(`${m.by} turned on live captions.`)
-            break
-          case 'caption':
-            addCaption({ id: m.id, name: m.name, text: m.text, final: !!m.final, at: Date.now() })
-            break
-          case 'ask-unmute':
-            setAskUnmute(m.by ?? 'The host')
-            break
-          case 'ending-soon':
-            setEndsAt(m.endsAt ?? null)
-            flash('This meeting ends in 5 minutes.', 9000)
-            break
-          case 'ends-at':
-            setEndsAt(m.endsAt ?? null)
-            flash(`${m.by} added ${m.minutes} minutes.`)
-            break
-          case 'notice':
-            flash(m.text)
-            break
-          case 'replaced':
-            cleanup()
-            setStatus('error')
-            setError('You joined this meeting on another device or tab, so you were disconnected here. (To test with two devices, sign in with two different accounts.)')
-            break
-          case 'signal':
-            await onSignal(m.from, m.data).catch(() => {})
-            break
-          case 'full':
-            cleanup()
-            setStatus('full')
-            break
-          case 'not-started':
-            // Only a group leader can start the live meeting
-            cleanup()
-            setStatus('not-started')
-            break
+      // The connection to the room. Opened again by itself if it drops (see `dropped`).
+      const open = () => {
+        const sock = new WebSocket(`${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}${wsPath}`)
+        ws.current = sock
+        lastPong.current = Date.now()
+        sock.onmessage = async (ev) => {
+          if (ws.current !== sock) return
+          lastPong.current = Date.now()
+          const m = JSON.parse(ev.data as string)
+          switch (m.t) {
+            case 'pong':
+              break
+            case 'welcome': {
+              const back = statusRef.current === 'reconnecting'
+              retries.current = 0
+              droppedAt.current = 0
+              myId.current = m.you
+              setHost(!!m.host)
+              setAdult(!!m.adult)
+              setSpotlight(m.spotlight ?? null)
+              setCaptionsOn(!!m.captions)
+              setWaitingRoomState(!!m.waitingRoom)
+              setKnocks(m.waiting ?? [])
+              setEndsAt(m.endsAt ?? null)
+              setStatus('live')
+              usageAt.current = Date.now()
+              setPeers(Object.fromEntries(m.peers.map((p: MeetPeer) => [p.id, { ...p, screen: !!p.screen, speaking: false, connected: false, trouble: false }])))
+              for (const p of m.peers) await createPc(p.id, true)
+              if (back) {
+                // Carry on where you were: muted or not, camera, presentation
+                if (mutedRef.current) send({ t: 'mute', muted: true })
+                if (cam.current?.readyState === 'live') send({ t: 'video', on: true })
+                if (screen.current?.readyState === 'live') {
+                  pendingScreen.current = screen.current
+                  screen.current = null
+                  send({ t: 'screen', on: true })
+                }
+                flash('You’re back in the meeting.', 3500)
+              } else if (opts.camera && m.adult) send({ t: 'video', on: true })
+              break
+            }
+            case 'peer-joined':
+              setPeers((ps) => ({ ...ps, [m.peer.id]: { ...m.peer, screen: !!m.peer.screen, speaking: false, connected: false, trouble: false } }))
+              break
+            case 'peer-left':
+              dropPeer(m.id)
+              setSpotlight((s) => (s === m.id ? null : s))
+              break
+            case 'mute':
+              patchPeer(m.id, { muted: m.muted })
+              break
+            case 'video':
+              patchPeer(m.id, { video: m.on })
+              break
+            case 'screen':
+              patchPeer(m.id, { screen: m.on })
+              bump()
+              break
+            case 'hand':
+              if (m.id === myId.current) setHand(m.on)
+              else patchPeer(m.id, { hand: m.on })
+              break
+            case 'video-ok':
+              if (m.on && cam.current?.readyState !== 'live') await startCamera()
+              break
+            case 'video-full':
+              if (cam.current) stopCamera()
+              flash(`${m.limit} cameras are already on. You can still be heard. Try again when someone turns theirs off.`)
+              break
+            case 'video-denied':
+              flash('Cameras are for adults (18+). You can still talk and chat.')
+              break
+            case 'screen-ok':
+              if (m.on) await attachScreen()
+              break
+            case 'screen-busy':
+              stopPresenting(false)
+              flash(`${m.name} is presenting. Ask the host if you need to present.`)
+              break
+            case 'screen-denied':
+              stopPresenting(false)
+              flash('Presenting is for adults (18+).')
+              break
+            case 'force-screen-off':
+              stopPresenting(false)
+              flash('The host stopped your presentation.')
+              break
+            case 'spotlight':
+              setSpotlight(m.id ?? null)
+              break
+            case 'chat':
+              setChat((c) => [...c.slice(-199), { id: m.id, name: m.name, text: m.text, at: m.at, mine: m.id === myId.current }])
+              if (m.id !== myId.current && !chatOpen.current) setUnread((u) => u + 1)
+              break
+            case 'force-mute':
+              mic.current?.getAudioTracks().forEach((t) => (t.enabled = false))
+              setMuted(true)
+              send({ t: 'mute', muted: true })
+              flash('The host muted you. Tap the microphone to speak again.')
+              break
+            case 'force-video-off':
+              send({ t: 'video', on: false })
+              stopCamera()
+              flash('The host turned your camera off.')
+              break
+            case 'recording':
+              setRecordingBy(m.on ? m.by : null)
+              break
+            case 'removed':
+              cleanup()
+              setStatus('removed')
+              break
+            case 'ended':
+              cleanup()
+              setEndReason(m.reason ?? null)
+              setStatus('ended')
+              break
+            case 'waiting':
+              retries.current = 0
+              droppedAt.current = 0
+              setHostHere(!!m.hostHere)
+              setStatus('waiting')
+              break
+            case 'denied':
+              cleanup()
+              setStatus('denied')
+              break
+            case 'knock':
+              setKnocks((k) => [...k.filter((x) => x.id !== m.peer.id), m.peer])
+              break
+            case 'knock-done':
+              setKnocks((k) => k.filter((x) => x.id !== m.id))
+              break
+            case 'waiting-room':
+              setWaitingRoomState(!!m.on)
+              break
+            case 'captions':
+              setCaptionsOn(!!m.on)
+              if (m.on) flash(`${m.by} turned on live captions.`)
+              break
+            case 'caption':
+              addCaption({ id: m.id, name: m.name, text: m.text, final: !!m.final, at: Date.now() })
+              break
+            case 'ask-unmute':
+              setAskUnmute(m.by ?? 'The host')
+              break
+            case 'ending-soon':
+              setEndsAt(m.endsAt ?? null)
+              flash('This meeting ends in 5 minutes.', 9000)
+              break
+            case 'ends-at':
+              setEndsAt(m.endsAt ?? null)
+              flash(`${m.by} added ${m.minutes} minutes.`)
+              break
+            case 'notice':
+              flash(m.text)
+              break
+            case 'replaced':
+              cleanup()
+              setStatus('error')
+              setError('You joined this meeting on another device or tab, so you were disconnected here. (To test with two devices, sign in with two different accounts.)')
+              break
+            case 'signal':
+              await onSignal(m.from, m.data).catch(() => {})
+              break
+            case 'full':
+              cleanup()
+              setStatus('full')
+              break
+            case 'not-started':
+              // Only a group leader can start the live meeting. (While reconnecting, the leader may be reconnecting too: keep trying.)
+              if (statusRef.current === 'reconnecting') break
+              cleanup()
+              setStatus('not-started')
+              break
+          }
+        }
+        sock.onclose = () => {
+          if (ws.current !== sock) return // closed on purpose
+          ws.current = null
+          dropped()
         }
       }
-      sock.onclose = () => {
-        if (ws.current !== sock) return // closed on purpose
-        if (statusRef.current === 'live' || statusRef.current === 'connecting' || statusRef.current === 'waiting') {
-          cleanup()
-          setStatus('error')
-          setError(statusRef.current === 'connecting' ? 'Couldn’t join. The meeting may have ended, or check your internet and try again.' : 'You were disconnected. Check your internet and join again.')
-        }
-      }
-      timers.current.push(window.setInterval(() => send({ t: 'ping' }), 25_000))
+      openRef.current = open
+      open()
+
+      // Heartbeat: a ping every 20 s (answered by the room). No answer for 50 s = the connection is dead: reconnect.
+      timers.current.push(
+        window.setInterval(() => {
+          const sock = ws.current
+          if (!sock || sock.readyState !== WebSocket.OPEN) return
+          if (Date.now() - lastPong.current > DEAD_AFTER) {
+            ws.current = null
+            try {
+              sock.close()
+            } catch {}
+            return dropped()
+          }
+          sock.send(JSON.stringify({ t: 'ping' }))
+        }, PING_EVERY),
+      )
       timers.current.push(window.setInterval(reportUsage, 30_000))
 
       // Connections that don't come up: restart them, and say what's happening
