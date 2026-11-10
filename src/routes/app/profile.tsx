@@ -176,6 +176,7 @@ function Profile() {
           Your check-ins, reflections and journal are private by default. Nobody else can see them, including church leaders or support companions.
         </p>
         <p className="mt-3 flex flex-wrap gap-4 text-sm font-semibold text-accent">
+          <Link to="/features">Everything in the app</Link>
           <Link to="/privacy">Privacy policy</Link>
           <Link to="/terms">Terms</Link>
           <Link to="/guidelines">Community guidelines</Link>

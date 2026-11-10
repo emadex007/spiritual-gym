@@ -262,7 +262,7 @@ const EXPLORE = [
       { to: '/app/fasting', emoji: '🕊️', title: 'Fasting' },
       { to: '/app/coach', emoji: '💬', title: 'Coach' },
       { to: '/app/wake', emoji: '⏰', title: 'Wake-up' },
-      { to: '/app/journal', emoji: '📝', title: 'Journal' },
+      { to: '/app/retreats', emoji: '⛰️', title: 'Retreats' },
     ],
   },
   {
@@ -306,6 +306,20 @@ function Continue({ h, dayNo, journeyPct }: { h: HomeData; dayNo: number; journe
         <Link to="/app/plans/$id" params={{ id: pl.id }} className="btn-ghost !px-3 !py-1.5 text-sm">Open</Link>
       ) : (
         <Link to="/app/bible/$book/$chapter" params={{ book: bookSlug(pl.book), chapter: String(pl.chapter) }} search={{ plan: pl.id, day: pl.day, pk: pl.planKey }} className="btn-primary !px-4 !py-1.5 text-sm">Read</Link>
+      ),
+    })
+  for (const rt of h.retreats)
+    rows.push({
+      key: 'retreat-' + rt.id,
+      icon: <LineIcon name="mountain" className="h-5 w-5" />,
+      title: rt.upcoming ? rt.title : `Day ${rt.day} · ${rt.dayTitle}`,
+      sub: rt.upcoming ? `Retreat starts ${rt.startsIn === 1 ? 'tomorrow' : `in ${rt.startsIn} days`}` : rt.caughtUp ? `✓ Done today · ${rt.title}` : `Retreat · ${rt.title}`,
+      pct: Math.round((rt.done / rt.days) * 100),
+      done: !rt.upcoming && rt.caughtUp,
+      action: (
+        <Link to="/app/retreats/$key" params={{ key: rt.key }} className={`${!rt.upcoming && !rt.caughtUp ? 'btn-primary !px-4' : 'btn-ghost !px-3'} !py-1.5 text-sm`}>
+          {!rt.upcoming && !rt.caughtUp ? 'Pray' : 'Open'}
+        </Link>
       ),
     })
   for (const bk of h.books)

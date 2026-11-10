@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Link, createFileRoute, useNavigate } from '@tanstack/react-router'
+import { BackLink } from '~/components/BackLink'
 import { listGroups } from '~/fns/community'
 import { GROUP_KINDS, groupKind } from '~/lib/content'
 import { GroupTile } from '~/components/GroupTile'
@@ -27,7 +28,7 @@ function FindGroups() {
 
   return (
     <main className="fade-in mx-auto max-w-2xl px-5 pt-6 pb-10 md:pt-10">
-      <Link to="/app/community" className="text-sm font-semibold text-muted hover:text-ink">← Community</Link>
+      <BackLink to="/app/community" className="text-sm font-semibold text-muted hover:text-ink">← Community</BackLink>
       <div className="mt-2 flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="font-display text-3xl font-semibold tracking-tight">{k ? <span className="flex items-center gap-2.5"><Glyph e={k.emoji} className="h-7 w-7 text-accent" />{k.label}</span> : 'Find a group'}</h1>

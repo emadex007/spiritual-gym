@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Link, createFileRoute } from '@tanstack/react-router'
+import { BackLink } from '~/components/BackLink'
 import { getGroup } from '~/fns/community'
 import { CAMERA_LIMIT, LIVE_ROOM_LIMIT, groupKind, groupLook } from '~/lib/content'
 import { useMeeting } from '~/hooks/useMeeting'
@@ -47,7 +48,7 @@ function GroupLive() {
       title={g.name}
       emoji={look.emoji}
       me={{ name: d.meName, avatar: d.meAvatar }}
-      back={<Link to="/app/community/$groupId" params={{ groupId: g.id }} className="flex h-9 items-center rounded-full bg-white/10 px-3 text-sm font-semibold hover:bg-white/15">← Back</Link>}
+      back={<BackLink to="/app/community/$groupId" params={{ groupId: g.id }} className="flex h-9 items-center rounded-full bg-white/10 px-3 text-sm font-semibold hover:bg-white/15">← Back</BackLink>}
       invite={() => shareInvite(g.name, `Join “${g.name}” live on TheRenewGym${g.invite_code ? ` (invite code ${g.invite_code})` : ''}:`, `${location.origin}/app/community/${g.id}/live`)}
       roomExtra={notes}
       lobby={
@@ -61,12 +62,15 @@ function GroupLive() {
               ? 'The leader ended the meeting.'
               : g.live_count > 0
                 ? `${g.live_count} ${g.live_count === 1 ? 'person is' : 'people are'} ${gk.doing} right now.`
-                : 'No one is here yet. You can start, and others will join.'}
+                : d.leads
+                  ? 'No one is here yet. Start it and the group will be told it’s live.'
+                  : 'It hasn’t started yet. A leader will start it, and you’ll get a notification.'}
           </p>
           {next && <p className="mx-auto mt-4 inline-block rounded-full bg-white/10 px-4 py-1.5 text-sm"><LineIcon name="clock" className="mr-1.5 inline h-4 w-4 -translate-y-px" />{next.s.title}: {relativeStart(next.t!, next.s.duration_min)}</p>}
           {meet.status === 'denied' && <p className="mt-5 rounded-2xl bg-white/10 px-4 py-3 text-sm">The host didn’t let you in this time.</p>}
           {meet.status === 'ended' && meet.endReason === 'time' && <p className="mt-5 rounded-2xl bg-white/10 px-4 py-3 text-sm">The meeting has ended: its time is up.</p>}
           {meet.status === 'removed' && <p className="mt-5 rounded-2xl bg-white/10 px-4 py-3 text-sm">The leader removed you from this meeting.</p>}
+          {meet.status === 'not-started' && <p className="mt-5 rounded-2xl bg-white/10 px-4 py-3 text-sm">It hasn’t started yet. Only the group’s leaders can start it. You’ll get a notification the moment it begins.</p>}
           {meet.status === 'full' && <p className="mt-5 rounded-2xl bg-white/10 px-4 py-3 text-sm">It’s full ({LIVE_ROOM_LIMIT} people). Please try again a little later.</p>}
           {meet.error && <p className="mt-5 rounded-2xl bg-red-500/20 px-4 py-3 text-sm">{meet.error}</p>}
           {d.isMember ? (
@@ -83,9 +87,9 @@ function GroupLive() {
                 Turn my camera on when I join
               </label>
               <button type="button" className="btn-gold mt-6 w-full py-4 text-base" disabled={meet.status === 'connecting'} onClick={() => meet.join({ camera })}>
-                {meet.status === 'connecting' ? 'Joining…' : g.live_count > 0 ? 'Join now' : 'Start now'}
+                {meet.status === 'connecting' ? 'Joining…' : g.live_count > 0 ? 'Join now' : d.leads ? 'Start now' : 'Join if it has started'}
               </button>
-              {d.isOwner && <p className="mt-3 text-xs text-white/60">You lead this group: you can mute people, turn cameras off, remove someone, record and end the meeting.</p>}
+              {d.leads && <p className="mt-3 text-xs text-white/60">You lead this group: you can start the meeting, mute people, turn cameras off, remove someone, record and end it.</p>}
             </>
           ) : (
             <Link to="/app/community/$groupId" params={{ groupId: g.id }} className="btn-gold mt-6 w-full py-4 text-base">Join the group first</Link>

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, createFileRoute } from '@tanstack/react-router'
+import { BackLink } from '~/components/BackLink'
 import { getWake } from '~/fns/wake'
 import { firstName } from '~/lib/util'
 import { ringWakeBells, speakAll, speechSupported, unlockSpeech } from '~/lib/audio'
@@ -164,9 +165,9 @@ function Wake() {
 
       <div className="mx-auto flex w-full max-w-md flex-1 flex-col px-6 pt-6 pb-10">
         <div className="flex items-center justify-between">
-          <Link to="/app" className="rounded-full bg-white/15 px-4 py-2 text-sm font-semibold backdrop-blur" onClick={stopAll}>
+          <BackLink to="/app" className="rounded-full bg-white/15 px-4 py-2 text-sm font-semibold backdrop-blur" onClick={stopAll}>
             ← Home
-          </Link>
+          </BackLink>
           <span className="text-sm text-white/70"><LineIcon name="alarm" className="mr-1 inline h-4 w-4 -translate-y-px" />Wake-up</span>
         </div>
 

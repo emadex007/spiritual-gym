@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Link, createFileRoute, useRouter } from '@tanstack/react-router'
+import { BackLink } from '~/components/BackLink'
 import { getChurch, joinChurchPlan, leaveChurch, setChurchNotify } from '~/fns/church'
 import { startJourney } from '~/fns/train'
 import { ChurchBadge } from '~/components/ChurchBadge'
@@ -50,7 +51,7 @@ function ChurchHome() {
 
   return (
     <main className="stagger mx-auto max-w-2xl px-5 pt-6 pb-12 md:pt-10">
-      <Link to="/app/church" className="text-sm font-semibold text-accent">← Church</Link>
+      <BackLink to="/app/church" className="text-sm font-semibold text-accent">← Church</BackLink>
       <section className="relative mt-3 overflow-hidden rounded-[1.75rem] p-6 text-white" style={{ background: `linear-gradient(135deg, ${c.color}, var(--brand-navy))` }}>
         <LineIcon name="church" className="absolute -right-4 -bottom-6 h-40 w-40 opacity-10" strokeWidth={1.25} />
         <div className="flex items-center gap-4">

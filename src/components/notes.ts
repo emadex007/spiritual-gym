@@ -9,3 +9,9 @@ export function localDate() {
   const d = new Date()
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
+
+/** "Monday 16 November" */
+export function longDate(d: string) {
+  const t = new Date(d + 'T12:00:00')
+  return isNaN(t.getTime()) ? d : t.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' })
+}

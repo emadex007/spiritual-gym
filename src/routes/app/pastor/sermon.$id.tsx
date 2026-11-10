@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react'
-import { Link, createFileRoute, useRouter } from '@tanstack/react-router'
+import { createFileRoute, useRouter } from '@tanstack/react-router'
+import { BackLink } from '~/components/BackLink'
 import { deleteSermon, getSermon, saveSermon, suggestOutline, writeSermon } from '~/fns/pastor'
 import { FullSermon } from '~/components/FullSermon'
 import { SermonStudio } from '~/components/SermonStudio'
@@ -122,7 +123,7 @@ function SermonEditor() {
   return (
     <main className="fade-in mx-auto max-w-3xl px-5 pt-6 pb-16 md:pt-10">
       <div className="flex items-center justify-between gap-3">
-        <Link to="/app/pastor" className="text-sm font-semibold text-accent">← {cornerName(role)}</Link>
+        <BackLink to="/app/pastor" className="text-sm font-semibold text-accent">← {cornerName(role)}</BackLink>
         <span className="text-xs text-muted">{saved ? '✓ Saved' : 'Private to you'}</span>
       </div>
       <input className="mt-3 w-full bg-transparent font-display text-3xl font-semibold outline-none placeholder:text-muted/50" placeholder="Sermon title or topic" value={f.title} onChange={set('title')} maxLength={120} />
