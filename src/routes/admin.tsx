@@ -96,7 +96,10 @@ function AdminLayout() {
       {/* Mobile top bar */}
       <div className="sticky top-0 z-20 bg-navy text-white md:hidden">
         <div className="flex items-center justify-between px-4 py-3">
-          <span className="font-display font-semibold">Admin</span>
+          <span className="flex items-center gap-2">
+            <Logo onDark size="sm" />
+            <span className="rounded-full bg-white/10 px-2 py-0.5 text-[10px] font-semibold tracking-[0.12em] text-gold uppercase">Admin</span>
+          </span>
           <button type="button" onClick={logout} className="text-sm text-white/70">Sign out</button>
         </div>
         <nav className="flex gap-1 overflow-x-auto px-3 pb-3">
