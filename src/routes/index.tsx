@@ -4,6 +4,7 @@ import { Link, createFileRoute } from '@tanstack/react-router'
 import { getMe } from '~/fns/auth'
 import { getSiteSettings } from '~/fns/site'
 import { Logo } from '~/components/Logo'
+import { HeroBackground } from '~/components/HeroArt'
 import { BibleIcon, DoveIcon, HandsIcon, HeartIcon, JourneyCover, LampIcon, STEP_STYLE, SunriseScene } from '~/components/Art'
 import { LineIcon } from '~/components/LineIcon'
 import { mediaUrl } from '~/lib/util'
@@ -48,8 +49,10 @@ function Welcome() {
             <img src={mediaUrl(site.hero_image)} alt="" className="absolute inset-0 -z-10 h-full w-full object-cover" />
             <div className="absolute inset-0 -z-10 bg-gradient-to-b from-navy/80 via-navy/60 to-navy/90" />
           </>
-        ) : (
+        ) : site.hero_style === 'sunrise' ? (
           <SunriseScene className="absolute inset-0 -z-10 h-full w-full" />
+        ) : (
+          <HeroBackground style={site.hero_style} />
         )}
         <header className="mx-auto flex max-w-6xl items-center justify-between px-5 py-5">
           <Logo onDark />
