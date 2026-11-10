@@ -98,7 +98,7 @@ export const meetingAction = createServerFn({ method: 'POST' })
     else if (data.action === 'end') await db().prepare(`UPDATE church_meetings SET status = 'ended', ended_at = datetime('now'), live_count = 0 WHERE id = ?`).bind(data.id).run()
     else {
       await db().prepare(`UPDATE church_meetings SET status = 'live', started_at = COALESCE(started_at, datetime('now')) WHERE id = ?`).bind(data.id).run()
-      if (m.status !== 'live') await notify({ churchId: m.church_id, exceptUserId: user.id }, { kind: 'church', title: `🔴 ${m.title} has started`, body: 'Tap to join now.', url: `/app/meet/${data.id}`, tag: `meet-${data.id}` })
+      if (m.status !== 'live') await notify({ churchId: m.church_id, exceptUserId: user.id }, { kind: 'church', title: `🔴 ${m.title} has started`, body: 'Tap to join now.', url: `/app/meet/${data.id}`, tag: `meet-${data.id}`, urgent: true })
     }
     return { ok: true }
   })
@@ -118,7 +118,7 @@ export const startInstantMeeting = createServerFn({ method: 'POST' })
       .prepare(`INSERT INTO church_meetings (id, church_id, title, kind, starts_at, duration_min, status, started_at, reminded, created_by) VALUES (?, ?, ?, ?, ?, ?, 'live', datetime('now'), 1, ?)`)
       .bind(id, data.churchId, data.title, data.kind, new Date().toISOString(), data.durationMin, user.id)
       .run()
-    await notify({ churchId: data.churchId, exceptUserId: user.id }, { kind: 'church', title: `🔴 ${data.title} has started`, body: 'Tap to join now.', url: `/app/meet/${id}`, tag: `meet-${id}` })
+    await notify({ churchId: data.churchId, exceptUserId: user.id }, { kind: 'church', title: `🔴 ${data.title} has started`, body: 'Tap to join now.', url: `/app/meet/${id}`, tag: `meet-${id}`, urgent: true })
     return { id }
   })
 

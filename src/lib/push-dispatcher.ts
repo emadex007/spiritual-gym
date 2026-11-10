@@ -23,7 +23,12 @@ export class PushDispatcher extends DurableObject<AppEnv> {
     ).all<{ id: string; payload: string; sid: string; endpoint: string; p256dh: string; auth: string }>()
 
     if (results.length) {
-      const statuses = await Promise.all(results.map((r) => sendPush(r, JSON.parse(r.payload), vapid)))
+      const statuses = await Promise.all(
+        results.map((r) => {
+          const p = JSON.parse(r.payload)
+          return p.urgent ? sendPush(r, p, vapid, 3600, 'high') : sendPush(r, p, vapid)
+        }),
+      )
       const done = results.map((r) => r.id)
       const gone = [...new Set(results.filter((_, i) => statuses[i] === 404 || statuses[i] === 410).map((r) => r.sid))]
       const stmts = [e.DB.prepare(`DELETE FROM push_outbox WHERE id IN (${done.map(() => '?').join(',')})`).bind(...done)]

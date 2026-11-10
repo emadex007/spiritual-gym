@@ -104,6 +104,26 @@ function Settings() {
         </section>
 
         <section className="card space-y-4">
+          <div>
+            <p className="font-semibold">Emails to admins</p>
+            <p className="mt-1 text-sm text-muted">Sent to every admin’s email address. New members always get a welcome email.</p>
+          </div>
+          {([
+            ['admin_signup_email', 'An email when someone new signs up', 'Up to 15 a day. After that, new members are listed in the evening summary.'],
+            ['admin_daily_email', 'A daily summary at 7pm', 'New members, workouts, live prayer, meetings, and anything waiting for you to review. Not sent on a day with no activity.'],
+          ] as const).map(([key, label, hint]) => (
+            <label key={key} className="flex cursor-pointer items-start gap-3 rounded-2xl border border-line px-4 py-3">
+              <input type="checkbox" className="mt-1 h-5 w-5 shrink-0 accent-[var(--color-accent)]" checked={(f[key] ?? '1') === '1'} onChange={(e) => (setF({ ...f, [key]: e.target.checked ? '1' : '0' }), setMsg(null))} />
+              <span><span className="font-semibold">{label}</span><span className="mt-0.5 block text-sm text-muted">{hint}</span></span>
+            </label>
+          ))}
+          <Field label="Also send them to" hint="Optional. Other email addresses, separated by commas (for example a team inbox).">
+            <input className="input" placeholder="e.g. team@therenewgym.org" value={f.admin_email_to ?? ''} onChange={set('admin_email_to')} />
+          </Field>
+          <p className="text-xs text-muted">The free email plan allows about 100 emails a day in total (welcome emails, these, and weekly emails). See Admin → Mail for today’s count.</p>
+        </section>
+
+        <section className="card space-y-4">
           <p className="font-semibold">Legal pages</p>
           <p className="text-sm text-muted">
             TheRenewGym ships with starter drafts. Leave a box empty to keep the draft, or paste your own version. Format: <code>## Heading</code>, <code>- bullet</code>, blank line for a new paragraph, and <code>{'{{email}}'}</code> for the contact email. Have these reviewed for your organisation before a public launch.

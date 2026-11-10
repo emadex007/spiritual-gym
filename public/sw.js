@@ -60,7 +60,8 @@ self.addEventListener('push', (e) => {
       tag: data.tag || undefined,
       renotify: !!data.tag,
       // The daily reminder behaves like an alarm: strong vibration and it stays until tapped
-      vibrate: data.tag === 'daily' ? [500, 250, 500, 250, 500, 250, 1000] : [120, 60, 120],
+      // Something live right now (urgent): a longer buzz so it isn't missed
+      vibrate: data.tag === 'daily' ? [500, 250, 500, 250, 500, 250, 1000] : data.urgent ? [300, 120, 300, 120, 300] : [120, 60, 120],
       requireInteraction: data.tag === 'daily',
       silent: false,
       data: { url: data.url || '/app' },

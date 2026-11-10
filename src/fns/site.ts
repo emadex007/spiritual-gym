@@ -23,7 +23,8 @@ export const DEFAULT_SETTINGS: SiteSettings = {
 export const getSiteSettings = createServerFn({ method: 'GET' }).handler(async (): Promise<SiteSettings> => {
   try {
     const { results } = await db().prepare('SELECT key, value FROM settings').all<{ key: string; value: string }>()
-    return { ...DEFAULT_SETTINGS, ...Object.fromEntries(results.map((r) => [r.key, r.value])) }
+    // admin_… settings (who gets admin emails) are private: never sent to the public site
+    return { ...DEFAULT_SETTINGS, ...Object.fromEntries(results.filter((r) => !r.key.startsWith('admin_')).map((r) => [r.key, r.value])) }
   } catch {
     return DEFAULT_SETTINGS // before migration 0004 is applied
   }

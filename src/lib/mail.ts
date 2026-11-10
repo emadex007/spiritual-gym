@@ -306,7 +306,7 @@ export async function sentToday() {
   const r = await db().prepare("SELECT n FROM daily_counts WHERE user_id = '__site' AND day = ? AND kind = 'mail'").bind(today()).first<{ n: number }>()
   return r?.n ?? 0
 }
-async function countSent(n: number) {
+export async function countSent(n: number) {
   if (n <= 0) return
   await db()
     .prepare("INSERT INTO daily_counts (user_id, day, kind, n) VALUES ('__site', ?, 'mail', ?) ON CONFLICT(user_id, day, kind) DO UPDATE SET n = n + excluded.n")
