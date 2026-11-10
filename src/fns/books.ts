@@ -7,7 +7,6 @@ import { dayString, newId } from '~/lib/util'
 import { BOOK_CATEGORIES, splitDays } from '~/lib/books'
 import { notify } from '~/lib/notify'
 import { sendEmail } from '~/lib/email'
-import { env } from '~/lib/env'
 import { circleInfo, inviteCode, listComments } from '~/lib/reading'
 
 type BookRow = { id: string; title: string; author: string | null; description: string | null; category: string | null; pdf_key: string | null; cover_key: string | null; pages: number; words: number; status: string; owner_id: string | null; check_note: string | null; share_status: string; share_note: string | null; author_bio: string | null; visibility: string }
