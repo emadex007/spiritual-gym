@@ -14,7 +14,7 @@ import { GROUP_KINDS } from '~/lib/content'
 const LEVELS = ['recovery', 'build', 'deepen', 'intensive']
 const STEP_KINDS = ['stillness', 'breathe', 'scripture', 'prayer', 'worship', 'reflection', 'thanksgiving', 'devotion', 'tongues']
 const FOCUSES = ['prayer', 'bible', 'worship', 'memory', 'fasting', 'gratitude', 'consistency', 'growth']
-const SETTING_KEYS = ['site_name', 'tagline', 'hero_title', 'hero_subtitle', 'hero_image', 'announcement', 'home_message', 'support_text', 'footer_text', 'contact_email', 'privacy_text', 'terms_text', 'guidelines_text']
+const SETTING_KEYS = ['site_name', 'tagline', 'hero_title', 'hero_subtitle', 'hero_image', 'announcement', 'home_message', 'support_text', 'footer_text', 'contact_email', 'privacy_text', 'terms_text', 'guidelines_text', 'admin_signup_email', 'admin_daily_email', 'admin_email_to']
 const LONG_KEYS = ['privacy_text', 'terms_text', 'guidelines_text']
 
 const slugify = (s: string) =>

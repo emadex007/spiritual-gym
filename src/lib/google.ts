@@ -2,6 +2,7 @@
 // Switched on by two secrets: GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET (see GOOGLE-LOGIN.md). Without them the button is hidden.
 //   GET /api/auth/google            → off to Google's sign-in page
 //   GET /api/auth/google/callback   → back from Google: find or create the account, start a session, go to the app
+import { onNewMember } from '~/lib/welcome-mail'
 import type { AppEnv } from '~/lib/env'
 import { safeNext } from '~/lib/next'
 
@@ -97,6 +98,7 @@ export async function googleCallback(request: Request, env: AppEnv) {
       db.prepare('INSERT INTO profiles (user_id) VALUES (?)').bind(id),
     ])
     user = { id }
+    await onNewMember({ id, name, email }, 'google')
   }
 
   // Session, exactly like a password sign-in

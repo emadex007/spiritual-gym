@@ -10,6 +10,7 @@ import { env } from '~/lib/env'
 import { buildWeekly, newToken, sendBatch } from '~/lib/weekly'
 import { usageAlerts } from '~/lib/usage'
 import { runMailQueue } from '~/lib/mail'
+import { adminDailySummary } from '~/lib/welcome-mail'
 
 const REMINDERS = [
   'Your time with God is waiting.',
@@ -23,7 +24,7 @@ const REMINDERS = [
 export async function runCron(now = Date.now()) {
   const jobs: [string, () => Promise<void>][] = [['schedules', () => scheduleReminders(now)], ['meetings', () => meetingReminders(now)]]
   if (pushConfigured()) jobs.push(['daily', () => dailyReminders(now)], ['word', () => dailyWord(now)], ['plans', () => planReminders(now)], ['fasts', () => fastReminders(now)], ['walk', () => walkPrayerReminders(now)])
-  if (env().RESEND_API_KEY) jobs.push(['weekly', () => weeklyEmails(now)], ['mail-queue', () => runMailQueue()])
+  if (env().RESEND_API_KEY) jobs.push(['weekly', () => weeklyEmails(now)], ['mail-queue', () => runMailQueue()], ['admin-summary', () => adminDailySummary(now)])
   const d = new Date(now)
   // Meetings usage meter: check once an hour whether admins should be alerted
   if (d.getUTCMinutes() < 5) jobs.push(['usage', () => usageAlerts(now)])
@@ -73,6 +74,7 @@ async function scheduleReminders(now: number) {
         title: mins <= 1 ? `${s.title} is starting now` : `${s.title} starts in ${mins} minutes`,
         body: `${s.group_name} · Tap to join live`,
         url: `/app/community/${s.group_id}/live`,
+        urgent: true,
         tag: `sched-${s.id}`,
       },
       { kick: false },
@@ -341,7 +343,7 @@ async function meetingReminders(now: number) {
     const mark = await db().prepare('UPDATE church_meetings SET reminded = 1 WHERE id = ? AND reminded = 0').bind(m.id).run()
     if (!mark.meta.changes) continue
     const mins = Math.max(0, Math.round((Date.parse(m.starts_at) - now) / 60_000))
-    await notify({ churchId: m.church_id }, { kind: 'church', title: `🗓️ ${m.title}`, body: mins > 1 ? `Starts in ${mins} minutes. Tap to join.` : 'Starting now. Tap to join.', url: `/app/meet/${m.id}`, tag: `meet-${m.id}` }, { kick: false })
+    await notify({ churchId: m.church_id }, { kind: 'church', title: `🗓️ ${m.title}`, body: mins > 1 ? `Starts in ${mins} minutes. Tap to join.` : 'Starting now. Tap to join.', url: `/app/meet/${m.id}`, tag: `meet-${m.id}`, urgent: true }, { kick: false })
   }
   // Tidy up meetings that are over. The live room closes itself at its end time; this only catches ones nobody closed.
   // A meeting runs its full length from when it really started (late starts aren't cut short), and one with people

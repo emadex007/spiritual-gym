@@ -17,6 +17,10 @@ import { notify } from '~/lib/notify'
 export const LIVE_ROOM_LIMIT = 12
 const CAMERA_LIMIT = 4
 const WARN_BEFORE = 5 * 60_000
+/** The chat is kept so people who join late (or reconnect) see what was said: the last 60 messages of the last 4 hours */
+const CHAT_KEEP = 60
+const CHAT_FOR = 4 * 3600_000
+type ChatItem = { id: string; uid: string; name: string; text: string; at: number }
 /** Someone let in by the host can come back without knocking for this long (a dropped connection, a phone restart) */
 const ADMITTED_FOR = 4 * 3600_000
 
@@ -127,6 +131,10 @@ export class PrayerRoom extends DurableObject<AppEnv> {
         waitingRoom: !!(await this.ctx.storage.get<boolean>('waitingRoom')),
         waiting: me.host ? this.waitingPeers().map(publicPeer) : [],
         endsAt: (await this.ctx.storage.get<number>('endsAt')) ?? null,
+        // Earlier messages (marked "mine" by person, since ids change when someone reconnects)
+        chat: ((await this.ctx.storage.get<ChatItem[]>('chat')) ?? [])
+          .filter((c) => c.at > Date.now() - CHAT_FOR)
+          .map((c) => ({ id: c.id, name: c.name, text: c.text, at: c.at, mine: !!me.userId && c.uid === me.userId })),
       }),
     )
     this.broadcast({ t: 'peer-joined', peer: publicPeer(me) }, me.id)
@@ -184,9 +192,13 @@ export class PrayerRoom extends DurableObject<AppEnv> {
       case 'hand':
         save({ hand: !!msg.on })
         return this.broadcast({ t: 'hand', id: me.id, on: me.hand })
-      case 'chat':
-        if (typeof msg.text === 'string' && msg.text.trim()) this.broadcast({ t: 'chat', id: me.id, name: me.name, text: msg.text.trim().slice(0, 500), at: Date.now() })
-        return
+      case 'chat': {
+        if (typeof msg.text !== 'string' || !msg.text.trim()) return
+        const item: ChatItem = { id: me.id, uid: me.userId ?? '', name: me.name, text: msg.text.trim().slice(0, 500), at: Date.now() }
+        const kept = ((await this.ctx.storage.get<ChatItem[]>('chat')) ?? []).filter((c) => c.at > item.at - CHAT_FOR)
+        await this.ctx.storage.put('chat', [...kept, item].slice(-CHAT_KEEP))
+        return this.broadcast({ t: 'chat', id: item.id, name: item.name, text: item.text, at: item.at })
+      }
       case 'caption':
         // Live captions: someone's own speech as text, shared with everyone else
         if (typeof msg.text === 'string' && msg.text.trim() && (await this.ctx.storage.get<boolean>('captions')))
@@ -408,7 +420,7 @@ export class PrayerRoom extends DurableObject<AppEnv> {
     try {
       const r = await this.env.DB.prepare(
         `UPDATE prayer_groups SET live_alert_at = datetime('now')
-         WHERE id = ? AND (live_alert_at IS NULL OR live_alert_at < datetime('now', '-20 minutes')) RETURNING name, kind`,
+         WHERE id = ? AND (live_alert_at IS NULL OR live_alert_at < datetime('now', '-10 minutes')) RETURNING name, kind`,
       )
         .bind(me.groupId)
         .first<{ name: string; kind: string }>()
@@ -416,7 +428,7 @@ export class PrayerRoom extends DurableObject<AppEnv> {
       const what = r.kind === 'prayer' ? 'live prayer' : 'a live meeting'
       await notify(
         { groupId: me.groupId, exceptUserId: me.userId },
-        { kind: 'group', title: `🔴 ${me.name} started ${what} in ${r.name}`, body: 'Tap to join now.', url: `/app/community/${me.groupId}/live`, tag: `live-${me.groupId}` },
+        { kind: 'group', title: `🔴 ${me.name} started ${what} in ${r.name}`, body: 'Tap to join now.', url: `/app/community/${me.groupId}/live`, tag: `live-${me.groupId}`, urgent: true },
       )
     } catch {}
   }

@@ -118,6 +118,12 @@ export function MeetingShell({ meet, title, emoji, me, back, invite, lobby, onEn
             </p>
           )}
         </div>
+        {inRoom && meet.host && meet.status === 'live' && meet.peers.some((p) => !p.muted) && (
+          // Hosts: mute everyone in one tap (for background noise), always in the top bar
+          <button type="button" onClick={meet.muteAll} className="flex h-9 shrink-0 items-center gap-1.5 rounded-full bg-white/10 px-3 text-sm font-semibold hover:bg-red-600" aria-label="Mute everyone">
+            <Icon name="micOff" className="h-4 w-4" /> <span className="hidden min-[360px]:inline">Mute all</span>
+          </button>
+        )}
         {inRoom && (
           <button type="button" onClick={() => openPanel(panel === 'people' ? null : 'people')} className="flex h-9 items-center gap-1.5 rounded-full bg-white/10 px-3 text-sm font-semibold hover:bg-white/15" aria-label="People">
             <Icon name="users" className="h-4 w-4" /> {meet.peers.length + 1}
@@ -158,6 +164,8 @@ export function MeetingShell({ meet, title, emoji, me, back, invite, lobby, onEn
           </div>
         )}
       </div>
+      {inRoom && meet.host && meet.status === 'live' && <HostQuick meet={meet} openPeople={() => openPanel('people')} />}
+      {inRoom && panel !== 'chat' && <ChatPopups meet={meet} openChat={() => openPanel('chat')} />}
       {inRoom && meet.captionsOn && <Captions meet={meet} />}
 
       {inRoom && meet.needsSound && (
@@ -277,6 +285,7 @@ function Room({ meet, me, view, openPeople }: { meet: Meet; me: Me; view: 'stage
     else focus = { kind: 'person', p: meP, why: 'only' }
   }
   const togglePin = (key: string) => setPin((p) => (p === key ? null : key))
+  const mute = (p: Person) => (meet.host && !p.me ? () => meet.hostMute(p.id) : undefined)
 
   if (meet.status === 'connecting') {
     return <main className="flex min-h-0 flex-1 items-center justify-center text-white/70">Joining…</main>
@@ -290,7 +299,7 @@ function Room({ meet, me, view, openPeople }: { meet: Meet; me: Me; view: 'stage
       <main className="min-h-0 flex-1 overflow-y-auto px-2 pb-2">
         <div className={`mx-auto grid max-w-6xl content-center gap-2 ${cols}`}>
           {people.map((p) => (
-            <Tile key={p.id} p={p} version={meet.streamsVersion} onClick={() => togglePin(p.id)} pinned={pin === p.id} className="aspect-[4/3] sm:aspect-video" />
+            <Tile key={p.id} p={p} version={meet.streamsVersion} onClick={() => togglePin(p.id)} pinned={pin === p.id} onMute={mute(p)} className="aspect-[4/3] sm:aspect-video" />
           ))}
         </div>
         {n === 1 && meet.status === 'live' && <FirstHere />}
@@ -305,7 +314,7 @@ function Room({ meet, me, view, openPeople }: { meet: Meet; me: Me; view: 'stage
         {focus.kind === 'screen' ? (
           <ScreenStage p={focus.p} meet={meet} />
         ) : (
-          <Tile p={focus.p} version={meet.streamsVersion} stage className="h-full w-full" onClick={() => togglePin(focus.p.id)} pinned={focus.why === 'pinned'} />
+          <Tile p={focus.p} version={meet.streamsVersion} stage className="h-full w-full" onClick={() => togglePin(focus.p.id)} pinned={focus.why === 'pinned'} onMute={mute(focus.p)} />
         )}
         <div className="pointer-events-none absolute top-2 left-2 flex flex-wrap gap-1.5">
           {focus.why === 'pinned' && (
@@ -326,18 +335,48 @@ function Room({ meet, me, view, openPeople }: { meet: Meet; me: Me; view: 'stage
             </button>
           )}
           {strip.map((p) => (
-            <Tile key={p.id} p={p} version={meet.streamsVersion} small onClick={() => togglePin(p.id)} pinned={pin === p.id} className="h-24 w-36 shrink-0 sm:h-28 sm:w-44 lg:aspect-video lg:h-auto lg:w-full" />
+            <Tile key={p.id} p={p} version={meet.streamsVersion} small onClick={() => togglePin(p.id)} pinned={pin === p.id} onMute={mute(p)} className="h-24 w-36 shrink-0 sm:h-28 sm:w-44 lg:aspect-video lg:h-auto lg:w-full" />
           ))}
         </div>
-      )}
-      {meet.host && meet.peers.some((p) => p.hand) && (
-        <button type="button" onClick={openPeople} className="absolute top-16 right-3 z-10 flex items-center gap-1.5 rounded-full bg-gold px-3 py-1.5 text-sm font-semibold text-navy shadow-lg">
-          <Icon name="hand" className="h-4 w-4" /> {meet.peers.filter((p) => p.hand).length}
-        </button>
       )}
     </main>
   )
 }
+
+/** For the host: raised hands, always in reach (tap to see who) */
+function HostQuick({ meet, openPeople }: { meet: Meet; openPeople: () => void }) {
+  const hands = meet.peers.filter((p) => p.hand).length
+  if (!hands) return null
+  return (
+    <button type="button" onClick={openPeople} className="absolute top-16 right-3 z-20 flex items-center gap-1.5 rounded-full bg-gold px-3 py-1.5 text-sm font-semibold text-navy shadow-lg">
+      <Icon name="hand" className="h-4 w-4" /> {hands}
+    </button>
+  )
+}
+
+/** New messages pop up over the meeting for a few seconds, so everyone sees the chat without opening it */
+function ChatPopups({ meet, openChat }: { meet: Meet; openChat: () => void }) {
+  const [now, setNow] = useState(() => Date.now())
+  const last = meet.chat.at(-1)
+  useEffect(() => {
+    if (!last) return
+    setNow(Date.now())
+    const t = window.setTimeout(() => setNow(Date.now()), POPUP_FOR + 50)
+    return () => clearTimeout(t)
+  }, [last?.got, meet.chat.length])
+  const shown = meet.chat.filter((c) => !c.mine && (c.got ?? 0) > now - POPUP_FOR).slice(-3)
+  if (!shown.length) return null
+  return (
+    <button type="button" onClick={openChat} className="absolute top-16 left-3 z-20 flex flex-col items-start gap-1.5 text-left" style={{ maxWidth: 'min(20rem, calc(100% - 88px))' }} aria-label="Open the chat">
+      {shown.map((c) => (
+        <span key={`${c.got}-${c.id}`} className="fade-in max-w-full rounded-2xl rounded-tl-md bg-white px-3 py-1.5 text-sm text-[#08131f] shadow-xl ring-1 ring-black/10">
+          <b className="text-[#866724]">{c.name}</b> <span className="break-words">{c.text.length > 140 ? c.text.slice(0, 140) + '…' : c.text}</span>
+        </span>
+      ))}
+    </button>
+  )
+}
+const POPUP_FOR = 7000
 
 function FirstHere() {
   return <p className="mx-auto w-fit rounded-full bg-black/50 px-4 py-2 text-center text-sm text-white/80 backdrop-blur">You’re the first one here. Tap <b>Invite</b> to send the link on WhatsApp.</p>
@@ -357,7 +396,9 @@ function VideoView({ track, mirror, fit = 'cover', version }: { track?: MediaStr
   return <video ref={ref} autoPlay playsInline muted className={`absolute inset-0 h-full w-full ${fit === 'cover' ? 'object-cover' : 'object-contain'} ${mirror ? '-scale-x-100' : ''}`} />
 }
 
-function Tile({ p, version, stage, small, onClick, pinned, className = '' }: { p: Person; version: number; stage?: boolean; small?: boolean; onClick?: () => void; pinned?: boolean; className?: string }) {
+function Tile({ p, version, stage, small, onClick, pinned, onMute, className = '' }: { p: Person; version: number; stage?: boolean; small?: boolean; onClick?: () => void; pinned?: boolean; onMute?: () => void; className?: string }) {
+  // Hosts get a mute button right on the person (for background noise), not hidden in a menu
+  const canMute = !!onMute && !p.me && !p.muted
   const track = p.video ? p.stream?.getVideoTracks()[0] : undefined
   return (
     <div
@@ -381,12 +422,23 @@ function Tile({ p, version, stage, small, onClick, pinned, className = '' }: { p
           <span className="px-2">{p.trouble ? 'Can’t connect yet… retrying' : 'Connecting…'}</span>
         </div>
       )}
-      <div className={`absolute bottom-1.5 left-1.5 flex max-w-[calc(100%-12px)] items-center gap-1 rounded-full bg-black/55 px-2 py-0.5 backdrop-blur ${stage ? 'text-sm' : 'text-[11px]'}`}>
+      <div className={`absolute bottom-1.5 left-1.5 flex items-center gap-1 rounded-full bg-black/55 px-2 py-0.5 backdrop-blur ${canMute ? (stage ? 'max-w-[calc(100%-64px)]' : 'max-w-[calc(100%-46px)]') : 'max-w-[calc(100%-12px)]'} ${stage ? 'text-sm' : 'text-[11px]'}`}>
         {p.muted ? <Icon name="micOff" className="h-3.5 w-3.5 shrink-0 text-red-400" /> : p.speaking ? <Icon name="mic" className="h-3.5 w-3.5 shrink-0 text-gold" /> : null}
         <span className="min-w-0 truncate font-medium">{p.name}</span>
         {p.host && <span className="shrink-0 rounded-full bg-gold px-1.5 text-[9px] font-bold text-navy">HOST</span>}
       </div>
       {p.hand && <span className="absolute top-1.5 right-1.5 rounded-full bg-gold px-1.5 py-0.5 text-base leading-none" aria-label="Hand raised"><Icon name="hand" className="h-4 w-4 text-navy" /></span>}
+      {canMute && (
+        <button
+          type="button"
+          onClick={(e) => (e.stopPropagation(), onMute!())}
+          className={`absolute right-1.5 bottom-1.5 flex items-center justify-center rounded-full shadow-lg transition ${p.speaking ? 'bg-red-600' : 'bg-black/60 hover:bg-red-600'} ${stage ? 'h-11 w-11' : 'h-8 w-8'}`}
+          aria-label={`Mute ${p.name}`}
+          title={`Mute ${p.name}`}
+        >
+          <Icon name="micOff" className={stage ? 'h-5 w-5' : 'h-4 w-4'} />
+        </button>
+      )}
       {pinned && !stage && <span className="absolute top-1.5 left-1.5 rounded-full bg-black/60 p-1"><Icon name="pin" className="h-3 w-3" /></span>}
     </div>
   )

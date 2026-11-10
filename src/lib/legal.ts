@@ -27,7 +27,7 @@ Your journal, sermon notes, check-ins, reflections, retreat notes and intentions
 - To run the app and personalise your workouts, plans and journeys.
 - To send notifications you can turn off (reminders, prayer times, live meetings, replies and invitations).
 - To keep the community safe (approvals, moderation, reports, blocking).
-- To send service emails such as password resets and invitations, and the weekly email you can unsubscribe from.
+- To send service emails such as a welcome email when you join, password resets and invitations, and the weekly email you can unsubscribe from. Our admins are told your name and email address when you join, so they can welcome and support new members.
 - AI features (the Coach, Understand, and checking uploaded books) are processed by our hosting provider's AI service to answer you. We do not use your words to train AI models.
 We do not sell your data and we do not use it for advertising.
 

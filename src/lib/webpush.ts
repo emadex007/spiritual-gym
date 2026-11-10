@@ -89,7 +89,11 @@ async function vapidAuthorization(endpoint: string, vapid: VapidKeys) {
 }
 
 /** Send one push. Returns the HTTP status; 404/410 mean the subscription is gone and should be deleted. */
-export async function sendPush(sub: PushSubscriptionKeys, payload: unknown, vapid: VapidKeys, ttlSeconds = 6 * 3600): Promise<number> {
+/**
+ * urgency 'high' is delivered straight away even when the phone is idle (Android otherwise holds "normal" ones back
+ * until the phone wakes, which can be many minutes). Used for things that matter now: a meeting going live, being accepted.
+ */
+export async function sendPush(sub: PushSubscriptionKeys, payload: unknown, vapid: VapidKeys, ttlSeconds = 6 * 3600, urgency: 'high' | 'normal' = 'normal'): Promise<number> {
   const body = await encryptPayload(sub, enc.encode(JSON.stringify(payload)))
   try {
     const res = await fetch(sub.endpoint, {
@@ -99,7 +103,7 @@ export async function sendPush(sub: PushSubscriptionKeys, payload: unknown, vapi
         'content-encoding': 'aes128gcm',
         'content-type': 'application/octet-stream',
         ttl: String(ttlSeconds),
-        urgency: 'normal',
+        urgency,
       },
       body,
     })

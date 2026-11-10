@@ -1,3 +1,4 @@
+import { onNewMember } from '~/lib/welcome-mail'
 import { createServerFn } from '@tanstack/react-start'
 import { db, env } from '~/lib/env'
 import { googleEnabled } from '~/lib/google'
@@ -47,6 +48,7 @@ export const signUp = createServerFn({ method: 'POST' })
       db().prepare('INSERT INTO profiles (user_id) VALUES (?)').bind(id),
     ])
     await createSession(id)
+    await onNewMember({ id, name: data.name, email: data.email }, 'email')
     return { ok: true }
   })
 

@@ -236,7 +236,7 @@ export const joinGroup = createServerFn({ method: 'POST' })
     if (r.meta.changes)
       await notify(
         { userIds: await leaderIds(g.id) },
-        { kind: 'group', title: `${user.name.split(' ')[0]} asked to join ${g.name}`, body: 'Tap to accept or decline.', url: `/app/community/${g.id}?tab=members`, tag: `req-${g.id}` },
+        { kind: 'group', title: `${user.name.split(' ')[0]} asked to join ${g.name}`, body: 'Tap to accept or decline.', url: `/app/community/${g.id}?tab=members`, tag: `req-${g.id}`, urgent: true },
       )
     return { id: g.id, pending: true }
   })
@@ -261,7 +261,7 @@ export const answerJoinRequest = createServerFn({ method: 'POST' })
     const g = await db().prepare('SELECT name FROM prayer_groups WHERE id = ?').bind(data.groupId).first<{ name: string }>()
     if (data.accept) {
       await addMember(data.groupId, data.userId)
-      await notify({ userIds: [data.userId] }, { kind: 'group', title: `You’re in! Welcome to ${g?.name ?? 'the group'}`, body: 'Say hello and share a prayer request.', url: `/app/community/${data.groupId}`, tag: `req-${data.groupId}` })
+      await notify({ userIds: [data.userId] }, { kind: 'group', title: `You’re in! Welcome to ${g?.name ?? 'the group'}`, body: 'Say hello and share a prayer request.', url: `/app/community/${data.groupId}`, tag: `req-${data.groupId}`, urgent: true })
     } else {
       await db().prepare('DELETE FROM prayer_group_requests WHERE group_id = ? AND user_id = ?').bind(data.groupId, data.userId).run()
     }

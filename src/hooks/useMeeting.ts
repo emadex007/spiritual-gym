@@ -37,7 +37,7 @@ export type MeetPeer = {
 export type MeetStatus = 'idle' | 'connecting' | 'waiting' | 'live' | 'reconnecting' | 'full' | 'error' | 'ended' | 'removed' | 'denied' | 'not-started'
 export type WaitPeer = { id: string; name: string; avatar: string }
 export type Caption = { id: string; name: string; text: string; final: boolean; at: number; translated?: string }
-export type ChatMsg = { id: string; name: string; text: string; at: number; mine: boolean }
+export type ChatMsg = { id: string; name: string; text: string; at: number; mine: boolean; got?: number }
 export type Slides = { index: number; count: number }
 
 type Signal = { sdp?: RTCSessionDescriptionInit; candidate?: RTCIceCandidateInit }
@@ -773,6 +773,8 @@ export function useMeeting(wsPath: string) {
               setWaitingRoomState(!!m.waitingRoom)
               setKnocks(m.waiting ?? [])
               setEndsAt(m.endsAt ?? null)
+              // What was said before you came in (or while you were reconnecting)
+              if (Array.isArray(m.chat)) setChat(m.chat)
               setStatus('live')
               usageAt.current = Date.now()
               setPeers(Object.fromEntries(m.peers.map((p: MeetPeer) => [p.id, { ...p, screen: !!p.screen, speaking: false, connected: false, trouble: false }])))
@@ -840,7 +842,7 @@ export function useMeeting(wsPath: string) {
               setSpotlight(m.id ?? null)
               break
             case 'chat':
-              setChat((c) => [...c.slice(-199), { id: m.id, name: m.name, text: m.text, at: m.at, mine: m.id === myId.current }])
+              setChat((c) => [...c.slice(-199), { id: m.id, name: m.name, text: m.text, at: m.at, mine: m.id === myId.current, got: Date.now() }])
               if (m.id !== myId.current && !chatOpen.current) setUnread((u) => u + 1)
               break
             case 'force-mute':

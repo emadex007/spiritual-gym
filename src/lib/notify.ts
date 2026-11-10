@@ -3,7 +3,8 @@
 // and phone pushes go through an outbox that the PushDispatcher Durable Object drains 40 at a time.
 import { db, env } from '~/lib/env'
 
-export type Notice = { kind: string; title: string; body?: string; url?: string; tag?: string }
+/** urgent: delivered at once even when the phone is idle (live starting, you're accepted…). Expires after an hour, since it's stale by then. */
+export type Notice = { kind: string; title: string; body?: string; url?: string; tag?: string; urgent?: boolean }
 /** Who to notify: specific people, the members of a group who haven't muted it, or everyone */
 export type Audience = { userIds: string[] } | { groupId: string; exceptUserId?: string } | { churchId: string; exceptUserId?: string } | { all: true }
 
@@ -31,7 +32,7 @@ function audienceQueries(a: Audience): { sql: string; binds: unknown[] }[] {
 
 /** kick: false lets a caller (the cron) queue many notices and wake the dispatcher once at the end */
 export async function notify(audience: Audience, n: Notice, opts: { push?: boolean; inApp?: boolean; kick?: boolean } = {}) {
-  const payload = JSON.stringify({ title: n.title, body: n.body ?? '', url: n.url ?? '/app', tag: n.tag })
+  const payload = JSON.stringify({ title: n.title, body: n.body ?? '', url: n.url ?? '/app', tag: n.tag, ...(n.urgent ? { urgent: 1 } : {}) })
   const wantPush = opts.push !== false && pushConfigured()
   const stmts: D1PreparedStatement[] = []
   for (const q of audienceQueries(audience)) {
@@ -67,7 +68,7 @@ export async function notifyMany(items: { userId: string; notice: Notice }[], op
   const wantPush = pushConfigured()
   const stmts: D1PreparedStatement[] = []
   for (const { userId, notice: n } of items) {
-    const payload = JSON.stringify({ title: n.title, body: n.body ?? '', url: n.url ?? '/app', tag: n.tag })
+    const payload = JSON.stringify({ title: n.title, body: n.body ?? '', url: n.url ?? '/app', tag: n.tag, ...(n.urgent ? { urgent: 1 } : {}) })
     if (opts.inApp) stmts.push(db().prepare(`INSERT INTO notifications (id, user_id, kind, title, body, url) VALUES (${RAND_ID}, ?, ?, ?, ?, ?)`).bind(userId, n.kind, n.title, n.body ?? null, n.url ?? null))
     if (wantPush) stmts.push(db().prepare(`INSERT INTO push_outbox (id, sub_id, payload) SELECT ${RAND_ID}, id, ? FROM push_subscriptions WHERE user_id = ?`).bind(payload, userId))
   }
