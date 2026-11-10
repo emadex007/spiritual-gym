@@ -9,6 +9,7 @@ export const DEFAULT_SETTINGS: SiteSettings = {
   hero_title: 'Your spiritual life doesn’t need perfection. It needs intentionality.',
   hero_subtitle: 'Gentle, guided time with God in prayer, Scripture, worship and reflection. Start with five minutes and begin again whenever you need to.',
   hero_image: '',
+  hero_style: 'dawn', // built-in picture when no image is uploaded: dawn | light | sunrise
   announcement: '',
   home_message: '',
   support_text: '',

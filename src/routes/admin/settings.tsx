@@ -5,6 +5,8 @@ import { Field, PageHead, Toast } from '~/components/AdminUI'
 import { FormError, errorText } from '~/components/AuthShell'
 import { mediaUrl } from '~/lib/util'
 import { DEFAULT_GUIDELINES, DEFAULT_PRIVACY, DEFAULT_TERMS } from '~/lib/legal'
+import { CrossOfLight, DawnRoad, HERO_STYLES } from '~/components/HeroArt'
+import { SunriseScene } from '~/components/Art'
 
 export const Route = createFileRoute('/admin/settings')({
   loader: () => getAdminSettings(),
@@ -70,12 +72,27 @@ function Settings() {
           <p className="font-semibold">Welcome page</p>
           <Field label="Headline"><textarea rows={2} className="input" value={f.hero_title ?? ''} onChange={set('hero_title')} /></Field>
           <Field label="Sub-headline"><textarea rows={3} className="input" value={f.hero_subtitle ?? ''} onChange={set('hero_subtitle')} /></Field>
-          <Field label="Hero image" hint="Optional. JPG, PNG or WEBP up to 5 MB. Leave empty to use the built-in sunrise illustration.">
+          <Field label="Picture" hint="Choose one of the built-in pictures. They’re sharp on every screen and framed for phones too.">
+            <div className="grid gap-3 sm:grid-cols-3">
+              {HERO_STYLES.map((h) => {
+                const on = (f.hero_style || 'dawn') === h.key
+                const Art = h.key === 'light' ? CrossOfLight : h.key === 'sunrise' ? SunriseScene : DawnRoad
+                return (
+                  <button key={h.key} type="button" onClick={() => (setF({ ...f, hero_style: h.key }), setMsg(null))} className={`overflow-hidden rounded-2xl border-2 text-left transition ${on ? 'border-accent shadow-md' : 'border-line hover:border-accent/50'}`} aria-pressed={on}>
+                    <Art className="aspect-[16/9] w-full" />
+                    <span className="block px-3 py-2"><span className="text-sm font-semibold">{on ? '✓ ' : ''}{h.label}</span><span className="block text-xs text-muted">{h.hint}</span></span>
+                  </button>
+                )
+              })}
+            </div>
+            {f.hero_image && <p className="mt-2 rounded-xl bg-accent-soft px-3 py-2 text-sm">An uploaded image is showing instead. Tap <b>Remove</b> below, then Save, to use the picture you chose.</p>}
+          </Field>
+          <Field label="Or upload your own image" hint="Optional. A wide photo works best (JPG, PNG or WEBP up to 5 MB). Logos look stretched here: use one of the pictures above instead.">
             <div className="flex flex-wrap items-center gap-4">
               {f.hero_image ? (
                 <img src={mediaUrl(f.hero_image)} alt="" className="h-24 w-40 rounded-2xl object-cover" />
               ) : (
-                <div className="flex h-24 w-40 items-center justify-center rounded-2xl bg-surface-2 text-xs text-muted">Illustration</div>
+                <div className="flex h-24 w-40 items-center justify-center rounded-2xl bg-surface-2 text-xs text-muted">No image</div>
               )}
               <div className="flex gap-2">
                 <button type="button" className="btn-ghost" disabled={uploading} onClick={() => fileRef.current?.click()}>
