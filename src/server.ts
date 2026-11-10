@@ -171,6 +171,26 @@ export default {
       return json({ key, url: `/media/${key}` })
     }
 
+    // A topic plan's featured picture  POST /api/topic-cover (multipart "file", "id"). The plan's writer (or an admin) only.
+    if (url.pathname === '/api/topic-cover' && request.method === 'POST') {
+      const user = await userFromCookie(request, env)
+      if (!user) return json({ error: 'Please sign in.' }, 401)
+      const form = await request.formData()
+      const file = form.get('file')
+      const id = String(form.get('id') ?? '')
+      if (!(file instanceof File)) return json({ error: 'No file received.' }, 400)
+      const plan = await env.DB.prepare('SELECT author_id, cover_key FROM topic_plans WHERE id = ?').bind(id).first<{ author_id: string; cover_key: string | null }>()
+      if (!plan) return json({ error: 'Plan not found.' }, 404)
+      if (plan.author_id !== user.id && user.role !== 'admin') return json({ error: 'This isn’t your plan.' }, 403)
+      if (!IMAGE_TYPES[file.type]) return json({ error: 'The picture must be a JPG, PNG or WEBP image.' }, 400)
+      if (file.size > 5 * 1024 * 1024) return json({ error: 'The picture must be 5 MB or smaller.' }, 400)
+      const key = `topics/${id}/cover-${crypto.randomUUID().slice(0, 8)}.${IMAGE_TYPES[file.type]}`
+      await env.MEDIA.put(key, file.stream(), { httpMetadata: { contentType: file.type } })
+      await env.DB.prepare(`UPDATE topic_plans SET cover_key = ?, updated_at = datetime('now') WHERE id = ?`).bind(key, id).run()
+      if (plan.cover_key) await env.MEDIA.delete(plan.cover_key)
+      return json({ key, url: `/media/${key}` })
+    }
+
     // Admin image upload:  POST /api/upload  (multipart field "file")
     if (url.pathname === '/api/upload' && request.method === 'POST') {
       const admin = await adminFromCookie(request, env)

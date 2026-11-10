@@ -1,6 +1,7 @@
 import { Portal } from '~/components/Portal'
 import { useState } from 'react'
 import { Link, createFileRoute, useRouter } from '@tanstack/react-router'
+import { PlansTabs } from '~/components/PlansTabs'
 import { createCircle, listPlans, startPlan } from '~/fns/plans'
 import { BibleIcon, JourneyCover } from '~/components/Art'
 import { errorText } from '~/components/AuthShell'
@@ -21,6 +22,7 @@ function Plans() {
 
   return (
     <main className="stagger mx-auto max-w-2xl px-5 pt-6 pb-10 md:pt-10">
+      <PlansTabs />
       <section className="on-light relative overflow-hidden rounded-[1.75rem] p-6 text-navy" style={{ background: 'linear-gradient(135deg,var(--gold-tint),#e3eefc)' }}>
         <BibleIcon className="absolute -right-5 -bottom-6 h-36 w-36 text-gold-mid/20" />
         <p className="text-xs font-semibold tracking-[0.14em] text-gold-ink uppercase">Reading plans</p>

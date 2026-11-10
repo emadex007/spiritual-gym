@@ -1,7 +1,9 @@
 import { useState } from 'react'
 import { Link, createFileRoute, useRouter } from '@tanstack/react-router'
 import { BackLink } from '~/components/BackLink'
-import { ShareInLibrary } from '~/components/SubmitBook'
+import { BookSharing } from '~/components/BookSharing'
+import { ReadTogether } from '~/components/ReadTogether'
+import { joinCircle } from '~/fns/topics'
 import { deleteMyBook, getBook, startBook, stopBook, updateMyBook } from '~/fns/books'
 import { BOOK_PLANS, bookDay } from '~/lib/books'
 import { BookCover } from '~/components/BookCover'
@@ -9,6 +11,7 @@ import { FormError, errorText } from '~/components/AuthShell'
 import { LineIcon } from '~/components/LineIcon'
 
 export const Route = createFileRoute('/app/books/$id/')({
+  validateSearch: (s: Record<string, unknown>): { join?: string } => (typeof s.join === 'string' && s.join ? { join: s.join.slice(0, 12).toUpperCase() } : {}),
   loader: ({ params }) => getBook({ data: params.id }),
   component: BookPage,
 })
@@ -22,8 +25,10 @@ const planName = (n: number) => (n === 7 ? '1 week' : n === 14 ? '2 weeks' : n =
 /** A book: what it's about, and my reading plan (choose how many days, then read a day at a time) */
 function BookPage() {
   const d = Route.useLoaderData()
+  const { join } = Route.useSearch()
   const b = d.book
   const router = useRouter()
+  const [together, setTogether] = useState(false)
   const [choosing, setChoosing] = useState(!d.plan && d.ready)
   const [days, setDays] = useState<number>(d.plan?.days ?? 14)
   const [custom, setCustom] = useState('')
@@ -39,7 +44,7 @@ function BookPage() {
     setError(null)
     try {
       if (d.plan && !confirm('Start again with this plan? Your progress in this book goes back to day 1.')) return
-      await startBook({ data: { id: b.id, days: chosen } })
+      await startBook({ data: { id: b.id, days: chosen, together, code: join } })
       await router.invalidate()
       setChoosing(false)
     } catch (e) {
@@ -149,6 +154,12 @@ function BookPage() {
             <input className="input !w-24 !py-2" type="number" min={1} max={365} value={custom} placeholder="5" onChange={(e) => setCustom(e.target.value.replace(/\D/g, '').slice(0, 3))} />
             days{custom ? ` · about ${minsPerDay(Number(custom) || 1)} min a day` : ''}
           </label>
+          {!join && (
+            <label className="mt-3 flex cursor-pointer items-center gap-3 rounded-2xl bg-surface-2 px-4 py-3 text-sm">
+              <input type="checkbox" className="h-5 w-5 accent-[var(--color-accent)]" checked={together} onChange={(e) => setTogether(e.target.checked)} />
+              <span><b>Read with friends</b><span className="block text-xs text-muted">Get an invite link, see how far everyone is, and talk about each day.</span></span>
+            </label>
+          )}
           <FormError message={error} />
           <div className="mt-4 flex gap-2">
             {d.plan && <button type="button" className="btn-ghost" onClick={() => setChoosing(false)}>Cancel</button>}
@@ -157,14 +168,16 @@ function BookPage() {
           <Link to="/app/books/$id/read" params={{ id: b.id }} search={{ page: 1 }} className="mt-3 inline-block text-sm font-semibold text-accent">Just have a look inside →</Link>
         </section>
       )}
-      {!d.hasText && <p className="mt-4 text-xs text-muted">This book is made of page pictures, so read-aloud isn’t available for it.</p>}
-      {d.mine && d.ready && (
-        <section className="card mt-8">
-          <p className="font-semibold">Did you write this book?</p>
-          <p className="mb-3 text-sm text-muted">Share it in the library so everyone on TheRenewGym can read it.</p>
-          <ShareInLibrary b={b} />
+      {join && d.plan && !d.circle && (
+        <section className="card mt-6">
+          <p className="font-semibold">Join your friends’ reading circle?</p>
+          <button type="button" className="btn-primary mt-3" onClick={async () => { try { await joinCircle({ data: join }); await router.invalidate() } catch (e) { setError(errorText(e)) } }}>Join the circle</button>
         </section>
       )}
+      {join && !d.plan && d.ready && <p className="mt-4 rounded-2xl bg-accent-soft px-4 py-3 text-sm">You’ve been invited to read this with friends. Tap Start reading and you’ll join their circle, at the same pace as them.</p>}
+      {!d.hasText && <p className="mt-4 text-xs text-muted">This book is made of page pictures, so read-aloud isn’t available for it.</p>}
+      {d.plan && <div className="mt-6"><ReadTogether kind="book" targetId={b.id} title={b.title} circle={d.circle} total={d.plan.days} /></div>}
+      {d.mine && d.ready && <BookSharing b={b} shares={d.shares} />}
       {d.mine && <OwnerTools id={b.id} title={b.title} author={b.author} />}
     </main>
   )

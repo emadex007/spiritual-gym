@@ -245,7 +245,7 @@ const EXPLORE = [
     ink: '#7a5c1c',
     items: [
       { to: '/app/bible', emoji: '📖', title: 'Bible' },
-      { to: '/app/plans', emoji: '📅', title: 'Reading plans' },
+      { to: '/app/topics', emoji: '📅', title: 'Plans' },
       { to: '/app/books', emoji: '📚', title: 'Books' },
       { to: '/app/journal/memory', emoji: '💎', title: 'Memory verses' },
       { to: '/app/understand', emoji: '💡', title: 'Understand' },
@@ -306,6 +306,18 @@ function Continue({ h, dayNo, journeyPct }: { h: HomeData; dayNo: number; journe
         <Link to="/app/plans/$id" params={{ id: pl.id }} className="btn-ghost !px-3 !py-1.5 text-sm">Open</Link>
       ) : (
         <Link to="/app/bible/$book/$chapter" params={{ book: bookSlug(pl.book), chapter: String(pl.chapter) }} search={{ plan: pl.id, day: pl.day, pk: pl.planKey }} className="btn-primary !px-4 !py-1.5 text-sm">Read</Link>
+      ),
+    })
+  for (const tp of h.topicPlans)
+    rows.push({
+      key: 'topic-' + tp.id,
+      icon: <LineIcon name="sparkles" className="h-5 w-5" />,
+      title: tp.caughtUp ? tp.title : `Day ${tp.day} · ${tp.dayTitle || tp.title}`,
+      sub: tp.caughtUp ? '✓ Up to date' : tp.title,
+      pct: Math.round((tp.done / tp.days) * 100),
+      done: tp.caughtUp,
+      action: (
+        <Link to="/app/topics/$id" params={{ id: tp.id }} className={`${tp.caughtUp ? 'btn-ghost !px-3' : 'btn-primary !px-4'} !py-1.5 text-sm`}>{tp.caughtUp ? 'Open' : 'Read'}</Link>
       ),
     })
   for (const rt of h.retreats)
