@@ -1,5 +1,6 @@
 /// <reference types="vite/client" />
-import type { ReactNode } from 'react'
+import { useEffect, type ReactNode } from 'react'
+import { listenForErrors } from '~/lib/report-error'
 import { HeadContent, Link, Scripts, createRootRoute } from '@tanstack/react-router'
 import appCss from '~/styles.css?url'
 
@@ -15,9 +16,18 @@ export const Route = createRootRoute({
       { name: 'mobile-web-app-capable', content: 'yes' },
       { name: 'apple-mobile-web-app-status-bar-style', content: 'black-translucent' },
       { name: 'apple-mobile-web-app-title', content: 'TheRenewGym' },
-      { property: 'og:title', content: 'TheRenewGym' },
-      { property: 'og:description', content: 'Train Your Faith. Grow in Grace. Walk Together.' },
-      { property: 'og:image', content: '/brand/logo-stacked.png' },
+      // What WhatsApp, Facebook, X and others show when someone shares a link (the picture must be a full https address)
+      { property: 'og:type', content: 'website' },
+      { property: 'og:site_name', content: 'TheRenewGym' },
+      { property: 'og:url', content: 'https://therenewgym.org' },
+      { property: 'og:title', content: 'TheRenewGym: Train your faith. Every day.' },
+      { property: 'og:description', content: 'Free app for daily prayer, worship and the Word. Plans, groups and live prayer, all in one place.' },
+      { property: 'og:image', content: 'https://therenewgym.org/brand/share.jpg' },
+      { property: 'og:image:width', content: '1200' },
+      { property: 'og:image:height', content: '630' },
+      { property: 'og:image:alt', content: 'TheRenewGym: Train your faith. Every day. Free at therenewgym.org' },
+      { name: 'twitter:card', content: 'summary_large_image' },
+      { name: 'twitter:image', content: 'https://therenewgym.org/brand/share.jpg' },
     ],
     links: [
       { rel: 'preconnect', href: 'https://fonts.googleapis.com' },
@@ -49,6 +59,8 @@ export const Route = createRootRoute({
 const THEME_SCRIPT = `(function(){try{var k='sg-theme',p=localStorage.getItem(k)||'system',m=window.matchMedia('(prefers-color-scheme: dark)');function a(){var d=p==='dark'||(p==='system'&&m.matches);document.documentElement.setAttribute('data-theme',d?'dark':'light');var t=document.querySelector('meta[name=theme-color]');if(t)t.setAttribute('content',d?'#071629':'#002e54')}a();m.addEventListener('change',a);window.__sgSetTheme=function(v){p=v;try{localStorage.setItem(k,v)}catch(e){}a()};window.__sgGetTheme=function(){return p}}catch(e){}})();(function(){window.addEventListener('beforeinstallprompt',function(e){e.preventDefault();window.__sgInstall=e;window.dispatchEvent(new Event('sg-installable'))});if('serviceWorker' in navigator&&location.hostname!=='localhost'){window.addEventListener('load',function(){navigator.serviceWorker.register('/sw.js').catch(function(){})})}})()`
 
 function RootDocument({ children }: { children: ReactNode }) {
+  // Crashes on members' phones go to Admin → Errors
+  useEffect(() => listenForErrors(), [])
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
