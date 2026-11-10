@@ -30,7 +30,7 @@ export function PlanReadingBar({ search, bookId, chapter }: { search: PlanSearch
     setBusy(true)
     try {
       const r = await markPlanDay({ data: { userPlanId: search.plan!, day: search.day!, done: true } })
-      await router.navigate({ to: '/app/plans/$id', params: { id: search.plan! }, search: { done: search.day, won: r.awards?.map((a) => a.key).join(',') || undefined } })
+      await router.navigate({ to: '/app/plans/$id', params: { id: search.plan! }, search: { done: search.day, won: r.awards?.map((a) => (a.times && a.times > 1 ? `${a.key}:${a.times}` : a.key)).join(',') || undefined } })
     } catch {
       setBusy(false)
     }

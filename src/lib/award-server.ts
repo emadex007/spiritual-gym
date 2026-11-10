@@ -5,12 +5,32 @@ import { dayString } from '~/lib/util'
 
 export type AwardEvent = 'workout' | 'journey' | 'reading' | 'plan' | 'memory' | 'prayer' | 'walk' | 'fast' | 'testimony' | 'game'
 
-async function grant(userId: string, keys: string[]): Promise<AwardDef[]> {
+type Earn = { key: string; again?: boolean; daily?: boolean }
+
+/**
+ * Give medals. A medal you already have is only counted again when `again` is set
+ * (another plan finished, a new 7-day streak…), and `daily` ones at most once a day.
+ * Returns what's new or earned again, with how many times, so it can be celebrated.
+ */
+async function grant(userId: string, earns: Earn[]): Promise<AwardDef[]> {
   const won: AwardDef[] = []
-  for (const k of keys) {
-    const r = await db().prepare('INSERT OR IGNORE INTO user_awards (user_id, award_key) VALUES (?, ?)').bind(userId, k).run()
-    const def = awardByKey(k)
-    if (r.meta.changes && def) won.push(def)
+  for (const e of earns) {
+    const def = awardByKey(e.key)
+    if (!def) continue
+    const r = await db().prepare('INSERT OR IGNORE INTO user_awards (user_id, award_key) VALUES (?, ?)').bind(userId, e.key).run()
+    if (r.meta.changes) {
+      won.push({ ...def, times: 1 })
+      continue
+    }
+    if (!e.again || !def.again) continue
+    const row = await db()
+      .prepare(
+        `UPDATE user_awards SET times = times + 1, last_at = datetime('now'), seen_at = NULL
+         WHERE user_id = ? AND award_key = ? ${e.daily ? `AND date(COALESCE(last_at, awarded_at)) < date('now')` : ''} RETURNING times`,
+      )
+      .bind(userId, e.key)
+      .first<{ times: number }>()
+    if (row) won.push({ ...def, times: row.times })
   }
   return won
 }
@@ -32,43 +52,46 @@ async function streak(userId: string) {
   return n
 }
 
-export async function checkAwards(userId: string, event: AwardEvent, extra: { planKey?: string; fastDays?: number; perfect?: boolean; daily?: boolean } = {}): Promise<AwardDef[]> {
+export async function checkAwards(userId: string, event: AwardEvent, extra: { planKey?: string; fastDays?: number; perfect?: boolean; daily?: boolean; again?: boolean } = {}): Promise<AwardDef[]> {
   try {
-    const keys: string[] = []
+    const keys: Earn[] = []
+    const once = (...k: string[]) => keys.push(...k.map((key) => ({ key })))
+    const again = (...k: string[]) => keys.push(...k.map((key) => ({ key, again: true })))
     if (event === 'workout' || event === 'journey') {
       const s = await db().prepare('SELECT COUNT(*) AS n, COALESCE(SUM(minutes), 0) AS m FROM workout_sessions WHERE user_id = ?').bind(userId).first<{ n: number; m: number }>()
       const n = s?.n ?? 0
-      if (n >= 1) keys.push('first_workout')
-      if (n >= 10) keys.push('workouts_10')
-      if (n >= 50) keys.push('workouts_50')
-      if (n >= 100) keys.push('workouts_100')
-      if ((s?.m ?? 0) >= 1000) keys.push('minutes_1000')
+      if (n >= 1) once('first_workout')
+      if (n >= 10) once('workouts_10')
+      if (n >= 50) once('workouts_50')
+      if (n >= 100) once('workouts_100')
+      if ((s?.m ?? 0) >= 1000) once('minutes_1000')
+      // A streak medal counts again on the day a NEW streak reaches it (3, 7 or 30 exactly)
       const st = await streak(userId)
-      if (st >= 3) keys.push('streak_3')
-      if (st >= 7) keys.push('streak_7')
-      if (st >= 30) keys.push('streak_30')
-      if (event === 'journey') keys.push('first_journey')
+      for (const [k, d] of [['streak_3', 3], ['streak_7', 7], ['streak_30', 30]] as const) if (st >= d) keys.push({ key: k, again: st === d, daily: true })
+      if (event === 'journey') again('first_journey')
     }
-    if (event === 'reading') keys.push('first_reading')
+    if (event === 'reading') once('first_reading')
     if (event === 'plan') {
-      keys.push('first_reading', 'plan_complete')
-      if (extra.planKey?.startsWith('bible-')) keys.push('bible_complete')
+      // `again` only when this plan has just been finished (not when a day is ticked again)
+      once('first_reading')
+      keys.push({ key: 'plan_complete', again: !!extra.again })
+      if (extra.planKey?.startsWith('bible-')) keys.push({ key: 'bible_complete', again: !!extra.again })
     }
-    if (event === 'memory') keys.push('memory_known')
-    if (event === 'prayer') keys.push('answered_prayer')
-    if (event === 'walk') keys.push('walk_partner')
+    if (event === 'memory') keys.push({ key: 'memory_known', again: !!extra.again }) // again: a different verse just reached "known"
+    if (event === 'prayer') keys.push({ key: 'answered_prayer', again: !!extra.again }) // again: newly answered, not an edit
+    if (event === 'walk') again('walk_partner')
     if (event === 'fast') {
-      keys.push('fast_complete')
-      if ((extra.fastDays ?? 0) >= 7) keys.push('fast_7')
-      if ((extra.fastDays ?? 0) >= 21) keys.push('fast_21')
+      again('fast_complete')
+      if ((extra.fastDays ?? 0) >= 7) again('fast_7')
+      if ((extra.fastDays ?? 0) >= 21) again('fast_21')
     }
-    if (event === 'testimony') keys.push('testimony_shared')
+    if (event === 'testimony') again('testimony_shared')
     if (event === 'game') {
-      if (extra.perfect) keys.push('quiz_perfect')
+      if (extra.perfect) keys.push({ key: 'quiz_perfect', again: true, daily: true }) // at most once a day, so replaying a quiz doesn't farm it
       const g = await db().prepare('SELECT COUNT(*) AS n FROM game_results WHERE user_id = ?').bind(userId).first<{ n: number }>()
-      if ((g?.n ?? 0) >= 25) keys.push('games_25')
+      if ((g?.n ?? 0) >= 25) once('games_25')
       if (extra.daily) {
-        keys.push('quiz_first')
+        once('quiz_first')
         const { results } = await db().prepare(`SELECT DISTINCT day FROM game_results WHERE user_id = ? AND kind = 'daily' ORDER BY day DESC LIMIT 10`).bind(userId).all<{ day: string }>()
         const days = new Set(results.map((r) => r.day))
         let d = new Date(dayString() + 'T00:00:00Z')
@@ -77,7 +100,7 @@ export async function checkAwards(userId: string, event: AwardEvent, extra: { pl
           n++
           d = new Date(d.getTime() - 86_400_000)
         }
-        if (n >= 7) keys.push('quiz_streak_7')
+        if (n >= 7) keys.push({ key: 'quiz_streak_7', again: n === 7, daily: true })
       }
     }
     return await grant(userId, keys)

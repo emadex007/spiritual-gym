@@ -1,8 +1,8 @@
 import { Portal } from '~/components/Portal'
 import { useEffect, useState } from 'react'
 import { markAwardsSeen } from '~/fns/awards'
-import { TIER_COLOR, type AwardDef } from '~/lib/awards'
-import { Medal } from '~/components/Medal'
+import { TIER_COLOR, ordinal, type AwardDef } from '~/lib/awards'
+import { MedalWithCount } from '~/components/Medal'
 import { ShareButton } from '~/components/ShareButton'
 
 /** Shows newly earned medals one after another, with a share button, then marks them as seen */
@@ -13,6 +13,7 @@ export function AwardCelebration({ awards, name, onDone }: { awards: AwardDef[];
   }, [awards])
   if (!awards.length || i >= awards.length) return null
   const a = awards[i]
+  const again = (a.times ?? 1) > 1
   const next = () => (i + 1 < awards.length ? setI(i + 1) : (setI(awards.length), onDone?.()))
   const close = () => (setI(awards.length), onDone?.())
 
@@ -29,8 +30,8 @@ export function AwardCelebration({ awards, name, onDone }: { awards: AwardDef[];
             />
           ))}
         </div>
-        <p className="relative text-xs font-semibold tracking-[0.16em] text-gold uppercase">Medal earned{awards.length > 1 ? ` · ${i + 1} of ${awards.length}` : ''}</p>
-        <div key={a.key} className="medal-pop relative mx-auto mt-4 w-fit"><Medal award={a} size={120} /></div>
+        <p className="relative text-xs font-semibold tracking-[0.16em] text-gold uppercase">{again ? `Earned again · ${ordinal(a.times!)} time` : 'Medal earned'}{awards.length > 1 ? ` · ${i + 1} of ${awards.length}` : ''}</p>
+        <div key={a.key} className="medal-pop relative mx-auto mt-4 w-fit"><MedalWithCount award={a} size={120} times={a.times} /></div>
         <h2 className="relative mt-3 font-display text-3xl font-semibold">{a.title}</h2>
         <p className="relative mt-1 text-white/80">{a.subtitle}</p>
         <p className="relative mt-3 text-sm text-white/60">“Well done, thou good and faithful servant.” Matthew 25:21</p>
@@ -39,7 +40,7 @@ export function AwardCelebration({ awards, name, onDone }: { awards: AwardDef[];
             className="btn-gold w-full"
             label="Share my victory"
             card={{ kind: 'medal', title: a.title, subtitle: a.subtitle, emoji: a.emoji, color: TIER_COLOR[a.tier], name }}
-            text={`I just earned “${a.title}” on TheRenewGym: ${a.subtitle}. 🙏`}
+            text={`I just earned “${a.title}”${again ? ` for the ${ordinal(a.times!)} time` : ''} on TheRenewGym: ${a.subtitle}. 🙏`}
           />
           <button type="button" className="rounded-full px-5 py-3 text-sm font-semibold text-white/80 hover:text-white" onClick={next}>
             {i + 1 < awards.length ? 'Next' : 'Amen!'}

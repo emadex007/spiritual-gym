@@ -49,7 +49,7 @@ function Home() {
       {tour ? (
         <WelcomeTour name={firstName(h.name)} minutes={h.dailyMinutes} workoutSlug={h.workout?.slug} onDone={() => setTour(false)} />
       ) : (
-        <AwardCelebration awards={h.unseenAwards.map(awardByKey).filter((a) => !!a)} name={firstName(h.name)} />
+        <AwardCelebration awards={h.unseenAwards.flatMap((u) => { const a = awardByKey(u.key); return a ? [{ ...a, times: u.times }] : [] })} name={firstName(h.name)} />
       )}
       {site.announcement && (
         <div className="mb-4 flex items-center gap-3 rounded-2xl bg-gold/20 px-4 py-3 text-sm font-medium">

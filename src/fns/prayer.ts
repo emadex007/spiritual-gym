@@ -68,6 +68,7 @@ export const markAnswered = createServerFn({ method: 'POST' })
   }))
   .handler(async ({ data }) => {
     const user = await requireUser()
+    const was = await db().prepare('SELECT is_answered FROM prayer_items WHERE id = ? AND user_id = ?').bind(data.id, user.id).first<{ is_answered: number }>()
     await db()
       .prepare(
         `UPDATE prayer_items SET is_answered = 1, answered_at = datetime('now'), what_happened = ?, my_response = ?
@@ -75,7 +76,7 @@ export const markAnswered = createServerFn({ method: 'POST' })
       )
       .bind(data.whatHappened || null, data.myResponse, data.id, user.id)
       .run()
-    return { ok: true, awards: await checkAwards(user.id, 'prayer') }
+    return { ok: true, awards: was ? await checkAwards(user.id, 'prayer', { again: !was.is_answered }) : [] }
   })
 
 export const reopenPrayer = createServerFn({ method: 'POST' })
