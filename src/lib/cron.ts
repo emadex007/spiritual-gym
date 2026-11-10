@@ -343,8 +343,14 @@ async function meetingReminders(now: number) {
     const mins = Math.max(0, Math.round((Date.parse(m.starts_at) - now) / 60_000))
     await notify({ churchId: m.church_id }, { kind: 'church', title: `🗓️ ${m.title}`, body: mins > 1 ? `Starts in ${mins} minutes. Tap to join.` : 'Starting now. Tap to join.', url: `/app/meet/${m.id}`, tag: `meet-${m.id}` }, { kick: false })
   }
-  // Meetings end at their scheduled end time (the live room closes itself at that moment too)
+  // Tidy up meetings that are over. The live room closes itself at its end time; this only catches ones nobody closed.
+  // A meeting runs its full length from when it really started (late starts aren't cut short), and one with people
+  // still in it is left to the room for an extra hour.
   await db()
-    .prepare(`UPDATE church_meetings SET status = 'ended', ended_at = COALESCE(ended_at, datetime('now')), live_count = 0 WHERE status IN ('live', 'scheduled') AND datetime(starts_at, '+' || (duration_min + 5) || ' minutes') < datetime('now')`)
+    .prepare(
+      `UPDATE church_meetings SET status = 'ended', ended_at = COALESCE(ended_at, datetime('now')), live_count = 0
+       WHERE status IN ('live', 'scheduled')
+         AND datetime(MAX(datetime(starts_at), datetime(COALESCE(started_at, starts_at))), '+' || (duration_min + CASE WHEN live_count > 0 THEN 65 ELSE 5 END) || ' minutes') < datetime('now')`,
+    )
     .run()
 }

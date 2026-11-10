@@ -401,16 +401,18 @@ async function routeRequest(request: Request, env: AppEnv): Promise<Response> {
     const user = await userFromCookie(request, env)
     if (!user) return new Response('Please sign in.', { status: 401 })
     const m = await env.DB.prepare(
-      `SELECT mt.status, mt.starts_at, mt.duration_min, cm.role, c.status AS church_status FROM church_meetings mt JOIN churches c ON c.id = mt.church_id
+      `SELECT mt.status, mt.starts_at, mt.started_at, mt.duration_min, cm.role, c.status AS church_status FROM church_meetings mt JOIN churches c ON c.id = mt.church_id
        LEFT JOIN church_members cm ON cm.church_id = mt.church_id AND cm.user_id = ? WHERE mt.id = ?`,
     )
       .bind(user.id, meet[1])
-      .first<{ status: string; starts_at: string; duration_min: number; role: string | null; church_status: string }>()
+      .first<{ status: string; starts_at: string; started_at: string | null; duration_min: number; role: string | null; church_status: string }>()
     if (!m || m.church_status !== 'approved') return new Response('Meeting not found.', { status: 404 })
     if (!m.role && user.role !== 'admin') return new Response('This meeting is for members of the church.', { status: 403 })
     if (m.status === 'ended') return new Response('This meeting has ended.', { status: 410 })
-    // A meeting ends at its scheduled end time
-    const endsAt = Date.parse(m.starts_at) + m.duration_min * 60_000
+    // A meeting runs for its full length from when it really starts: a meeting that begins 30 minutes late
+    // still gets its whole 2 hours (it never ends before its scheduled end, either)
+    const began = m.started_at ? Date.parse(m.started_at.replace(' ', 'T') + 'Z') : Date.now()
+    const endsAt = Math.max(Date.parse(m.starts_at), Number.isFinite(began) ? began : Date.now()) + m.duration_min * 60_000
     if (Number.isFinite(endsAt) && endsAt < Date.now()) {
       await env.DB.prepare(`UPDATE church_meetings SET status = 'ended', ended_at = datetime('now'), live_count = 0 WHERE id = ?`).bind(meet[1]).run()
       return new Response('This meeting has ended.', { status: 410 })

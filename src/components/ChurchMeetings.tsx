@@ -135,9 +135,9 @@ export function ChurchMeetings({ churchId }: { churchId: string }) {
       {quick && (
         <QuickStart
           onClose={() => setQuick(false)}
-          onStart={(title, kind) =>
+          onStart={(title, kind, durationMin) =>
             act('quick', async () => {
-              const r = await startInstantMeeting({ data: { churchId, title, kind } })
+              const r = await startInstantMeeting({ data: { churchId, title, kind, durationMin } })
               await router.navigate({ to: '/app/meet/$id', params: { id: r.id } })
             })
           }
@@ -191,8 +191,12 @@ function KindPicker({ kind, setKind }: { kind: string; setKind: (k: string) => v
   )
 }
 
-function QuickStart({ onClose, onStart, busy }: { onClose: () => void; onStart: (title: string, kind: string) => void; busy: boolean }) {
+const LENGTHS = [30, 45, 60, 90, 120, 180, 240]
+const lengthLabel = (n: number) => (n < 60 ? `${n} min` : `${n / 60} hr${n > 60 ? 's' : ''}`.replace('1.5 hrs', '1½ hrs'))
+
+function QuickStart({ onClose, onStart, busy }: { onClose: () => void; onStart: (title: string, kind: string, durationMin: number) => void; busy: boolean }) {
   const [kind, setKind] = useState('prayer')
+  const [duration, setDuration] = useState(120)
   const [title, setTitle] = useState('Prayer meeting')
   const [touched, setTouched] = useState(false)
   return (
@@ -208,8 +212,14 @@ function QuickStart({ onClose, onStart, busy }: { onClose: () => void; onStart: 
         Title
         <input className="input mt-1" value={title} maxLength={100} onChange={(e) => (setTitle(e.target.value), setTouched(true))} />
       </label>
-      <p className="mt-3 text-xs text-muted">Members get a notification that it has started.</p>
-      <button type="button" className="btn-primary mt-4 w-full" disabled={busy || title.trim().length < 3} onClick={() => onStart(title, kind)}>
+      <label className="mt-3 block text-sm font-semibold">
+        How long
+        <select className="input mt-1" value={duration} onChange={(e) => setDuration(Number(e.target.value))}>
+          {LENGTHS.map((n) => <option key={n} value={n}>{lengthLabel(n)}</option>)}
+        </select>
+      </label>
+      <p className="mt-3 text-xs text-muted">Members get a notification that it has started. You can add more time during the meeting.</p>
+      <button type="button" className="btn-primary mt-4 w-full" disabled={busy || title.trim().length < 3} onClick={() => onStart(title, kind, duration)}>
         {busy ? 'Starting…' : '● Start and join'}
       </button>
     </Dialog>
@@ -254,8 +264,8 @@ function MeetingForm({ initial, onClose, onSave, busy, error }: {
           <label className="block text-sm font-semibold">
             Length
             <select className="input mt-1" value={duration} onChange={(e) => setDuration(Number(e.target.value))}>
-              {[30, 45, 60, 90, 120, 180].map((n) => (
-                <option key={n} value={n}>{n < 60 ? `${n} min` : `${n / 60} hr${n > 60 ? 's' : ''}`.replace('1.5 hrs', '1½ hrs')}</option>
+              {LENGTHS.map((n) => (
+                <option key={n} value={n}>{lengthLabel(n)}</option>
               ))}
             </select>
           </label>

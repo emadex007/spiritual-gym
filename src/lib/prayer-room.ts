@@ -7,7 +7,9 @@
 //   own speech into text and shares it), screen / slides presenting (one presenter at a time; the host can take over).
 // - Host tools: mute one or everyone, ask someone to unmute, turn off a camera, stop a presentation, remove, spotlight,
 //   announce recording, end the meeting, add time.
-// - Church meetings end on their own at their scheduled end time (a Durable Object alarm), with a 5-minute warning.
+// - Church meetings end on their own at their end time (a Durable Object alarm), with a 5-minute warning.
+// - Staying connected: pings are answered without waking the room, and someone whose connection drops comes back by
+//   themselves (the phone reconnects). Anyone the host already let in goes straight back in, not to the waiting room.
 import { DurableObject } from 'cloudflare:workers'
 import type { AppEnv } from '~/lib/env'
 import { notify } from '~/lib/notify'
@@ -15,6 +17,8 @@ import { notify } from '~/lib/notify'
 export const LIVE_ROOM_LIMIT = 12
 const CAMERA_LIMIT = 4
 const WARN_BEFORE = 5 * 60_000
+/** Someone let in by the host can come back without knocking for this long (a dropped connection, a phone restart) */
+const ADMITTED_FOR = 4 * 3600_000
 
 type Peer = {
   id: string
@@ -35,6 +39,12 @@ type Peer = {
 type Msg = { t?: string; to?: string; data?: unknown; muted?: boolean; on?: boolean; text?: string; id?: string; final?: boolean; minutes?: number }
 
 export class PrayerRoom extends DurableObject<AppEnv> {
+  constructor(ctx: DurableObjectState, env: AppEnv) {
+    super(ctx, env)
+    // Keep-alive pings get their answer straight away, without waking the room (cheaper, and works while it sleeps)
+    ctx.setWebSocketAutoResponse(new WebSocketRequestResponsePair('{"t":"ping"}', '{"t":"pong"}'))
+  }
+
   async fetch(request: Request): Promise<Response> {
     if (request.headers.get('Upgrade') !== 'websocket') {
       // Ended from outside (e.g. the meeting was ended or deleted in the app)
@@ -86,7 +96,9 @@ export class PrayerRoom extends DurableObject<AppEnv> {
       return new Response(null, { status: 101, webSocket: client })
     }
     const waitingRoom = !!(await this.ctx.storage.get<boolean>('waitingRoom'))
-    if (waitingRoom && !host) {
+    // Let back in without knocking: people the host already admitted, whose connection dropped
+    const admitted = userId ? Date.now() - ((await this.ctx.storage.get<number>(`in:${userId}`)) ?? 0) < ADMITTED_FOR : false
+    if (waitingRoom && !host && !admitted) {
       me.waiting = true
       server.serializeAttachment(me)
       server.send(JSON.stringify({ t: 'waiting', hostHere: this.peers().some((p) => p.host) }))
@@ -100,6 +112,7 @@ export class PrayerRoom extends DurableObject<AppEnv> {
 
   /** Let someone into the meeting: tell them who's here, and tell everyone they've joined */
   private async welcome(ws: WebSocket, me: Peer) {
+    if (me.userId) await this.ctx.storage.put(`in:${me.userId}`, Date.now())
     const others = this.peers().filter((p) => p.id !== me.id)
     const spotlight = (await this.ctx.storage.get<string>('spotlight')) ?? null
     ws.send(
@@ -193,6 +206,7 @@ export class PrayerRoom extends DurableObject<AppEnv> {
           try {
             s.send(JSON.stringify({ t: 'denied' }))
           } catch {}
+          if (p.userId) await this.ctx.storage.delete(`in:${p.userId}`)
           s.serializeAttachment(null)
           s.close(1000, 'denied')
         } else {
@@ -250,6 +264,8 @@ export class PrayerRoom extends DurableObject<AppEnv> {
       }
       case 'host-remove': {
         const s = target(msg.id)
+        const p = s?.deserializeAttachment() as Peer | null
+        if (p?.userId) await this.ctx.storage.delete(`in:${p.userId}`)
         if (s) {
           try {
             s.send(JSON.stringify({ t: 'removed' }))
