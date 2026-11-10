@@ -191,21 +191,6 @@ function Home() {
       )}
 
 
-      <SectionTitle>Explore</SectionTitle>
-      {EXPLORE.map((g) => (
-        <section key={g.title} className="mt-3 first-of-type:mt-3">
-          <p className="mb-2 text-sm font-semibold text-muted">{g.title}</p>
-          <div className="grid grid-cols-3 gap-2.5 sm:grid-cols-6">
-            {g.items.map((t) => (
-              <Link key={t.to} to={t.to} className="card flex flex-col items-center gap-1.5 !px-2 !py-3 text-center transition hover:-translate-y-0.5 hover:border-accent">
-                <span className="flex h-11 w-11 items-center justify-center rounded-2xl" style={{ background: g.tint, color: g.ink }} aria-hidden><Glyph e={t.emoji} className="h-[22px] w-[22px]" /></span>
-                <span className="text-[13px] leading-tight font-semibold">{t.title}</span>
-              </Link>
-            ))}
-          </div>
-        </section>
-      ))}
-
       <SectionTitle>Your progress</SectionTitle>
       <section className="card mt-3">
         <p className="text-sm text-muted">Sessions that included each part, since you started</p>
@@ -237,48 +222,7 @@ function SectionTitle({ children }: { children: ReactNode }) {
   return <h2 className="mt-9 mb-1 font-display text-2xl font-semibold tracking-tight">{children}</h2>
 }
 
-/** Everything in the app, grouped (instead of a long scattered page) */
-const EXPLORE = [
-  {
-    title: 'The Word',
-    tint: 'var(--gold-tint)',
-    ink: '#7a5c1c',
-    items: [
-      { to: '/app/bible', emoji: '📖', title: 'Bible' },
-      { to: '/app/topics', emoji: '📅', title: 'Plans' },
-      { to: '/app/books', emoji: '📚', title: 'Books' },
-      { to: '/app/journal/memory', emoji: '💎', title: 'Memory verses' },
-      { to: '/app/understand', emoji: '💡', title: 'Understand' },
-      { to: '/app/games', emoji: '🧠', title: 'Bible games' },
-    ],
-  },
-  {
-    title: 'Prayer & worship',
-    tint: '#ebe8fd',
-    ink: '#5141a8',
-    items: [
-      { to: '/app/journal/prayer', emoji: '🙏', title: 'Prayer list' },
-      { to: '/app/journal/worship', emoji: '🎶', title: 'My songs' },
-      { to: '/app/fasting', emoji: '🕊️', title: 'Fasting' },
-      { to: '/app/coach', emoji: '💬', title: 'Coach' },
-      { to: '/app/wake', emoji: '⏰', title: 'Wake-up' },
-      { to: '/app/retreats', emoji: '⛰️', title: 'Retreats' },
-    ],
-  },
-  {
-    title: 'Together',
-    tint: '#e1f1e6',
-    ink: '#2c6a43',
-    items: [
-      { to: '/app/church', emoji: '⛪', title: 'My church' },
-      { to: '/app/community', emoji: '🤝', title: 'Community' },
-      { to: '/app/walk', emoji: '👫', title: 'Walk with me' },
-      { to: '/app/testimonies', emoji: '🎉', title: 'Testimonies' },
-      { to: '/app/train', emoji: '🏋️', title: 'All workouts' },
-      { to: '/app/journal/notes', emoji: '✍', title: 'Sermon notes' },
-    ],
-  },
-] as const
+
 
 type HomeData = ReturnType<typeof Route.useLoaderData>['h']
 
