@@ -13,6 +13,9 @@ export const CommunityIcon = ({ className = 'h-6 w-6' }: P) => (
 export const JournalIcon = ({ className = 'h-6 w-6' }: P) => (
   <svg {...base} className={className} aria-hidden><path d="M5 4.5A1.5 1.5 0 0 1 6.5 3H19v18H6.5A1.5 1.5 0 0 1 5 19.5z" /><path d="M9 7.5h6M9 11h6" /></svg>
 )
+export const ExploreIcon = ({ className = 'h-6 w-6' }: P) => (
+  <svg {...base} className={className} aria-hidden><rect x="3.5" y="3.5" width="7" height="7" rx="2" /><rect x="13.5" y="3.5" width="7" height="7" rx="2" /><rect x="3.5" y="13.5" width="7" height="7" rx="2" /><circle cx="17" cy="17" r="3.5" /></svg>
+)
 export const ProfileIcon = ({ className = 'h-6 w-6' }: P) => (
   <svg {...base} className={className} aria-hidden><circle cx="12" cy="8" r="4" /><path d="M4 21c.8-4 4-6.5 8-6.5s7.2 2.5 8 6.5" /></svg>
 )
