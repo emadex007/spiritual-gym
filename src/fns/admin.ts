@@ -370,7 +370,12 @@ export const adminListGroups = createServerFn({ method: 'GET' }).handler(async (
   const { results } = await db()
     .prepare(
       `SELECT g.id, g.name, g.purpose, g.kind, g.description, g.is_private, g.is_featured, g.is_hidden, g.member_count, g.live_count, g.invite_code,
-              g.last_activity_at, g.created_at, u.name AS creator,
+              g.last_activity_at, g.created_at, u.name AS creator, g.is_event, g.live_size, g.live_minutes, g.overview,
+              (SELECT COUNT(*) FROM group_recordings r WHERE r.group_id = g.id) AS recordings,
+              (SELECT COALESCE(SUM(size), 0) FROM group_recordings r WHERE r.group_id = g.id) AS recording_bytes,
+              (SELECT COUNT(*) FROM group_attendance a WHERE a.group_id = g.id) AS attended,
+              (SELECT s.on_date || ' ' || s.time FROM prayer_schedules s WHERE s.group_id = g.id AND s.repeats = 'once' ORDER BY s.created_at LIMIT 1) AS event_at,
+              (SELECT COUNT(*) FROM prayer_schedules s WHERE s.group_id = g.id) AS times,
               (SELECT COUNT(*) FROM prayer_posts p WHERE p.group_id = g.id) AS posts,
               (SELECT COUNT(*) FROM reports r WHERE r.target_type = 'group' AND r.target_id = g.id AND r.status = 'open') AS open_reports
        FROM prayer_groups g LEFT JOIN users u ON u.id = g.created_by ORDER BY g.live_count DESC, g.created_at DESC LIMIT 500`,
@@ -378,9 +383,34 @@ export const adminListGroups = createServerFn({ method: 'GET' }).handler(async (
     .all<{
       id: string; name: string; purpose: string; kind: string; description: string | null; is_private: number; is_featured: number; is_hidden: number
       member_count: number; live_count: number; invite_code: string; last_activity_at: string; created_at: string; creator: string | null; posts: number; open_reports: number
+      is_event: number; live_size: string | null; live_minutes: number | null; overview: string | null; recordings: number; recording_bytes: number; attended: number; event_at: string | null; times: number
     }>()
   return results
 })
+
+/** Admin: a group's or event's saved recordings (to listen to, or delete) */
+export const adminGroupRecordings = createServerFn({ method: 'GET' })
+  .validator((id: string) => String(id ?? ''))
+  .handler(async ({ data }) => {
+    await requireAdmin()
+    const { results } = await db()
+      .prepare('SELECT r.id, r.media_key, r.type, r.seconds, r.size, r.title, r.created_at, u.name AS by_name FROM group_recordings r LEFT JOIN users u ON u.id = r.created_by WHERE r.group_id = ? ORDER BY r.created_at DESC')
+      .bind(data)
+      .all<{ id: string; media_key: string; type: string; seconds: number; size: number; title: string; created_at: string; by_name: string | null }>()
+    return results.map((r) => ({ ...r, url: `/media/${r.media_key}` }))
+  })
+
+export const adminDeleteRecording = createServerFn({ method: 'POST' })
+  .validator((id: string) => String(id ?? ''))
+  .handler(async ({ data }) => {
+    const admin = await requireAdmin()
+    const r = await db().prepare('SELECT media_key, title FROM group_recordings WHERE id = ?').bind(data).first<{ media_key: string; title: string }>()
+    if (!r) return { ok: true }
+    await env().MEDIA.delete(r.media_key).catch(() => {})
+    await db().prepare('DELETE FROM group_recordings WHERE id = ?').bind(data).run()
+    await audit(admin, 'recording.delete', data, r.title)
+    return { ok: true }
+  })
 
 export const adminUpdateGroup = createServerFn({ method: 'POST' })
   .validator((d: { id: string; is_featured?: boolean; is_hidden?: boolean }) => ({
