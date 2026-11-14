@@ -10,15 +10,21 @@ import { MEETING_LENGTHS, SizePicker, lengthLabel, type MeetingSize } from '~/co
 import { WhenPicker, defaultWhen, whenData, whenReady, type When } from '~/components/WhenPicker'
 
 export const Route = createFileRoute('/app/community/new')({
-  validateSearch: (s: Record<string, unknown>): { kind?: string } => ({ kind: GROUP_KINDS.some((k) => k.key === s.kind) ? String(s.kind) : undefined }),
+  validateSearch: (s: Record<string, unknown>): { kind?: string; type?: 'event' } => ({ kind: GROUP_KINDS.some((k) => k.key === s.kind) ? String(s.kind) : undefined, type: s.type === 'event' ? 'event' : undefined }),
   component: NewGroup,
 })
 
 function NewGroup() {
   const router = useRouter()
   const search = Route.useSearch()
-  const [f, setF] = useState({ name: '', kind: search.kind ?? 'prayer', purpose: 'general', description: '', isPrivate: false, minutes: 60, size: 'small' as MeetingSize })
-  const [when, setWhen] = useState<When>(defaultWhen)
+  const [f, setF] = useState({ name: '', kind: search.kind ?? 'prayer', purpose: 'general', description: '', isPrivate: false, minutes: search.type === 'event' ? 120 : 60, size: 'small' as MeetingSize })
+  const [isEvent, setIsEvent] = useState(search.type === 'event')
+  const [when, setWhen] = useState<When>(() => ({ ...defaultWhen(), repeats: search.type === 'event' ? 'once' : 'weekly', time: search.type === 'event' ? '17:00' : '18:00' }))
+  const pick = (ev: boolean) => {
+    setIsEvent(ev)
+    setWhen({ ...when, repeats: ev ? 'once' : 'weekly' })
+    if (ev && f.minutes === 60) setF({ ...f, minutes: 120 })
+  }
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const look = groupLook(f)
@@ -28,7 +34,7 @@ function NewGroup() {
     setBusy(true)
     setError(null)
     try {
-      const r = await createGroup({ data: { ...f, when: whenData(when), timezone: Intl.DateTimeFormat().resolvedOptions().timeZone } })
+      const r = await createGroup({ data: { ...f, isEvent, when: whenData(isEvent ? { ...when, repeats: 'once' } : when), timezone: Intl.DateTimeFormat().resolvedOptions().timeZone } })
       await router.navigate({ to: '/app/community/$groupId', params: { groupId: r.id } })
     } catch (e) {
       setError(errorText(e))
@@ -39,13 +45,25 @@ function NewGroup() {
   return (
     <main className="fade-in mx-auto max-w-xl px-5 pt-6 pb-10 md:pt-10">
       <BackLink to="/app/community" className="text-sm font-semibold text-muted hover:text-ink">← Community</BackLink>
-      <h1 className="mt-2 font-display text-3xl font-semibold tracking-tight">Start a group</h1>
-      <p className="mt-1 text-muted">{kind.hint} Every group gets a wall, set meeting times, and can meet live by voice and video.</p>
+      <h1 className="mt-2 font-display text-3xl font-semibold tracking-tight">{isEvent ? 'Create an event' : 'Start a group'}</h1>
+      <p className="mt-1 text-muted">{isEvent ? 'One gathering on one date: a launch, a crusade night, a special program. People join with a link, get reminders, and meet live in the app.' : `${kind.hint} Every group gets a wall, set meeting times, and can meet live by voice and video.`}</p>
+
+      <div className="mt-5 grid grid-cols-2 gap-2" role="radiogroup" aria-label="Group or event">
+        {([
+          [false, 'Group', 'Meets regularly: weekly or monthly', 'users'],
+          [true, 'Event', 'One time, on one date', 'calendar'],
+        ] as const).map(([ev, t, sub, ic]) => (
+          <button key={t} type="button" role="radio" aria-checked={isEvent === ev} onClick={() => pick(ev)} className={`option block !p-4 text-left ${isEvent === ev ? 'option-on' : ''}`}>
+            <p className="flex items-center gap-2 font-semibold"><LineIcon name={ic} className="h-4 w-4 text-accent" />{t}</p>
+            <p className="mt-0.5 text-xs font-normal text-muted">{sub}</p>
+          </button>
+        ))}
+      </div>
 
       <div className="card mt-6 space-y-5">
         <JourneyCover focus={look.focus} className="h-24 rounded-2xl" />
         <div>
-          <span className="label">What kind of group?</span>
+          <span className="label">{isEvent ? 'What kind of event?' : 'What kind of group?'}</span>
           <div className="flex flex-wrap gap-2">
             {GROUP_KINDS.map((k) => (
               <button key={k.key} type="button" onClick={() => setF({ ...f, kind: k.key })} className={`chip !py-2 text-xs ${f.kind === k.key ? 'chip-on' : ''}`}>
@@ -55,15 +73,15 @@ function NewGroup() {
           </div>
         </div>
         <label className="block">
-          <span className="label">Group name</span>
-          <input className="input" placeholder={f.kind === 'prayer' ? 'e.g. Mothers in Prayer, UNILAG Night Watch' : f.kind === 'bible_study' ? 'e.g. Romans Bible Study, Tuesday Word Class' : 'e.g. Lekki House Fellowship, Grace Choir'} value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} maxLength={60} />
+          <span className="label">{isEvent ? 'Event name' : 'Group name'}</span>
+          <input className="input" placeholder={isEvent ? 'e.g. TheRenewGym Launch, Youth Praise Night' : f.kind === 'prayer' ? 'e.g. Mothers in Prayer, UNILAG Night Watch' : f.kind === 'bible_study' ? 'e.g. Romans Bible Study, Tuesday Word Class' : 'e.g. Lekki House Fellowship, Grace Choir'} value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} maxLength={60} />
         </label>
         <div>
-          <span className="label">When do you meet?</span>
-          <WhenPicker value={when} onChange={setWhen} />
+          <span className="label">{isEvent ? 'Date and time' : 'When do you meet?'}</span>
+          <WhenPicker value={when} onChange={setWhen} onlyOnce={isEvent} />
         </div>
         <label className="block">
-          <span className="label">How long are your live meetings?</span>
+          <span className="label">{isEvent ? 'How long is the event?' : 'How long are your live meetings?'}</span>
           <select className="input" value={f.minutes} onChange={(e) => setF({ ...f, minutes: Number(e.target.value) })}>
             {[...MEETING_LENGTHS, 0].map((n) => <option key={n} value={n}>{lengthLabel(n)}</option>)}
           </select>
@@ -99,7 +117,7 @@ function NewGroup() {
         </div>
         <FormError message={error} />
         <button type="button" className="btn-primary w-full" disabled={busy || f.name.trim().length < 3 || !whenReady(when)} onClick={save}>
-          {busy ? 'Creating…' : 'Create group'}
+          {busy ? 'Creating…' : isEvent ? 'Create event' : 'Create group'}
         </button>
       </div>
     </main>

@@ -1,6 +1,7 @@
 import { createServerFn } from '@tanstack/react-start'
 import { asSize } from '~/lib/sfu'
-import { asRepeat } from '~/lib/schedule'
+import { asRepeat, describeSchedule } from '~/lib/schedule'
+import { invitePath } from '~/lib/invite'
 import { db } from '~/lib/env'
 import { requireCommunityUser as requireUser } from '~/lib/auth'
 import { GROUP_KINDS, PRAYER_PURPOSES, POST_KINDS, REPORT_REASONS, groupKind } from '~/lib/content'
@@ -37,6 +38,7 @@ export type GroupCard = {
   live_count: number
   last_activity_at: string
   is_member: number
+  is_event: number
 }
 
 const PURPOSE_KEYS = PRAYER_PURPOSES.map((p) => p.key) as string[]
@@ -95,7 +97,7 @@ export const listGroups = createServerFn({ method: 'GET' }).handler(async () => 
   const user = await requireUser()
   const { results } = await db()
     .prepare(
-      `SELECT g.id, g.name, g.purpose, g.kind, g.description, g.is_private, g.is_featured, g.member_count, g.live_count, g.last_activity_at,
+      `SELECT g.id, g.name, g.purpose, g.kind, g.description, g.is_private, g.is_featured, g.member_count, g.live_count, g.last_activity_at, g.is_event,
               CASE WHEN m.user_id IS NULL THEN 0 ELSE 1 END AS is_member
        FROM prayer_groups g LEFT JOIN prayer_group_members m ON m.group_id = g.id AND m.user_id = ?
        WHERE g.is_hidden = 0 AND (g.is_private = 0 OR m.user_id IS NOT NULL)
@@ -110,11 +112,21 @@ export const listGroups = createServerFn({ method: 'GET' }).handler(async () => 
     )
     .bind(user.id)
     .all<{ id: string; group_id: string; title: string; days: string; time: string; timezone: string; duration_min: number; repeats: string; on_date: string | null; nth: number | null }>()
-  return { groups: results, schedules }
+  // Events I can see (public, or I'm in them) with their date, so they can be listed as "Upcoming events"
+  const { results: eventDates } = await db()
+    .prepare(
+      `SELECT s.id, s.group_id, s.title, s.days, s.time, s.timezone, s.duration_min, s.repeats, s.on_date, s.nth FROM prayer_schedules s
+       JOIN prayer_groups g ON g.id = s.group_id LEFT JOIN prayer_group_members m ON m.group_id = g.id AND m.user_id = ?
+       WHERE g.is_event = 1 AND g.is_hidden = 0 AND (g.is_private = 0 OR m.user_id IS NOT NULL) AND s.on_date >= date('now', '-1 day')
+       ORDER BY s.on_date, s.time LIMIT 40`,
+    )
+    .bind(user.id)
+    .all<{ id: string; group_id: string; title: string; days: string; time: string; timezone: string; duration_min: number; repeats: string; on_date: string | null; nth: number | null }>()
+  return { groups: results, schedules, eventDates }
 })
 
 export const createGroup = createServerFn({ method: 'POST' })
-  .validator((d: { name: string; kind?: string; purpose: string; description?: string; isPrivate: boolean; size?: string; minutes?: number; when?: { repeats?: string; days?: string; nth?: number; onDate?: string; time?: string }; timezone?: string }) => {
+  .validator((d: { name: string; kind?: string; purpose: string; description?: string; isPrivate: boolean; isEvent?: boolean; size?: string; minutes?: number; when?: { repeats?: string; days?: string; nth?: number; onDate?: string; time?: string }; timezone?: string }) => {
     const name = String(d?.name ?? '').trim()
     if (name.length < 3) throw new Error('Give your group a name (at least 3 letters).')
     return {
@@ -123,10 +135,11 @@ export const createGroup = createServerFn({ method: 'POST' })
       purpose: PURPOSE_KEYS.includes(d.purpose) ? d.purpose : 'general',
       description: String(d.description ?? '').trim().slice(0, 300) || null,
       isPrivate: d.isPrivate ? 1 : 0,
+      isEvent: d.isEvent ? 1 : 0,
       size: asSize(d.size),
       minutes: liveMinutes(d.minutes),
       // When the group meets: becomes its first meeting time (members get reminders and it shows before each meeting)
-      when: d.when ? { ...cleanWhen(d.when), time: /^([01]\d|2[0-3]):[0-5]\d$/.test(String(d.when.time)) ? String(d.when.time) : '18:00', timezone: zoneOr(d.timezone) } : null,
+      when: d.when ? { ...cleanWhen(d.isEvent ? { ...d.when, repeats: 'once' } : d.when), time: /^([01]\d|2[0-3]):[0-5]\d$/.test(String(d.when.time)) ? String(d.when.time) : '18:00', timezone: zoneOr(d.timezone) } : null,
     }
   })
   .handler(async ({ data }) => {
@@ -136,14 +149,14 @@ export const createGroup = createServerFn({ method: 'POST' })
     const id = newId()
     await db().batch([
       db()
-        .prepare('INSERT INTO prayer_groups (id, name, kind, purpose, description, is_private, invite_code, created_by, member_count, live_size, live_minutes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)')
-        .bind(id, data.name, data.kind, data.purpose, data.description, data.isPrivate, inviteCode(), user.id, data.size, data.minutes),
+        .prepare('INSERT INTO prayer_groups (id, name, kind, purpose, description, is_private, invite_code, created_by, member_count, live_size, live_minutes, is_event) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?)')
+        .bind(id, data.name, data.kind, data.purpose, data.description, data.isPrivate, inviteCode(), user.id, data.size, data.minutes, data.isEvent),
       db().prepare(`INSERT INTO prayer_group_members (group_id, user_id, role) VALUES (?, ?, 'owner')`).bind(id, user.id),
       ...(data.when
         ? [
             db()
               .prepare('INSERT INTO prayer_schedules (id, group_id, title, days, time, timezone, duration_min, repeats, on_date, nth, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
-              .bind(newId(), id, groupKind(data.kind).live, data.when.days, data.when.time, data.when.timezone, data.minutes || 60, data.when.repeats, data.when.onDate, data.when.nth, user.id),
+              .bind(newId(), id, data.isEvent ? data.name : groupKind(data.kind).live, data.when.days, data.when.time, data.when.timezone, data.minutes || 60, data.when.repeats, data.when.onDate, data.when.nth, user.id),
           ]
         : []),
     ])
@@ -156,7 +169,7 @@ export const getGroup = createServerFn({ method: 'GET' })
     const user = await requireUser()
     const g = await db()
       .prepare(
-        `SELECT g.id, g.name, g.purpose, g.kind, g.description, g.is_private, g.is_featured, g.invite_code, g.created_by, g.member_count, g.live_count, g.is_hidden, g.approve_joins, g.live_size, g.live_minutes,
+        `SELECT g.id, g.name, g.purpose, g.kind, g.description, g.is_private, g.is_featured, g.invite_code, g.created_by, g.member_count, g.live_count, g.is_hidden, g.approve_joins, g.live_size, g.live_minutes, g.is_event,
                 m.role AS my_role, m.notify AS my_notify
          FROM prayer_groups g LEFT JOIN prayer_group_members m ON m.group_id = g.id AND m.user_id = ?
          WHERE g.id = ?`,
@@ -164,7 +177,7 @@ export const getGroup = createServerFn({ method: 'GET' })
       .bind(user.id, id)
       .first<{
         id: string; name: string; purpose: string; kind: string; description: string | null; is_private: number; is_featured: number; invite_code: string
-        created_by: string | null; member_count: number; live_count: number; is_hidden: number; approve_joins: number; live_size: string | null; live_minutes: number | null; my_role: string | null; my_notify: number | null
+        created_by: string | null; member_count: number; live_count: number; is_hidden: number; approve_joins: number; live_size: string | null; live_minutes: number | null; is_event: number; my_role: string | null; my_notify: number | null
       }>()
     const [pending, invited] = await Promise.all([
       db().prepare('SELECT 1 AS x FROM prayer_group_requests WHERE group_id = ? AND user_id = ?').bind(id, user.id).first(),
@@ -241,7 +254,7 @@ export const getGroup = createServerFn({ method: 'GET' })
   })
 
 export const joinGroup = createServerFn({ method: 'POST' })
-  .validator((d: { id?: string; code?: string }) => ({ id: d?.id ? String(d.id) : null, code: d?.code ? String(d.code).trim().toUpperCase() : null }))
+  .validator((d: { id?: string; code?: string }) => ({ id: d?.id ? String(d.id) : null, code: d?.code ? (String(d.code).trim().split('-').pop() ?? '').toUpperCase() : null }))
   .handler(async ({ data }) => {
     const user = await requireUser()
     type G = { id: string; name: string; is_private: number; is_hidden: number; approve_joins: number }
@@ -369,7 +382,7 @@ export const inviteToGroup = createServerFn({ method: 'POST' })
       await notify({ userIds: [them.id] }, { kind: 'group', title: `${from} invited you to ${g.name}`, body: 'Tap to see the group and join.', url: `/app/community/${data.groupId}`, tag: `inv-${data.groupId}` })
       return { sent: 'notified' as const }
     }
-    const signup = `${env().APP_URL || ''}/signup?next=${encodeURIComponent(`/app/community/join/${g.invite_code}`)}`
+    const signup = `${env().APP_URL || ''}/signup?next=${encodeURIComponent(invitePath(g.name, g.invite_code))}`
     const esc = (t: string) => t.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!)
     const ok = await sendEmail(
       data.email,
@@ -618,16 +631,68 @@ export const setGroupLiveSize = createServerFn({ method: 'POST' })
     return { ok: true }
   })
 
+/** Leaders edit a group or event: name, details, public or private, meeting length and size; for an event also its date
+ *  and time (its one meeting time moves with it, and members are told). */
+export const updateGroup = createServerFn({ method: 'POST' })
+  .validator((d: { id: string; name: string; description?: string; isPrivate: boolean; purpose?: string; minutes?: number; size?: string; onDate?: string; time?: string; timezone?: string }) => {
+    const name = String(d?.name ?? '').trim()
+    if (name.length < 3) throw new Error('Give it a name (at least 3 letters).')
+    const time = /^([01]\d|2[0-3]):[0-5]\d$/.test(String(d?.time)) ? String(d.time) : null
+    const onDate = /^\d{4}-\d{2}-\d{2}$/.test(String(d?.onDate)) && Number.isFinite(Date.parse(String(d.onDate))) ? String(d.onDate) : null
+    return {
+      id: String(d?.id ?? ''),
+      name: name.slice(0, 60),
+      description: String(d?.description ?? '').trim().slice(0, 300) || null,
+      isPrivate: d?.isPrivate ? 1 : 0,
+      purpose: PURPOSE_KEYS.includes(String(d?.purpose)) ? String(d.purpose) : null,
+      minutes: liveMinutes(d?.minutes),
+      size: asSize(d?.size),
+      onDate,
+      time,
+      timezone: zoneOr(d?.timezone),
+    }
+  })
+  .handler(async ({ data }) => {
+    const user = await requireUser()
+    await requireLeader(data.id, user)
+    const g = await db().prepare('SELECT is_event, name FROM prayer_groups WHERE id = ?').bind(data.id).first<{ is_event: number; name: string }>()
+    if (!g) throw new Error('Not found.')
+    await db()
+      .prepare('UPDATE prayer_groups SET name = ?, description = ?, is_private = ?, purpose = COALESCE(?, purpose), live_minutes = ?, live_size = ? WHERE id = ?')
+      .bind(data.name, data.description, data.isPrivate, data.purpose, data.minutes, data.size, data.id)
+      .run()
+    if (g.is_event && data.onDate && data.time) {
+      const s = await db().prepare(`SELECT id, on_date, time FROM prayer_schedules WHERE group_id = ? AND repeats = 'once' ORDER BY created_at LIMIT 1`).bind(data.id).first<{ id: string; on_date: string; time: string }>()
+      const duration = data.minutes || 60
+      if (s) {
+        await db().prepare('UPDATE prayer_schedules SET title = ?, on_date = ?, time = ?, timezone = ?, duration_min = ? WHERE id = ?').bind(data.name, data.onDate, data.time, data.timezone, duration, s.id).run()
+        // A new date or time: everyone in the event is told, and reminders go out again for the new time
+        if (s.on_date !== data.onDate || s.time !== data.time) {
+          await db().prepare('DELETE FROM schedule_sent WHERE schedule_id = ?').bind(s.id).run()
+          await notify({ groupId: data.id }, { kind: 'group', title: `🗓️ ${data.name} has moved`, body: `New date: ${describeSchedule({ days: '', time: data.time, repeats: 'once', on_date: data.onDate })}`, url: `/app/community/${data.id}`, tag: `event-${data.id}` })
+        }
+      } else
+        await db()
+          .prepare(`INSERT INTO prayer_schedules (id, group_id, title, days, time, timezone, duration_min, repeats, on_date, created_by) VALUES (?, ?, ?, '', ?, ?, ?, 'once', ?, ?)`)
+          .bind(newId(), data.id, data.name, data.time, data.timezone, duration, data.onDate, user.id)
+          .run()
+    }
+    return { ok: true }
+  })
+
 /** A group invite link (/app/community/join/<code>): what the group is, before joining */
 export const getGroupInvite = createServerFn({ method: 'GET' })
-  .validator((code: string) => String(code ?? '').trim().toUpperCase().slice(0, 16))
+  .validator((code: string) => (String(code ?? '').trim().split('-').pop() ?? '').toUpperCase().slice(0, 16))
   .handler(async ({ data: code }) => {
     const user = await requireUser()
     const g = await db()
-      .prepare('SELECT id, name, kind, purpose, description, member_count, live_count, is_private FROM prayer_groups WHERE invite_code = ? AND is_hidden = 0')
+      .prepare('SELECT id, name, kind, purpose, description, member_count, live_count, is_private, is_event FROM prayer_groups WHERE invite_code = ? AND is_hidden = 0')
       .bind(code)
-      .first<{ id: string; name: string; kind: string; purpose: string; description: string | null; member_count: number; live_count: number; is_private: number }>()
+      .first<{ id: string; name: string; kind: string; purpose: string; description: string | null; member_count: number; live_count: number; is_private: number; is_event: number }>()
     if (!g) return null
-    const member = await db().prepare('SELECT 1 FROM prayer_group_members WHERE group_id = ? AND user_id = ?').bind(g.id, user.id).first()
-    return { ...g, isMember: !!member }
+    const [member, date] = await Promise.all([
+      db().prepare('SELECT 1 FROM prayer_group_members WHERE group_id = ? AND user_id = ?').bind(g.id, user.id).first(),
+      db().prepare(`SELECT days, time, repeats, on_date, nth FROM prayer_schedules WHERE group_id = ? ORDER BY CASE repeats WHEN 'once' THEN 0 ELSE 1 END, created_at LIMIT 1`).bind(g.id).first<{ days: string; time: string; repeats: string; on_date: string | null; nth: number | null }>(),
+    ])
+    return { ...g, isMember: !!member, when: date ? describeSchedule(date) : null }
   })

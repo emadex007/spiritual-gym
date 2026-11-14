@@ -7,6 +7,7 @@ import { useMeeting } from '~/hooks/useMeeting'
 import { MeetingShell, shareInvite } from '~/components/MeetingRoom'
 import { SunriseScene } from '~/components/Art'
 import { describeSchedule, nextStart, relativeStart } from '~/lib/schedule'
+import { inviteLink } from '~/lib/invite'
 import { Glyph, LineIcon } from '~/components/LineIcon'
 import { MEETING_LENGTHS, SizePicker, lengthLabel, type MeetingSize } from '~/components/SizePicker'
 import { setGroupLiveSize } from '~/fns/community'
@@ -54,7 +55,7 @@ function GroupLive() {
       emoji={look.emoji}
       me={{ name: d.meName, avatar: d.meAvatar }}
       back={<BackLink to="/app/community/$groupId" params={{ groupId: g.id }} className="flex h-9 items-center rounded-full bg-white/10 px-3 text-sm font-semibold hover:bg-white/15">← Back</BackLink>}
-      invite={() => shareInvite(g.name, `Join “${g.name}” live on TheRenewGym${g.invite_code ? ` (invite code ${g.invite_code})` : ''}:`, g.invite_code ? `${location.origin}/app/community/join/${g.invite_code}?live=1` : `${location.origin}/app/community/${g.id}/live`)}
+      invite={() => shareInvite(g.name, `Join “${g.name}” live on TheRenewGym${g.invite_code ? ` (invite code ${g.invite_code})` : ''}:`, g.invite_code ? `${inviteLink(g.name, g.invite_code)}?live=1` : `${location.origin}/app/community/${g.id}/live`)}
       roomExtra={notes}
       lobby={
         <main className="fade-in relative isolate mx-auto flex w-full max-w-md flex-1 flex-col justify-center px-5 py-8 text-center">
