@@ -5,6 +5,8 @@ import { describeSchedule, nextStart, relativeStart, type Schedule } from '~/lib
 import { FormError, errorText } from '~/components/AuthShell'
 import { LineIcon } from '~/components/LineIcon'
 import { WhenPicker, defaultWhen, whenData, whenReady, type When } from '~/components/WhenPicker'
+import { AddToCalendar } from '~/components/AddToCalendar'
+import { scheduleEvent, type CalEvent } from '~/lib/calendar'
 
 
 export function PrayerTimes({ groupId, schedules, canSchedule, isMember, notifyOn, prayer = true, heading, word: wordIn, liveCount = 0 }: { groupId: string; schedules: Schedule[]; canSchedule: boolean; isMember: boolean; notifyOn: boolean; prayer?: boolean; heading?: string; word?: string; liveCount?: number }) {
@@ -56,6 +58,7 @@ export function PrayerTimes({ groupId, schedules, canSchedule, isMember, notifyO
               <div className="min-w-0">
                 <p className="font-semibold">{s.title}</p>
                 <p className="text-xs text-muted">{describeSchedule(s)}{s.timezone !== 'Africa/Lagos' ? ` (${s.timezone.replace('_', ' ')})` : ' (Nigeria time)'}</p>
+                {isMember && start != null && <div className="mt-1.5"><AddToCalendar compact name={s.title} events={[scheduleEvent(s, s.title, typeof location !== 'undefined' ? location.href : '')].filter((x): x is CalEvent => x != null)} /></div>}
               </div>
               <div className="flex shrink-0 items-center gap-3">
                 {start != null && (

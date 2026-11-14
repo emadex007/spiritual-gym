@@ -94,6 +94,7 @@ function GroupLive() {
           {meet.status === 'removed' && <p className="mt-5 rounded-2xl bg-white/10 px-4 py-3 text-sm">The leader removed you from this meeting.</p>}
           {meet.status === 'not-started' && <p className="mt-5 rounded-2xl bg-white/10 px-4 py-3 text-sm">It hasn’t started yet. Only the group’s leaders can start it. You’ll get a notification the moment it begins.</p>}
           {meet.status === 'full' && <p className="mt-5 rounded-2xl bg-white/10 px-4 py-3 text-sm">It’s full ({meet.fullLimit} people). Please try again a little later.</p>}
+          {meet.status === 'locked' && <p className="mt-5 rounded-2xl bg-white/10 px-4 py-3 text-sm"><b>The host has locked this meeting.</b> Nobody new can join right now. Ask the host to unlock it, then try again.</p>}
           {meet.error && <p className="mt-5 rounded-2xl bg-red-500/20 px-4 py-3 text-sm">{meet.error}</p>}
           {d.isMember ? (
             <>

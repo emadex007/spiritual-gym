@@ -2,6 +2,7 @@ import { createServerFn } from '@tanstack/react-start'
 import { asSize } from '~/lib/sfu'
 import { asRepeat, describeSchedule } from '~/lib/schedule'
 import { invitePath } from '~/lib/invite'
+import { onEventRegistered } from '~/lib/event-mail'
 import { db } from '~/lib/env'
 import { requireCommunityUser as requireUser } from '~/lib/auth'
 import { GROUP_KINDS, PRAYER_PURPOSES, POST_KINDS, REPORT_REASONS, groupKind } from '~/lib/content'
@@ -269,8 +270,8 @@ export const joinGroup = createServerFn({ method: 'POST' })
   .validator((d: { id?: string; code?: string }) => ({ id: d?.id ? String(d.id) : null, code: d?.code ? (String(d.code).trim().split('-').pop() ?? '').toUpperCase() : null }))
   .handler(async ({ data }) => {
     const user = await requireUser()
-    type G = { id: string; name: string; is_private: number; is_hidden: number; approve_joins: number }
-    const cols = 'id, name, is_private, is_hidden, approve_joins'
+    type G = { id: string; name: string; is_private: number; is_hidden: number; approve_joins: number; is_event: number }
+    const cols = 'id, name, is_private, is_hidden, approve_joins, is_event'
     const g = data.code
       ? await db().prepare(`SELECT ${cols} FROM prayer_groups WHERE invite_code = ?`).bind(data.code).first<G>()
       : await db().prepare(`SELECT ${cols} FROM prayer_groups WHERE id = ?`).bind(data.id).first<G>()
@@ -284,6 +285,8 @@ export const joinGroup = createServerFn({ method: 'POST' })
     if (!g.approve_joins || invite?.by_leader || user.role === 'admin') {
       await addMember(g.id, user.id)
       await db().prepare('DELETE FROM prayer_group_invites WHERE group_id = ? AND email = ?').bind(g.id, user.email.toLowerCase()).run()
+      // Registered for an event: a confirmation email with "Add to calendar"
+      if (g.is_event) await onEventRegistered(g.id, user)
       return { id: g.id, pending: false }
     }
     const r = await db().prepare('INSERT OR IGNORE INTO prayer_group_requests (group_id, user_id) VALUES (?, ?)').bind(g.id, user.id).run()

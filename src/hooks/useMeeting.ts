@@ -47,7 +47,11 @@ export type MeetPeer = {
   /** Big meetings: where to receive this person's voice and pictures from */
   sfu: { session: string; tracks: SfuTracks } | null
 }
-export type MeetStatus = 'idle' | 'connecting' | 'waiting' | 'live' | 'reconnecting' | 'full' | 'error' | 'ended' | 'removed' | 'denied' | 'not-started'
+export type MeetStatus = 'idle' | 'connecting' | 'waiting' | 'live' | 'reconnecting' | 'full' | 'error' | 'ended' | 'removed' | 'denied' | 'not-started' | 'locked'
+/** The meeting's poll as I see it: the counts, and my own vote */
+export type MeetPoll = { id: string; question: string; options: string[]; counts: number[]; total: number; open: boolean; mine: number | null; by: string }
+/** A question from the audience */
+export type MeetQuestion = { id: string; name: string; text: string; at: number; ups: number; upped: boolean; mine: boolean; answered: boolean }
 export type WaitPeer = { id: string; name: string; avatar: string }
 export type Caption = { id: string; name: string; text: string; final: boolean; at: number; translated?: string }
 export type ChatMsg = { id: string; name: string; text: string; at: number; mine: boolean; got?: number }
@@ -77,6 +81,12 @@ export function useMeeting(wsPath: string) {
   const [slides, setSlides] = useState<Slides | null>(null)
   const [hand, setHand] = useState(false)
   const [host, setHost] = useState(false)
+  const [poll, setPoll] = useState<MeetPoll | null>(null)
+  const [qa, setQa] = useState<MeetQuestion[]>([])
+  const [locked, setLocked] = useState(false)
+  /** Something new in Q&A or polls since the panel was last opened */
+  const [qaNew, setQaNew] = useState(false)
+  const pollId = useRef<string | null>(null)
   const [adult, setAdult] = useState(true)
   const [meSpeaking, setMeSpeaking] = useState(false)
   const [chat, setChat] = useState<ChatMsg[]>([])
@@ -875,6 +885,10 @@ export function useMeeting(wsPath: string) {
               droppedAt.current = 0
               myId.current = m.you
               setHost(!!m.host)
+              setPoll(m.poll ?? null)
+              pollId.current = m.poll?.id ?? null
+              setQa(Array.isArray(m.qa) ? m.qa : [])
+              setLocked(!!m.locked)
               setAdult(!!m.adult)
               setSpotlight(m.spotlight ?? null)
               setCaptionsOn(!!m.captions)
@@ -1067,6 +1081,44 @@ export function useMeeting(wsPath: string) {
               if (m.limit) setFullLimit(m.limit)
               setStatus('full')
               break
+            case 'locked':
+              // The host locked the meeting before we got in
+              cleanup()
+              setStatus('locked')
+              break
+            case 'locked-state':
+              setLocked(!!m.on)
+              flash(m.on ? `${m.by ?? 'The host'} locked the meeting. Nobody new can join.` : 'The meeting is open again.', 5000)
+              break
+            case 'poll':
+              if (m.poll && m.poll.id !== pollId.current) {
+                setQaNew(true)
+                flash(`📊 New poll: ${m.poll.question}`, 6000)
+              }
+              pollId.current = m.poll?.id ?? null
+              setPoll(m.poll ?? null)
+              break
+            case 'qa':
+              setQa(Array.isArray(m.qa) ? m.qa : [])
+              break
+            case 'qa-new':
+              setQaNew(true)
+              break
+            case 'you-host':
+              setHost(!!m.on)
+              if (m.on) {
+                setKnocks(m.waiting ?? [])
+                if (!stageRef.current) {
+                  setOnStage(true)
+                  stageRef.current = true
+                  if (sizeRef.current !== 'small') await publishSfu()
+                }
+              }
+              flash(m.on ? `${m.by ?? 'The host'} made you a co-host. You now have the host tools.` : 'You’re no longer a co-host.', 7000)
+              break
+            case 'peer-host':
+              patchPeer(m.id, { host: !!m.on, stage: m.stage !== false })
+              break
             case 'not-started':
               // Only a group leader can start the live meeting. (While reconnecting, the leader may be reconnecting too: keep trying.)
               if (statusRef.current === 'reconnecting') break
@@ -1238,6 +1290,24 @@ export function useMeeting(wsPath: string) {
     hostRemove: (id: string) => send({ t: 'host-remove', id }),
     hostSpotlight: (id: string | null) => send({ t: 'spotlight', id }),
     /** Events: invite someone on stage, or send them back to the audience */
+    // Polls and Q&A
+    poll,
+    qa,
+    qaNew,
+    seenQa: () => setQaNew(false),
+    vote: (choice: number) => send({ t: 'poll-vote', choice }),
+    ask: (text: string) => send({ t: 'qa-ask', text }),
+    upvote: (id: string) => send({ t: 'qa-up', id }),
+    withdrawQuestion: (id: string) => send({ t: 'qa-withdraw', id }),
+    startPoll: (question: string, options: string[]) => send({ t: 'poll-start', question, options }),
+    closePoll: () => send({ t: 'poll-close' }),
+    clearPoll: () => send({ t: 'poll-clear' }),
+    answerQuestion: (id: string, on = true) => send({ t: 'qa-answer', id, on }),
+    dismissQuestion: (id: string) => send({ t: 'qa-dismiss', id }),
+    // Co-hosts and the lock
+    locked,
+    hostCohost: (id: string, on: boolean) => send({ t: 'cohost', id, on }),
+    hostLock: (on: boolean) => send({ t: 'lock', on }),
     hostStage: (id: string, on: boolean) => send({ t: 'stage', id, on }),
     announceRecording: (on: boolean) => send({ t: 'recording', on }),
     endForAll: () => send({ t: 'end' }),
