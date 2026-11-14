@@ -1,4 +1,5 @@
 import { createServerFn } from '@tanstack/react-start'
+import { announceNew } from '~/lib/public-news'
 import { db, env } from '~/lib/env'
 import { requireUser } from '~/lib/auth'
 import { audit, requireAdmin } from '~/lib/admin'
@@ -375,6 +376,7 @@ export const submitBook = createServerFn({ method: 'POST' })
         .prepare(`UPDATE books SET author = ?, description = ?, author_bio = ?, category = ?, share_status = 'approved', share_note = NULL, submitted_at = datetime('now'), approved_at = datetime('now'), visibility = 'public' WHERE id = ?`)
         .bind(data.author, data.description, data.authorBio, data.category, data.id)
         .run()
+      await announceNew({ kind: 'book', id: data.id, title: b.title, url: `/app/books/${data.id}` })
       return { ok: true, live: true }
     }
     await db()
@@ -470,6 +472,7 @@ export const reviewBook = createServerFn({ method: 'POST' })
       .bind(data.approve ? 'approved' : 'declined', data.note, data.approve ? 1 : 0, data.approve ? 1 : 0, data.id)
       .run()
     await audit(admin, data.approve ? 'book.approve' : 'book.decline', data.id, b.title)
+    if (data.approve) await announceNew({ kind: 'book', id: data.id, title: b.title, url: `/app/books/${data.id}` })
     await notify(
       { userIds: [b.owner_id] },
       data.approve

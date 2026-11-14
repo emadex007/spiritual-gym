@@ -6,7 +6,7 @@ import { db, env } from '~/lib/env'
 /** urgent: delivered at once even when the phone is idle (live starting, you're accepted…). Expires after an hour, since it's stale by then. */
 export type Notice = { kind: string; title: string; body?: string; url?: string; tag?: string; urgent?: boolean }
 /** Who to notify: specific people, the members of a group who haven't muted it, or everyone */
-export type Audience = { userIds: string[] } | { groupId: string; exceptUserId?: string } | { churchId: string; exceptUserId?: string } | { all: true }
+export type Audience = { userIds: string[] } | { groupId: string; exceptUserId?: string } | { churchId: string; exceptUserId?: string } | { all: true; optIn?: 'notify_new' }
 
 export function pushConfigured() {
   const e = env()
@@ -17,7 +17,12 @@ const RAND_ID = "lower(hex(randomblob(16)))"
 
 /** SQL that returns the user ids for an audience (split into chunks of ≤90 ids for bound-parameter limits) */
 function audienceQueries(a: Audience): { sql: string; binds: unknown[] }[] {
-  if ('all' in a) return [{ sql: 'SELECT id AS uid FROM users', binds: [] }]
+  if ('all' in a)
+    return [
+      a.optIn
+        ? { sql: `SELECT u.id AS uid FROM users u LEFT JOIN profiles p ON p.user_id = u.id WHERE COALESCE(p.${a.optIn}, 1) = 1`, binds: [] }
+        : { sql: 'SELECT id AS uid FROM users', binds: [] },
+    ]
   if ('churchId' in a)
     return [{ sql: 'SELECT user_id AS uid FROM church_members WHERE church_id = ? AND notify = 1 AND user_id != ?', binds: [a.churchId, a.exceptUserId ?? ''] }]
   if ('groupId' in a) return [{ sql: 'SELECT user_id AS uid FROM prayer_group_members WHERE group_id = ? AND notify = 1 AND user_id != ?', binds: [a.groupId, a.exceptUserId ?? ''] }]

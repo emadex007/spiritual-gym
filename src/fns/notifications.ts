@@ -58,9 +58,9 @@ export const markAllRead = createServerFn({ method: 'POST' }).handler(async () =
 export const getNotifySettings = createServerFn({ method: 'GET' }).handler(async () => {
   const user = await requireUser()
   const p = await db()
-    .prepare('SELECT reminder_time, word_time, plan_time, timezone, notify_prayed, notify_replies, weekly_email, news_email FROM profiles WHERE user_id = ?')
+    .prepare('SELECT reminder_time, word_time, plan_time, timezone, notify_prayed, notify_replies, weekly_email, news_email, notify_new FROM profiles WHERE user_id = ?')
     .bind(user.id)
-    .first<{ reminder_time: string | null; word_time: string | null; plan_time: string | null; timezone: string; notify_prayed: number; notify_replies: number; weekly_email: number; news_email: number }>()
+    .first<{ reminder_time: string | null; word_time: string | null; plan_time: string | null; timezone: string; notify_prayed: number; notify_replies: number; weekly_email: number; news_email: number; notify_new: number }>()
   return {
     reminderTime: p?.reminder_time ?? null,
     wordTime: p ? p.word_time : '06:00',
@@ -70,6 +70,7 @@ export const getNotifySettings = createServerFn({ method: 'GET' }).handler(async
     notifyReplies: !!(p?.notify_replies ?? 1),
     weeklyEmail: !!(p?.weekly_email ?? 1),
     newsEmail: !!(p?.news_email ?? 1),
+    notifyNew: !!(p?.notify_new ?? 1),
   }
 })
 
@@ -109,5 +110,14 @@ export const setNewsEmail = createServerFn({ method: 'POST' })
   .handler(async ({ data }) => {
     const user = await requireUser()
     await db().prepare('UPDATE profiles SET news_email = ? WHERE user_id = ?').bind(data.on, user.id).run()
+    return { ok: true }
+  })
+
+/** Phone notifications about new books, topic plans, journeys and public events: on or off */
+export const setNotifyNew = createServerFn({ method: 'POST' })
+  .validator((d: { on: boolean }) => ({ on: d?.on ? 1 : 0 }))
+  .handler(async ({ data }) => {
+    const user = await requireUser()
+    await db().prepare('UPDATE profiles SET notify_new = ? WHERE user_id = ?').bind(data.on, user.id).run()
     return { ok: true }
   })

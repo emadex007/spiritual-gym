@@ -10,6 +10,28 @@ import { retreatByKey } from '~/lib/retreats'
 import { daysBetween } from '~/lib/util'
 import { describeSchedule, nextStart, type Schedule } from '~/lib/schedule'
 
+/** Home: the newest books in the library and the newest topic plans (two separate sliders) */
+async function newOnShelf() {
+  const [books, plans] = await Promise.all([
+    db()
+      .prepare(
+        `SELECT id, title, author, cover_key, COALESCE(approved_at, created_at) AS added FROM books
+         WHERE (owner_id IS NULL AND status = 'published') OR (share_status = 'approved' AND status = 'ready')
+         ORDER BY added DESC LIMIT 10`,
+      )
+      .all<{ id: string; title: string; author: string | null; cover_key: string | null; added: string }>()
+      .catch(() => ({ results: [] as { id: string; title: string; author: string | null; cover_key: string | null; added: string }[] })),
+    db()
+      .prepare(
+        `SELECT id, title, topic, days, cover_key, author_name, COALESCE(approved_at, created_at) AS added FROM topic_plans
+         WHERE status = 'approved' ORDER BY added DESC LIMIT 10`,
+      )
+      .all<{ id: string; title: string; topic: string; days: number; cover_key: string | null; author_name: string; added: string }>()
+      .catch(() => ({ results: [] as { id: string; title: string; topic: string; days: number; cover_key: string | null; author_name: string; added: string }[] })),
+  ])
+  return { newBooks: books.results, newPlans: plans.results }
+}
+
 /** "Coming up" on Home: events and group meetings starting soon (events within 30 days, groups within 3 days), and any
  *  live right now. Public ones show for everyone; private ones only for people already in them. */
 async function comingUp(userId: string, today: string) {
@@ -255,6 +277,7 @@ export const getHome = createServerFn({ method: 'GET' }).handler(async () => {
     unseenAwards: unseen,
     journey,
     comingUp: await comingUp(user.id, today),
+    ...(await newOnShelf()),
     verse,
     todayMinutes: Math.round(todayMinutes),
     todayByKind,

@@ -14,6 +14,7 @@ import { usageAlerts } from '~/lib/usage'
 import { runMailQueue } from '~/lib/mail'
 import { adminDailySummary } from '~/lib/welcome-mail'
 import { pruneAdminAlerts } from '~/lib/admin-alerts'
+import { sendNews } from '~/lib/public-news'
 
 const REMINDERS = [
   'Your time with God is waiting.',
@@ -26,6 +27,7 @@ const REMINDERS = [
 // so a run that stops early (free-plan limits) never sends the same reminder twice.
 export async function runCron(now = Date.now()) {
   const jobs: [string, () => Promise<void>][] = [['schedules', () => scheduleReminders(now)], ['meetings', () => meetingReminders(now)], ['events', () => eventReminders(now)]]
+  if (pushConfigured()) jobs.push(['news', () => sendNews(now)])
   if (pushConfigured()) jobs.push(['daily', () => dailyReminders(now)], ['word', () => dailyWord(now)], ['plans', () => planReminders(now)], ['fasts', () => fastReminders(now)], ['walk', () => walkPrayerReminders(now)])
   if (env().RESEND_API_KEY) jobs.push(['weekly', () => weeklyEmails(now)], ['mail-queue', () => runMailQueue()], ['admin-summary', () => adminDailySummary(now)])
   const d = new Date(now)
