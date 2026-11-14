@@ -135,6 +135,10 @@ function Profile() {
       <PastorToggle />
       <div className="mt-5"><InstallApp /></div>
       <div className="mt-5 grid gap-3 sm:grid-cols-2">
+        <Link to="/app/friends" className="card flex items-center gap-3 !p-4 transition hover:border-accent">
+          <IconBadge name="users" />
+          <span><span className="block font-semibold">Friends</span><span className="text-xs text-muted">Add friends and read plans together</span></span>
+        </Link>
         <Link to="/app/church" className="card flex items-center gap-3 !p-4 transition hover:border-accent">
           <IconBadge name="church" />
           <span><span className="block font-semibold">My church</span><span className="text-xs text-muted">Join with a code, or register your church</span></span>

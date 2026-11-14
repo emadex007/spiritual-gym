@@ -10,4 +10,4 @@ export function safeNext(v: unknown): string | undefined {
 export const validateNext = (s: Record<string, unknown>): NextSearch => ({ next: safeNext(s.next) })
 
 /** Invite links (walk, reading circle, church) should land new visitors on sign-up, not sign-in */
-export const isInvite = (path: string) => /\/join\//.test(path)
+export const isInvite = (path: string) => /\/join\/|^\/app\/read\/|^\/app\/friends\/add\//.test(path)
