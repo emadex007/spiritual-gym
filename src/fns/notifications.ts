@@ -2,6 +2,7 @@ import { createServerFn } from '@tanstack/react-start'
 import { db, env } from '~/lib/env'
 import { requireUser } from '~/lib/auth'
 import { newId } from '~/lib/util'
+import { sendTestPush, serverPushCheck } from '~/lib/push-health'
 
 export const getPushConfig = createServerFn({ method: 'GET' }).handler(async () => {
   const e = env()
@@ -9,19 +10,19 @@ export const getPushConfig = createServerFn({ method: 'GET' }).handler(async () 
 })
 
 export const savePushSubscription = createServerFn({ method: 'POST' })
-  .validator((d: { endpoint: string; p256dh: string; auth: string }) => {
+  .validator((d: { endpoint: string; p256dh: string; auth: string; device?: string }) => {
     const endpoint = String(d?.endpoint ?? '')
     if (!/^https:\/\//.test(endpoint) || endpoint.length > 1000) throw new Error('Invalid subscription.')
-    return { endpoint, p256dh: String(d.p256dh ?? '').slice(0, 200), auth: String(d.auth ?? '').slice(0, 100) }
+    return { endpoint, p256dh: String(d.p256dh ?? '').slice(0, 200), auth: String(d.auth ?? '').slice(0, 100), device: String(d.device ?? '').slice(0, 60) || null }
   })
   .handler(async ({ data }) => {
     const user = await requireUser()
     await db()
       .prepare(
-        `INSERT INTO push_subscriptions (id, user_id, endpoint, p256dh, auth) VALUES (?, ?, ?, ?, ?)
-         ON CONFLICT(endpoint) DO UPDATE SET user_id = excluded.user_id, p256dh = excluded.p256dh, auth = excluded.auth`,
+        `INSERT INTO push_subscriptions (id, user_id, endpoint, p256dh, auth, device) VALUES (?, ?, ?, ?, ?, ?)
+         ON CONFLICT(endpoint) DO UPDATE SET user_id = excluded.user_id, p256dh = excluded.p256dh, auth = excluded.auth, device = COALESCE(excluded.device, device)`,
       )
-      .bind(newId(), user.id, data.endpoint, data.p256dh, data.auth)
+      .bind(newId(), user.id, data.endpoint, data.p256dh, data.auth, data.device)
       .run()
     return { ok: true }
   })
@@ -120,4 +121,19 @@ export const setNotifyNew = createServerFn({ method: 'POST' })
     const user = await requireUser()
     await db().prepare('UPDATE profiles SET notify_new = ? WHERE user_id = ?').bind(data.on, user.id).run()
     return { ok: true }
+  })
+
+/** "Test on this phone": checks the server's keys, then sends a notification straight to this phone and says what
+ *  the phone's notification service answered. */
+export const testMyPush = createServerFn({ method: 'POST' })
+  .validator((d: { endpoint?: string }) => ({ endpoint: d?.endpoint ? String(d.endpoint).slice(0, 1000) : undefined }))
+  .handler(async ({ data }) => {
+    const user = await requireUser()
+    const server = await serverPushCheck()
+    if (!server.ok) return { server, devices: [] }
+    const devices = await sendTestPush(
+      { userId: user.id, endpoint: data.endpoint },
+      { title: '✅ Notifications are working', body: 'This is how TheRenewGym will reach you: reminders, live prayer and new things.', url: '/app/profile' },
+    )
+    return { server, devices }
   })

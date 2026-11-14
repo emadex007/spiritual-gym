@@ -446,13 +446,13 @@ async function readerMilestone(p: Plan, starterId: string) {
     const before = await db().prepare('SELECT COUNT(*) AS n FROM user_topic_plans WHERE plan_id = ? AND user_id = ?').bind(p.id, starterId).first<{ n: number }>()
     if ((before?.n ?? 0) > 1) return // they had started it before: not a new reader
     const n = await startedCount(p.id, p.author_id)
-    if (!MILESTONES.includes(n)) return
+    if (n > 10 && !MILESTONES.includes(n)) return
     await notify(
       { userIds: [p.author_id] },
       {
         kind: 'plan',
-        title: n === 1 ? `🎉 Someone started your plan “${p.title}”` : `🎉 ${n.toLocaleString('en-NG')} people have started “${p.title}”`,
-        body: n === 1 ? 'Your first reader. Pray for them as they read.' : 'See how far they’ve got, day by day.',
+        title: n === 1 ? `🎉 Someone started your plan “${p.title}”` : n <= 10 ? `📝 Another reader for “${p.title}”` : `🎉 ${n.toLocaleString('en-NG')} people have started “${p.title}”`,
+        body: n === 1 ? 'Your first reader. Pray for them as they read.' : n <= 10 ? `${n} people have started it so far.` : 'See how far they’ve got, day by day.',
         url: `/app/topics/write/${p.id}`,
         tag: `plan-readers-${p.id}`,
       },

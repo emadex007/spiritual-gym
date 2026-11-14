@@ -25,9 +25,16 @@ Free Christian spiritual-growth web app (installable PWA) at therenewgym.org. Ow
   `<PictureHint kind=… />`. Add any new upload to both.
 - New public things for everyone: `announceNew()` (`src/lib/public-news.ts`). Call it when anything new goes public.
 - Admin alerts: `adminAlert()` (`src/lib/admin-alerts.ts`), categories in `src/lib/alert-types.ts`, page `admin/alerts.tsx`.
+- Phone notification checks: `src/lib/push-health.ts`; each device's last result is on `push_subscriptions`.
 - Notifications: `src/lib/notify.ts`, `public/sw.js` (focus mode), `src/lib/push-client.ts` (`syncPush` self-repair).
 
 ## Change log (newest first)
+- 2026-11-14 · Phone notification checks (migration 0054): `push_subscriptions.device/last_status/last_at/ok_at/fails`, the
+  dispatcher records each result and logs rejections to Admin → Errors; `src/lib/push-health.ts` (`serverPushCheck` checks
+  the VAPID pair with `vapidPairOk`, `sendTestPush` sends directly, `pushHealth` for Admin); "Test on this phone" in Profile
+  (`PushTest`), health card + per-device test in Admin → Alerts. Crypto verified by decrypting as a browser would.
+  Book owners: `book_readers` (first start per person), in-app + phone notice for each of the first 10 readers then
+  25/50/100… (`newBookReader`), "Your readers" numbers on the book page. Topic plans use the same rhythm.
 - 2026-11-14 · Topic plan writers see their readers (`myPlanReaders` in `src/fns/topics.ts`, `src/components/PlanReaders.tsx`):
   started / reading now / finished / new this week / reading together, new readers per week (8 weeks), finished per day.
   Distinct people, writer not counted, numbers only. On the editor page, a summary on the plan page, a chip in My plans.

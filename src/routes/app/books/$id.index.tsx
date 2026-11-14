@@ -177,6 +177,29 @@ function BookPage() {
       {join && !d.plan && d.ready && <p className="mt-4 rounded-2xl bg-accent-soft px-4 py-3 text-sm">You’ve been invited to read this with friends. Tap Start reading and you’ll join their circle, at the same pace as them.</p>}
       {!d.hasText && <p className="mt-4 text-xs text-muted">This book is made of page pictures, so read-aloud isn’t available for it.</p>}
       {d.plan && <div className="mt-6"><ReadTogether kind="book" targetId={b.id} title={b.title} circle={d.circle} total={d.plan.days} /></div>}
+      {d.mine && d.readers && (
+        <section className="card">
+          <p className="flex items-center gap-2 font-semibold"><LineIcon name="users" className="h-4 w-4 text-accent" /> Your readers</p>
+          {d.readers.started === 0 ? (
+            <p className="mt-1 text-sm text-muted">No one has started it yet. We’ll tell you in the app when your first reader starts.</p>
+          ) : (
+            <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
+              {([
+                ['Started', d.readers.started],
+                ['Reading now', d.readers.reading],
+                ['Finished', d.readers.finished],
+                ['New this week', d.readers.week],
+              ] as const).map(([label, n]) => (
+                <div key={label} className="rounded-2xl bg-surface-2 p-3">
+                  <p className="text-xs font-semibold text-muted">{label}</p>
+                  <p className="font-display text-2xl font-semibold">{n.toLocaleString('en-NG')}</p>
+                </div>
+              ))}
+            </div>
+          )}
+          <p className="mt-2 text-xs text-muted">Only numbers: who is reading stays private. You’re not counted.</p>
+        </section>
+      )}
       {d.mine && d.ready && <BookSharing b={b} shares={d.shares} />}
       {d.mine && <OwnerTools id={b.id} title={b.title} author={b.author} />}
     </main>

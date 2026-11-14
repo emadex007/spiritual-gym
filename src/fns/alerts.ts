@@ -4,10 +4,11 @@ import { db, env } from '~/lib/env'
 import { requireAdmin } from '~/lib/admin'
 import { sendEmail } from '~/lib/email'
 import { countSent } from '~/lib/mail'
-import { notify, pushConfigured } from '~/lib/notify'
+import { pushConfigured } from '~/lib/notify'
 import { emailLayout } from '~/lib/welcome-mail'
 import { siteUrl } from '~/lib/weekly'
 import { alertEmails } from '~/lib/admin-alerts'
+import { pushHealth, sendTestPush, serverPushCheck } from '~/lib/push-health'
 import { ALERT_CATS, ALERT_CAT_KEYS, ALERT_SETTING_KEYS, alertKey, type AlertCat } from '~/lib/alert-types'
 
 const seenAt = async (userId: string) =>
@@ -70,6 +71,7 @@ export const getAdminAlerts = createServerFn({ method: 'GET' })
       canEmail: !!env().RESEND_API_KEY,
       canPush: pushConfigured(),
       myPhones: myPush?.n ?? 0,
+      push: await pushHealth(),
     }
   })
 
@@ -116,14 +118,13 @@ export const sendTestAlert = createServerFn({ method: 'POST' }).handler(async ()
     if (ok) await countSent(1)
     out.email = ok ? `Sent to ${me.email}. Check your inbox (and spam).` : 'The email didn’t send. Check Admin → Mail for the email setup.'
   }
-  if (!pushConfigured()) out.phone = 'Phone notifications aren’t set up (the VAPID keys are missing).'
+  const server = await serverPushCheck()
+  if (!server.ok) out.phone = server.text
   else {
-    const n = await db().prepare('SELECT COUNT(*) AS n FROM push_subscriptions WHERE user_id = ?').bind(me.id).first<{ n: number }>()
-    if (!n?.n) out.phone = 'None of your phones has notifications on. Open the app on your phone, go to Profile and turn notifications on.'
-    else {
-      await notify({ userIds: [me.id] }, { kind: 'admin', title: '✅ Test alert', body: 'Admin alerts reach this phone.', url: '/admin/alerts', urgent: true }, { inApp: false })
-      out.phone = `Sent to ${n.n} device${n.n === 1 ? '' : 's'}. It should arrive within a minute.`
-    }
+    const devices = await sendTestPush({ userId: me.id }, { title: '✅ Test alert', body: 'Admin alerts reach this phone.', url: '/admin/alerts' })
+    out.phone = devices.length
+      ? devices.map((d) => `${d.device}: ${d.text}`).join(' · ')
+      : 'None of your phones has notifications on. Open the app on your phone, go to Profile and turn notifications on.'
   }
   return out
 })

@@ -84,7 +84,7 @@ export const getBook = createServerFn({ method: 'GET' })
       circleId ? circleInfo(circleId, user.id) : Promise.resolve(null),
       mine ? db().prepare('SELECT email, created_at FROM book_shares WHERE book_id = ? ORDER BY created_at DESC').bind(id).all<{ email: string; created_at: string }>().then((r) => r.results) : Promise.resolve([]),
     ])
-    return { book, plan, days: plan ? splitDays(lengths, plan.days) : [], hasText: lengths.some((n) => n > 40), highlights: highlights?.n ?? 0, today: dayString(), mine, ready: canRead(book), circle, shares }
+    return { book, plan, days: plan ? splitDays(lengths, plan.days) : [], hasText: lengths.some((n) => n > 40), highlights: highlights?.n ?? 0, today: dayString(), mine, ready: canRead(book), circle, shares, readers: mine ? await bookReaders(id, user.id) : null }
   })
 
 /** Start (or restart) reading a book over a number of days */
@@ -121,6 +121,7 @@ export const startBook = createServerFn({ method: 'POST' })
       )
       .bind(newId(), user.id, data.id, days, dayString(), circleId)
       .run()
+    if (book.owner_id && book.owner_id !== user.id) await newBookReader(data.id, book.title, book.owner_id, user.id)
     return { ok: true, days }
   })
 
@@ -508,3 +509,41 @@ export const adminDeleteBook = createServerFn({ method: 'POST' })
     await audit(admin, 'book.delete', data.id, b.title)
     return { ok: true }
   })
+
+// ---------------- The owner's view: who's reading my book (numbers only) ----------------
+
+/** Someone new started reading a book: tell its owner in the app and on their phone (each of the first 10 readers,
+ *  then at 25, 50, 100…). Only the first time each person starts it. Never throws. */
+async function newBookReader(bookId: string, title: string, ownerId: string, readerId: string) {
+  try {
+    const first = await db().prepare('INSERT OR IGNORE INTO book_readers (book_id, user_id) VALUES (?, ?)').bind(bookId, readerId).run()
+    if (!first.meta.changes) return
+    const n = (await db().prepare('SELECT COUNT(*) AS n FROM book_readers WHERE book_id = ? AND user_id != ?').bind(bookId, ownerId).first<{ n: number }>())?.n ?? 0
+    if (n > 10 && ![25, 50, 100, 250, 500, 1000, 2500, 5000, 10000].includes(n)) return
+    await notify(
+      { userIds: [ownerId] },
+      {
+        kind: 'book',
+        title: n === 1 ? `📖 Someone started reading “${title}”` : n <= 10 ? `📖 Another reader for “${title}”` : `🎉 ${n.toLocaleString('en-NG')} people are reading “${title}”`,
+        body: n === 1 ? 'Your first reader! Pray for them as they read.' : `${n} people have started your book so far.`,
+        url: `/app/books/${bookId}`,
+        tag: `book-readers-${bookId}`,
+      },
+    )
+  } catch {}
+}
+
+/** Numbers for the owner's book page */
+async function bookReaders(bookId: string, ownerId: string) {
+  const r = await db()
+    .prepare(
+      `SELECT (SELECT COUNT(*) FROM book_readers WHERE book_id = ?1 AND user_id != ?2) AS started,
+              (SELECT COUNT(*) FROM book_readers WHERE book_id = ?1 AND user_id != ?2 AND first_at > datetime('now', '-7 days')) AS week,
+              (SELECT COUNT(*) FROM user_books WHERE book_id = ?1 AND user_id != ?2 AND status = 'active') AS reading,
+              (SELECT COUNT(*) FROM user_books WHERE book_id = ?1 AND user_id != ?2 AND status = 'finished') AS finished`,
+    )
+    .bind(bookId, ownerId)
+    .first<{ started: number; week: number; reading: number; finished: number }>()
+    .catch(() => null)
+  return r ?? { started: 0, week: 0, reading: 0, finished: 0 }
+}
