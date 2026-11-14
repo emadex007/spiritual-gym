@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { CoverPicker } from '~/components/CoverPicker'
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { BackLink } from '~/components/BackLink'
 import { checkMyBook, createMyBook, deleteMyBook, saveMyBookPages, setBookVisibility, submitBook } from '~/fns/books'
@@ -25,6 +26,7 @@ async function upload(id: string, kind: 'pdf' | 'cover', file: Blob, name: strin
 function AddBook() {
   const navigate = useNavigate()
   const [file, setFile] = useState<File | null>(null)
+  const [cover, setCover] = useState<{ file: File; url: string } | null>(null)
   const [f, setF] = useState({ title: '', author: '' })
   const me = (Route.useRouteContext() as { me?: { user?: { role?: string } } }).me?.user
   const isAdmin = me?.role === 'admin'
@@ -62,12 +64,19 @@ function AddBook() {
         }
         await saveMyBookPages({ data: { id, from, texts } })
       }
-      setStep('Making the cover…')
-      const canvas = document.createElement('canvas')
-      await renderPage(await doc.getPage(1), canvas, 500)
-      const cover = await new Promise<Blob | null>((r) => canvas.toBlob(r, 'image/jpeg', 0.82))
-      await doc.destroy()
-      if (cover) await upload(id, 'cover', cover, 'cover.jpg')
+      // The cover: the picture they chose, or the book's first page
+      if (cover) {
+        setStep('Uploading the cover…')
+        await doc.destroy()
+        await upload(id, 'cover', cover.file, 'cover.jpg')
+      } else {
+        setStep('Making the cover…')
+        const canvas = document.createElement('canvas')
+        await renderPage(await doc.getPage(1), canvas, 500)
+        const page1 = await new Promise<Blob | null>((r) => canvas.toBlob(r, 'image/jpeg', 0.82))
+        await doc.destroy()
+        if (page1) await upload(id, 'cover', page1, 'cover.jpg')
+      }
       setStep('Uploading the book…')
       setPct(80)
       await upload(id, 'pdf', file, file.name)
@@ -122,6 +131,15 @@ function AddBook() {
             }}
           />
         </label>
+        <CoverPicker
+          kind="bookCover"
+          label="Cover picture"
+          preview={cover?.url ?? null}
+          busy={busy}
+          empty="A photo of the front cover. Skip it and we’ll use the PDF’s first page."
+          onFile={(f) => setCover({ file: f, url: URL.createObjectURL(f) })}
+          onRemove={() => setCover(null)}
+        />
         <label className="block">
           <span className="label">Book title</span>
           <input className="input" value={f.title} maxLength={160} disabled={busy} onChange={(e) => setF({ ...f, title: e.target.value })} />
