@@ -112,7 +112,17 @@ function Editor() {
         </span>
         <input type="file" accept="image/jpeg,image/png,image/webp,image/*" className="sr-only" onChange={(e) => e.target.files?.[0] && cover(e.target.files[0])} />
       </label>
-      <PictureHint kind="topicCover" notes={coverNotes} className="mt-1.5 px-1" />
+      <div className="card mt-3 !p-4">
+        <p className="text-sm font-semibold">Plan picture <span className="font-normal text-muted">(optional, but it helps people choose your plan)</span></p>
+        <div className="mt-2 flex flex-wrap items-center gap-2">
+          <label className="btn-ghost cursor-pointer !px-4 !py-2 text-sm">
+            <LineIcon name="upload" className="h-4 w-4" />{uploading ? 'Uploading…' : plan.cover_key ? 'Change picture' : 'Add a picture'}
+            <input type="file" accept="image/jpeg,image/png,image/webp,image/*" className="sr-only" onChange={(e) => e.target.files?.[0] && cover(e.target.files[0])} />
+          </label>
+          {!plan.cover_key && <span className="text-xs text-muted">Without one, a soft colour with the topic is shown.</span>}
+        </div>
+        <PictureHint kind="topicCover" notes={coverNotes} className="mt-2" />
+      </div>
 
       <section className="card mt-4 space-y-3">
         <label className="block text-sm font-semibold">Title

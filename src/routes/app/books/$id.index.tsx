@@ -7,6 +7,7 @@ import { joinCircle } from '~/fns/topics'
 import { deleteMyBook, getBook, startBook, stopBook, updateMyBook } from '~/fns/books'
 import { BOOK_PLANS, bookDay } from '~/lib/books'
 import { BookCover } from '~/components/BookCover'
+import { CoverPicker } from '~/components/CoverPicker'
 import { FormError, errorText } from '~/components/AuthShell'
 import { LineIcon } from '~/components/LineIcon'
 
@@ -201,6 +202,25 @@ function BookPage() {
         </section>
       )}
       {d.mine && d.ready && <BookSharing b={b} shares={d.shares} />}
+      {d.mine && (
+        <section className="card mt-6">
+          <CoverPicker
+            kind="bookCover"
+            label="Cover picture"
+            preview={b.cover_key ? `/media/${b.cover_key}` : null}
+            empty="Add a photo of the front cover."
+            onFile={async (f) => {
+              const form = new FormData()
+              form.append('id', b.id)
+              form.append('kind', 'cover')
+              form.append('file', f, 'cover.jpg')
+              const res = await fetch('/api/book-file', { method: 'POST', body: form })
+              if (!res.ok) throw new Error(((await res.json().catch(() => ({}))) as { error?: string }).error ?? 'Upload failed. Try again.')
+              await router.invalidate()
+            }}
+          />
+        </section>
+      )}
       {d.mine && <OwnerTools id={b.id} title={b.title} author={b.author} />}
     </main>
   )

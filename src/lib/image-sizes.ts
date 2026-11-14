@@ -38,6 +38,11 @@ export const IMAGE_SIZES: Record<string, ImageSpec> = {
     where: 'Your church page, meetings and the church list (shown in a circle).',
     tip: 'Leave space around the logo so the circle doesn’t cut it.', who: 'leaders',
   },
+  bookCover: {
+    key: 'bookCover', label: 'Book cover', w: 1000, h: 1500, shape: 'portrait 2:3', fit: 'crop', format: 'jpeg',
+    where: 'The book’s page, the library, “New books” on Home and reading circles.',
+    tip: 'A photo or scan of the front cover. If you don’t add one, the PDF’s first page is used.', preset: 'Canva: “Book Cover”', who: 'everyone',
+  },
   topicCover: {
     key: 'topicCover', label: 'Topic study picture', w: 1600, h: 900, shape: 'landscape 16:9', fit: 'crop', format: 'jpeg',
     where: 'The top of your topic study and the topic list.',

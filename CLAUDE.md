@@ -30,6 +30,9 @@ Free Christian spiritual-growth web app (installable PWA) at therenewgym.org. Ow
 - Notifications: `src/lib/notify.ts`, `public/sw.js` (focus mode), `src/lib/push-client.ts` (`syncPush` self-repair).
 
 ## Change log (newest first)
+- 2026-11-14 · Cover pictures: `CoverPicker` (`src/components/CoverPicker.tsx`) + `bookCover` in `image-sizes.ts` (1000×1500,
+  2:3). Book upload: optional cover (else PDF page 1); owner can change it on the book page (`/api/book-file` kind=cover).
+  Topic plan editor: a clear "Plan picture" section with a button under the preview.
 - 2026-11-14 · Friends (migration 0055: `friends` both ways, `friend_requests`, `users.friend_code`, `read_invites`;
   `src/fns/friends.ts`). Friend link `/app/friends/add/<code>` (instant friends; new people sign up first), code entry,
   requests to people you read/pray with (suggestions), Friends page `/app/friends` (Profile card), "Invite friends" sheet on
