@@ -24,11 +24,17 @@ Free Christian spiritual-growth web app (installable PWA) at therenewgym.org. Ow
 - Picture uploads: best sizes in `src/lib/image-sizes.ts`; resize with `fitImage` (`src/lib/fit-image.ts`) and show
   `<PictureHint kind=… />`. Add any new upload to both.
 - New public things for everyone: `announceNew()` (`src/lib/public-news.ts`). Call it when anything new goes public.
+- Friends: `src/fns/friends.ts` (friend code/link, requests, invites to read). Respects `user_blocks`.
 - Admin alerts: `adminAlert()` (`src/lib/admin-alerts.ts`), categories in `src/lib/alert-types.ts`, page `admin/alerts.tsx`.
 - Phone notification checks: `src/lib/push-health.ts`; each device's last result is on `push_subscriptions`.
 - Notifications: `src/lib/notify.ts`, `public/sw.js` (focus mode), `src/lib/push-client.ts` (`syncPush` self-repair).
 
 ## Change log (newest first)
+- 2026-11-14 · Friends (migration 0055: `friends` both ways, `friend_requests`, `users.friend_code`, `read_invites`;
+  `src/fns/friends.ts`). Friend link `/app/friends/add/<code>` (instant friends; new people sign up first), code entry,
+  requests to people you read/pray with (suggestions), Friends page `/app/friends` (Profile card), "Invite friends" sheet on
+  plans/books (`InviteFriends.tsx`: makes the circle if needed, notifies with `/app/read/<code>`, once per friend per
+  circle), "+ Add friend" next to circle members. `isInvite` now sends `/app/read/…` and friend links to sign-up.
 - 2026-11-14 · Phone notification checks (migration 0054): `push_subscriptions.device/last_status/last_at/ok_at/fails`, the
   dispatcher records each result and logs rejections to Admin → Errors; `src/lib/push-health.ts` (`serverPushCheck` checks
   the VAPID pair with `vapidPairOk`, `sendTestPush` sends directly, `pushHealth` for Admin); "Test on this phone" in Profile

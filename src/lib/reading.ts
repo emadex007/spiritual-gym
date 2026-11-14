@@ -11,15 +11,23 @@ export async function circleInfo(circleId: string, userId: string) {
   if (!c) return null
   const members = await db()
     .prepare(
-      `SELECT us.id, us.name, us.avatar_key, (SELECT COUNT(*) FROM topic_days_done d WHERE d.user_plan_id = u.id) AS done
-       FROM user_topic_plans u JOIN users us ON us.id = u.user_id WHERE u.circle_id = ? AND u.status != 'stopped'
-       UNION ALL
-       SELECT us.id, us.name, us.avatar_key, ub.done FROM user_books ub JOIN users us ON us.id = ub.user_id WHERE ub.circle_id = ?
+      `SELECT x.*, EXISTS (SELECT 1 FROM friends f WHERE f.user_id = ?3 AND f.friend_id = x.id) AS friend,
+              EXISTS (SELECT 1 FROM friend_requests r WHERE r.from_id = ?3 AND r.to_id = x.id) AS asked
+       FROM (SELECT us.id, us.name, us.avatar_key, (SELECT COUNT(*) FROM topic_days_done d WHERE d.user_plan_id = u.id) AS done
+             FROM user_topic_plans u JOIN users us ON us.id = u.user_id WHERE u.circle_id = ?1 AND u.status != 'stopped'
+             UNION ALL
+             SELECT us.id, us.name, us.avatar_key, ub.done FROM user_books ub JOIN users us ON us.id = ub.user_id WHERE ub.circle_id = ?2) x
        LIMIT 60`,
     )
-    .bind(circleId, circleId)
-    .all<{ id: string; name: string; avatar_key: string | null; done: number }>()
-  return { id: c.id, name: c.name, code: c.invite_code, mine: c.created_by === userId, members: members.results.map((m) => ({ id: m.id, name: m.name, avatar: m.avatar_key, done: m.done })) }
+    .bind(circleId, circleId, userId)
+    .all<{ id: string; name: string; avatar_key: string | null; done: number; friend: number; asked: number }>()
+  return {
+    id: c.id,
+    name: c.name,
+    code: c.invite_code,
+    mine: c.created_by === userId,
+    members: members.results.map((m) => ({ id: m.id, name: m.name, avatar: m.avatar_key, done: m.done, me: m.id === userId, friend: !!m.friend, asked: !!m.asked })),
+  }
 }
 
 

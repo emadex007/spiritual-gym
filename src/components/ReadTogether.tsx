@@ -4,8 +4,10 @@ import { createCircle, joinCircle, leaveCircle } from '~/fns/topics'
 import { Avatar } from '~/components/Avatar'
 import { FormError, errorText } from '~/components/AuthShell'
 import { LineIcon } from '~/components/LineIcon'
+import { InviteFriendsButton } from '~/components/InviteFriends'
+import { requestFriend } from '~/fns/friends'
 
-type Circle = { id: string; name: string; code: string; mine: boolean; members: { id: string; name: string; avatar: string | null; done: number }[] } | null
+type Circle = { id: string; name: string; code: string; mine: boolean; members: { id: string; name: string; avatar: string | null; done: number; me?: boolean; friend?: boolean; asked?: boolean }[] } | null
 
 /** Reading with others: the circle (invite link, who's reading, how far), or start/join one */
 export function ReadTogether({ kind, targetId, title, circle, total }: { kind: 'topic' | 'book'; targetId: string; title: string; circle: Circle; total: number }) {
@@ -47,7 +49,8 @@ export function ReadTogether({ kind, targetId, title, circle, total }: { kind: '
         <p className="flex items-center gap-2 font-semibold"><LineIcon name="users" className="h-5 w-5 text-accent" />Read with others</p>
         <p className="mt-1 text-sm text-muted">Invite friends to read this with you. You’ll see how far everyone is and talk about each day together.</p>
         <div className="mt-3 flex flex-wrap gap-2">
-          <button type="button" className="btn-primary" onClick={() => run(() => createCircle({ data: { kind, targetId } }))}>Start a reading circle</button>
+          <InviteFriendsButton kind={kind} targetId={targetId} className="btn-primary" />
+          <button type="button" className="btn-ghost" onClick={() => run(() => createCircle({ data: { kind, targetId } }))}>Get an invite link</button>
           {!joining && <button type="button" className="btn-ghost" onClick={() => setJoining(true)}>I have a code</button>}
         </div>
         {joining && (
@@ -67,13 +70,19 @@ export function ReadTogether({ kind, targetId, title, circle, total }: { kind: '
           <p className="flex items-center gap-2 font-semibold"><LineIcon name="users" className="h-5 w-5 text-accent" />{circle.name}</p>
           <p className="mt-0.5 text-sm text-muted">Code <span className="font-mono font-semibold tracking-wider text-ink">{circle.code}</span></p>
         </div>
-        <button type="button" className="btn-primary shrink-0 !px-4 !py-2 text-sm" onClick={share}>{copied ? 'Copied ✓' : 'Invite'}</button>
+        <button type="button" className="btn-primary shrink-0 !px-4 !py-2 text-sm" onClick={share}>{copied ? 'Copied ✓' : 'Share link'}</button>
       </div>
+      <InviteFriendsButton kind={kind} targetId={targetId} className="btn-ghost mt-3 w-full !py-2 text-sm" />
       <ul className="mt-3 space-y-2">
         {circle.members.map((m) => (
           <li key={m.id} className="flex items-center gap-3">
             <Avatar name={m.name} src={m.avatar} small />
-            <span className="min-w-0 flex-1 truncate text-sm font-medium">{m.name}</span>
+            <span className="min-w-0 flex-1 truncate text-sm font-medium">
+              {m.name}
+              {!m.me && m.friend === false && (
+                m.asked ? <span className="ml-2 text-xs font-normal text-muted">Requested</span> : <button type="button" className="ml-2 text-xs font-semibold text-accent" onClick={() => run(() => requestFriend({ data: m.id }))}>+ Add friend</button>
+              )}
+            </span>
             <span className="w-24 shrink-0">
               <span className="block h-1.5 rounded-full bg-surface-2"><span className="block h-1.5 rounded-full bg-accent" style={{ width: `${Math.min(100, Math.round((m.done / Math.max(1, total)) * 100))}%` }} /></span>
             </span>
