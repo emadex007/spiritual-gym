@@ -6,6 +6,7 @@ import { dayLabel, planByKey, planDays, type PlanDay } from '~/lib/plans'
 import { dayOfYear, daysBetween, newId } from '~/lib/util'
 import { fastKind, fastState, type FastRow } from '~/lib/fasting'
 import { nextOccurrence, nextStart, type Schedule } from '~/lib/schedule'
+import { retreatByKey } from '~/lib/retreats'
 import { env } from '~/lib/env'
 import { buildWeekly, newToken, sendBatch } from '~/lib/weekly'
 import { usageAlerts } from '~/lib/usage'
@@ -153,45 +154,30 @@ async function dailyWord(now: number) {
   }
 }
 
-/** A nudge to keep reading: today's chapters for the first reading plan that isn't read yet */
+/** A nudge to keep reading, at the time each person chose ("Reading reminder"): the first thing they're reading that
+ *  isn't done for today. Bible reading plans first, then books, topic studies and retreats. */
+type ReadRow = { kind: 'plan' | 'book' | 'topic' | 'retreat'; id: string; user_id: string; ref: string; title: string; total: number; start_date: string; done: number; plan_time: string; timezone: string; last_plan_day: string | null }
 async function planReminders(now: number) {
-  const { results } = await db()
-    .prepare(
-      `SELECT up.id, up.user_id, up.plan_key, up.start_date, p.plan_time, p.timezone, p.last_plan_day,
-              (SELECT COUNT(*) FROM plan_days_done d WHERE d.user_plan_id = up.id) AS done
-       FROM user_plans up JOIN profiles p ON p.user_id = up.user_id
-       WHERE up.status = 'active' AND p.plan_time IS NOT NULL
-         AND EXISTS (SELECT 1 FROM push_subscriptions s WHERE s.user_id = up.user_id)
-       ORDER BY up.created_at LIMIT 3000`,
-    )
-    .all<{ id: string; user_id: string; plan_key: string; start_date: string; plan_time: string; timezone: string; last_plan_day: string | null; done: number }>()
+  const who = `JOIN profiles p ON p.user_id = x.user_id WHERE x.status = 'active' AND p.plan_time IS NOT NULL AND EXISTS (SELECT 1 FROM push_subscriptions s WHERE s.user_id = x.user_id)`
+  const cols = 'p.plan_time, p.timezone, p.last_plan_day'
+  const [plans, books, topics, retreats] = await db().batch([
+    db().prepare(`SELECT 'plan' AS kind, x.id, x.user_id, x.plan_key AS ref, '' AS title, 0 AS total, x.start_date, (SELECT COUNT(*) FROM plan_days_done d WHERE d.user_plan_id = x.id) AS done, ${cols} FROM user_plans x ${who} ORDER BY x.created_at LIMIT 3000`),
+    db().prepare(`SELECT 'book' AS kind, x.id, x.user_id, x.book_id AS ref, b.title, x.days AS total, x.start_date, x.done, ${cols} FROM user_books x JOIN books b ON b.id = x.book_id ${who} ORDER BY x.created_at LIMIT 3000`),
+    db().prepare(`SELECT 'topic' AS kind, x.id, x.user_id, t.id AS ref, t.title, t.days AS total, x.start_date, (SELECT COUNT(*) FROM topic_days_done d WHERE d.user_plan_id = x.id) AS done, ${cols} FROM user_topic_plans x JOIN topic_plans t ON t.id = x.plan_id ${who} ORDER BY x.created_at LIMIT 3000`),
+    db().prepare(`SELECT 'retreat' AS kind, x.id, x.user_id, x.retreat_key AS ref, '' AS title, 0 AS total, x.start_date, (SELECT COUNT(*) FROM retreat_days_done d WHERE d.user_retreat_id = x.id) AS done, ${cols} FROM user_retreats x ${who} ORDER BY x.created_at LIMIT 3000`),
+  ])
+  const rows = [plans, books, topics, retreats].flatMap((r) => r.results as ReadRow[])
   const cache = new Map<string, PlanDay[]>()
   const chosen = new Map<string, { day: string; notice: { kind: string; title: string; body: string; url: string; tag: string } }>()
   const seen = new Set<string>()
-  for (const r of results) {
+  for (const r of rows) {
     const local = safeLocal(now, r.timezone)
     if (r.last_plan_day === local.day || !inWindow(local.minutes, r.plan_time)) continue
     if (!seen.has(`${r.user_id}|${local.day}`) && seen.size >= 300) continue // the rest are handled in the next runs (every 5 minutes)
     seen.add(`${r.user_id}|${local.day}`)
     if (chosen.has(r.user_id)) continue
-    const plan = planByKey(r.plan_key)
-    if (!plan) continue
-    if (!cache.has(plan.key)) cache.set(plan.key, planDays(plan))
-    const days = cache.get(plan.key)!
-    const todayIdx = Math.min(days.length, daysBetween(r.start_date, local.day) + 1)
-    if (todayIdx < 1 || r.done >= todayIdx || r.done >= days.length) continue // not started yet, or caught up
-    const next = days[r.done]
-    const behind = todayIdx - r.done - 1
-    chosen.set(r.user_id, {
-      day: local.day,
-      notice: {
-        kind: 'plan',
-        title: `📅 Day ${next.day} · ${plan.title}`,
-        body: `${behind > 0 ? `Continue where you stopped: ` : 'Today: '}${dayLabel(next)}. Tap to read.`,
-        url: `/app/plans/${r.id}`,
-        tag: 'plan',
-      },
-    })
+    const notice = readingNotice(r, local.day, cache)
+    if (notice) chosen.set(r.user_id, { day: local.day, notice })
   }
   // Remember everyone we looked at today (reminded or already caught up), so they're not checked again today
   const byDay = new Map<string, string[]>()
@@ -200,7 +186,35 @@ async function planReminders(now: number) {
     byDay.set(day, [...(byDay.get(day) ?? []), uid])
   }
   for (const [day, ids] of byDay) await markDay('last_plan_day', day, ids)
-  if (chosen.size) await notifyMany([...chosen].map(([userId, c]) => ({ userId, notice: c.notice })), { kick: false })
+  // Also kept in the app's notifications (the bell), so a reminder missed on the phone is still there
+  if (chosen.size) await notifyMany([...chosen].map(([userId, c]) => ({ userId, notice: c.notice })), { kick: false, inApp: true })
+}
+
+/** The reminder for one thing someone is reading, or null when they're caught up for today (or it hasn't started) */
+function readingNotice(r: ReadRow, today: string, cache: Map<string, PlanDay[]>) {
+  const dayNo = (total: number) => Math.min(total, daysBetween(r.start_date, today) + 1)
+  if (r.kind === 'plan') {
+    const plan = planByKey(r.ref)
+    if (!plan) return null
+    if (!cache.has(plan.key)) cache.set(plan.key, planDays(plan))
+    const days = cache.get(plan.key)!
+    const todayIdx = dayNo(days.length)
+    if (todayIdx < 1 || r.done >= todayIdx || r.done >= days.length) return null
+    const next = days[r.done]
+    const behind = todayIdx - r.done - 1
+    return { kind: 'plan', title: `📅 Day ${next.day} · ${plan.title}`, body: `${behind > 0 ? 'Continue where you stopped: ' : 'Today: '}${dayLabel(next)}. Tap to read.`, url: `/app/plans/${r.id}`, tag: 'plan' }
+  }
+  if (r.kind === 'retreat') {
+    const def = retreatByKey(r.ref)
+    if (!def) return null
+    const todayIdx = dayNo(def.days.length)
+    if (todayIdx < 1 || r.done >= todayIdx || r.done >= def.days.length) return null
+    return { kind: 'plan', title: `⛰️ Day ${r.done + 1} · ${def.title}`, body: `${def.days[r.done].title}. Your quiet time is ready. Tap to begin.`, url: `/app/retreats/${def.key}`, tag: 'plan' }
+  }
+  const todayIdx = dayNo(r.total)
+  if (todayIdx < 1 || r.done >= todayIdx || r.done >= r.total) return null
+  if (r.kind === 'book') return { kind: 'plan', title: `📖 Time to read · ${r.title}`, body: `Day ${r.done + 1} of ${r.total}. Pick up where you stopped. Tap to read.`, url: `/app/books/${r.ref}`, tag: 'plan' }
+  return { kind: 'plan', title: `📝 Day ${r.done + 1} · ${r.title}`, body: `Your study for today is ready. Tap to read.`, url: `/app/topics/${r.ref}`, tag: 'plan' }
 }
 
 function safeLocal(now: number, tz: string) {

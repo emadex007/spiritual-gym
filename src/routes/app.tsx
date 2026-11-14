@@ -8,6 +8,8 @@ import { Logo } from '~/components/Logo'
 import { BibleIcon } from '~/components/Art'
 import { ThemeSwitch } from '~/components/ThemeSwitch'
 import { NotificationBell } from '~/components/NotificationBell'
+import { getPushConfig, savePushSubscription } from '~/fns/notifications'
+import { syncPush } from '~/lib/push-client'
 import { InstallPrompt } from '~/components/InstallPrompt'
 import { SupportFloat, SupportLink } from '~/components/SupportButton'
 import { isInvite, safeNext } from '~/lib/next'
@@ -23,6 +25,9 @@ export const Route = createFileRoute('/app')({
   component: AppLayout,
 })
 
+/** Phones: the bell (notifications) at the top of these pages; Home has its own in the header */
+const BELL_PAGES = ['/app/train', '/app/explore', '/app/profile']
+
 const NAV = [
   { to: '/app', label: 'Home', Icon: HomeIcon, exact: true },
   { to: '/app/train', label: 'Train', Icon: TrainIcon },
@@ -37,6 +42,13 @@ function AppLayout() {
   // Explore stays lit on every page it leads to (Community, Journal, Plans…)
   const inExplore = EXPLORE_PATHS.some((p) => pathname === p || pathname.startsWith(p + '/'))
   const immersive = pathname.startsWith('/app/workout/') || pathname.startsWith('/app/meet/') || pathname.endsWith('/live') || /^\/app\/books\/[^/]+\/read/.test(pathname)
+
+  // Phone notifications keep working: when the app opens, quietly repair this phone's registration if it went stale
+  useEffect(() => {
+    getPushConfig()
+      .then((c) => (c.enabled ? syncPush(c.publicKey, (d) => savePushSubscription({ data: d })) : undefined))
+      .catch(() => {})
+  }, [])
 
   // A pop-up that closed while changing page must never leave the page unable to scroll
   useEffect(() => {
@@ -76,7 +88,12 @@ function AppLayout() {
         </div>
       </aside>
 
-      <div className="min-w-0 flex-1 pb-24 md:pb-10">
+      <div className="relative min-w-0 flex-1 pb-24 md:pb-10">
+        {BELL_PAGES.includes(pathname) && (
+          <div className="absolute top-4 right-4 z-10 md:hidden">
+            <NotificationBell tone="dark" />
+          </div>
+        )}
         <Outlet />
       </div>
 

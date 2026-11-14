@@ -1,6 +1,6 @@
 // TheRenewGym service worker: installable app + offline fallback.
 // Never caches private data: server functions (/_serverFn), /api and signed-in pages always go to the network.
-const VERSION = 'sg-v7'
+const VERSION = 'sg-v8'
 const STATIC = `${VERSION}-static`
 const PRECACHE = ['/offline.html', '/icons/icon-192.png', '/icons/badge-96.png', '/manifest.webmanifest']
 
@@ -53,7 +53,27 @@ self.addEventListener('push', (e) => {
   }
   const title = data.title || 'TheRenewGym'
   e.waitUntil(
-    self.registration.showNotification(title, {
+    focusedOnGod().then((focused) => {
+      // Focus: someone in a workout, reading a book or the Bible, with the app on screen, isn't interrupted by us.
+      // Android/desktop: nothing pops up. iPhone must always show something, so it arrives silently. Live alerts still come.
+      if (focused && !data.urgent && !IOS) return
+      return show(title, data, focused)
+    }),
+  )
+})
+
+const IOS = /iphone|ipad|ipod/i.test(self.navigator.userAgent)
+const FOCUS = [/\/app\/workout\//, /\/app\/books\/[^/]+\/read/, /\/app\/bible\//, /\/app\/wake/]
+/** Is the app open on screen, on a page where someone is praying or reading? */
+function focusedOnGod() {
+  return self.clients
+    .matchAll({ type: 'window', includeUncontrolled: true })
+    .then((wins) => wins.some((w) => w.visibilityState === 'visible' && FOCUS.some((re) => re.test(new URL(w.url).pathname))))
+    .catch(() => false)
+}
+
+function show(title, data, quiet) {
+  return self.registration.showNotification(title, {
       body: data.body || '',
       icon: '/icons/icon-192.png',
       badge: '/icons/badge-96.png', // white-on-clear silhouette: Android paints it in the status bar
@@ -61,13 +81,12 @@ self.addEventListener('push', (e) => {
       renotify: !!data.tag,
       // The daily reminder behaves like an alarm: strong vibration and it stays until tapped
       // Something live right now (urgent): a longer buzz so it isn't missed
-      vibrate: data.tag === 'daily' ? [500, 250, 500, 250, 500, 250, 1000] : data.urgent ? [300, 120, 300, 120, 300] : [120, 60, 120],
-      requireInteraction: data.tag === 'daily',
-      silent: false,
+      vibrate: quiet ? [] : data.tag === 'daily' ? [500, 250, 500, 250, 500, 250, 1000] : data.urgent ? [300, 120, 300, 120, 300] : [120, 60, 120],
+      requireInteraction: !quiet && data.tag === 'daily',
+      silent: !!quiet,
       data: { url: data.url || '/app' },
-    }),
-  )
-})
+    })
+}
 
 self.addEventListener('notificationclick', (e) => {
   e.notification.close()
