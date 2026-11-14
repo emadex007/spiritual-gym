@@ -67,7 +67,12 @@ function Write() {
                   <TopicCover cover={p.cover} topic="" className="h-16 w-16 shrink-0 rounded-2xl" />
                   <span className="min-w-0 flex-1">
                     <span className="block truncate font-semibold">{p.title || 'Untitled plan'}</span>
-                    <span className="block text-xs text-muted">{p.topic || 'No topic yet'} · {p.written} of {plural(p.days, 'day')} written{p.readers ? ` · ${plural(p.readers, 'reader')}` : ''}</span>
+                    <span className="block text-xs text-muted">{p.topic || 'No topic yet'} · {p.written} of {plural(p.days, 'day')} written</span>
+                    {p.started > 0 && (
+                      <span className="mt-1 inline-flex items-center gap-1 rounded-full bg-accent-soft px-2 py-0.5 text-xs font-semibold text-accent">
+                        <LineIcon name="users" className="h-3 w-3" />{p.started.toLocaleString('en-NG')} started{p.startedWeek ? ` · +${p.startedWeek} this week` : ''}
+                      </span>
+                    )}
                     {p.status === 'declined' && p.note && <span className="mt-1 block text-xs text-amber-800">“{p.note}”</span>}
                   </span>
                   <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ${cls}`}>{label}</span>

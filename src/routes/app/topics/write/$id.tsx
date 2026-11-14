@@ -10,6 +10,7 @@ import { LineIcon } from '~/components/LineIcon'
 import { fitImage } from '~/lib/fit-image'
 import { IMAGE_SIZES } from '~/lib/image-sizes'
 import { PictureHint } from '~/components/PictureHint'
+import { PlanReaders } from '~/components/PlanReaders'
 
 export const Route = createFileRoute('/app/topics/write/$id')({
   loader: ({ params }) => getTopicDraft({ data: params.id }),
@@ -100,6 +101,7 @@ function Editor() {
 
       {plan.status === 'submitted' && <p className="mt-4 rounded-2xl bg-accent-soft px-4 py-3 text-sm">Waiting for review. We’ll let you know when it’s live. Making changes now takes it out of the review queue until you send it again.</p>}
       {plan.status === 'declined' && plan.review_note && <p className="mt-4 rounded-2xl bg-amber-500/10 px-4 py-3 text-sm"><b>Changes needed:</b> {plan.review_note}</p>}
+      {(live || plan.readers > 0) && <div className="mt-4"><PlanReaders planId={plan.id} /></div>}
       {live && <p className="mt-4 rounded-2xl bg-sage-soft px-4 py-3 text-sm">This plan is live. If you change it, it goes back for review and leaves the list until it’s approved again (people already reading keep reading).</p>}
 
       {/* Cover */}

@@ -28,6 +28,10 @@ Free Christian spiritual-growth web app (installable PWA) at therenewgym.org. Ow
 - Notifications: `src/lib/notify.ts`, `public/sw.js` (focus mode), `src/lib/push-client.ts` (`syncPush` self-repair).
 
 ## Change log (newest first)
+- 2026-11-14 · Topic plan writers see their readers (`myPlanReaders` in `src/fns/topics.ts`, `src/components/PlanReaders.tsx`):
+  started / reading now / finished / new this week / reading together, new readers per week (8 weeks), finished per day.
+  Distinct people, writer not counted, numbers only. On the editor page, a summary on the plan page, a chip in My plans.
+  Writer notified at 1, 5, 10, 25… readers (`readerMilestone`). Admin → Topic plans already shows readers.
 - 2026-11-14 · Home: "New books" and "New topic plans" sliders (`src/components/NewOnShelf.tsx`, `newOnShelf()` in
   `src/fns/home.ts`, 10 newest each, "New" badge for 14 days). Public news (migration 0053 `public_news`,
   `profiles.notify_new`): `announceNew()` in `src/lib/public-news.ts` on book publish/approve, topic plan approve, new
