@@ -106,6 +106,10 @@ function Home() {
           <p className="text-xs font-semibold tracking-[0.14em] text-gold uppercase">Today’s workout · {h.workout.minutes} min</p>
           <p className="mt-2 font-display text-2xl font-semibold">{h.workout.title}</p>
           {h.workout.description && <p className="mt-1 max-w-sm text-sm text-white/75">{h.workout.description}</p>}
+          <p className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-1 text-xs text-white/85">
+            <LineIcon name={h.onJourney ? 'compass' : 'clock'} className="h-3.5 w-3.5" />
+            {h.workoutReason}
+          </p>
           <div className="mt-5 flex h-2 overflow-hidden rounded-full bg-white/10">
             {h.workout.steps.map((s, i) => (
               <span key={i} style={{ flex: s.seconds, background: stepStyle(s.kind).color }} className="border-r-2 border-[#2d2670] last:border-0" />
@@ -124,11 +128,14 @@ function Home() {
           </div>
           <div className="mt-5 flex items-center justify-between gap-3 rounded-2xl bg-white/10 px-4 py-2.5 text-sm">
             <span>Today so far</span>
-            <span className="font-semibold">{h.todayMinutes} / {h.dailyMinutes} min</span>
+            <span className="font-semibold">{h.todayMinutes} / {h.goalMinutes} min</span>
           </div>
-          <Link to="/app/workout/$slug" params={{ slug: h.workout.slug }} className="btn-gold mt-4 w-full sm:w-auto">
-            <PlayIcon /> START
-          </Link>
+          <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2">
+            <Link to="/app/workout/$slug" params={{ slug: h.workout.slug }} className="btn-gold w-full sm:w-auto">
+              <PlayIcon /> START
+            </Link>
+            <Link to="/app/train" className="text-sm font-semibold text-white/80 underline-offset-4 hover:underline">Choose a different one</Link>
+          </div>
         </section>
       )}
 
@@ -143,7 +150,7 @@ function Home() {
           <p className="text-xs font-semibold tracking-[0.14em] text-[#fde7b0] uppercase">Today’s word</p>
           <blockquote className="relative mt-3 font-display text-xl leading-snug">“{word.text}”</blockquote>
           <p className="mt-2 text-sm font-semibold text-[#fde7b0]">{word.reference} · {word.translation}</p>
-          {word.reflection && <p className="relative mt-3 text-sm text-white/85">{word.reflection}</p>}
+          {word.reflection && <Devotion text={word.reflection} />}
           {word.declaration && (
             <div className="relative mt-4 rounded-2xl bg-white/15 p-4 backdrop-blur-sm">
               <p className="text-xs font-bold tracking-[0.14em] text-[#fde7b0] uppercase"><LineIcon name="megaphone" className="mr-1 inline h-3.5 w-3.5 -translate-y-px" />I declare</p>
@@ -157,11 +164,11 @@ function Home() {
             </div>
           )}
           <div className="relative mt-4 flex flex-wrap gap-2">
-            <ListenButton lines={[`${word.reference}. ${word.text}`, ...(word.declaration ? [`I declare: ${word.declaration}`] : []), ...(word.prayer ? [`Let us pray. ${word.prayer}`] : [])]} />
+            <ListenButton lines={[`${word.reference}. ${word.text}`, ...paras(word.reflection), ...(word.declaration ? [`I declare: ${word.declaration}`] : []), ...(word.prayer ? [`Let us pray. ${word.prayer}`] : [])]} />
             <ShareButton
               className="inline-flex items-center gap-1.5 rounded-full bg-white px-4 py-2 text-sm font-semibold text-[#5a2a04]"
               card={{ kind: 'word', heading: 'Today’s word', text: word.text, reference: word.reference, declaration: word.declaration ?? undefined }}
-              text={`“${word.text}” (${word.reference})${word.declaration ? `\n\nI declare: ${word.declaration}` : ''}${word.prayer ? `\n\nPrayer: ${word.prayer}` : ''}`}
+              text={`TODAY’S WORD · ${word.reference}\n“${word.text}”${word.reflection ? `\n\n${word.reflection.trim()}` : ''}${word.declaration ? `\n\nI declare: ${word.declaration}` : ''}${word.prayer ? `\n\nPrayer: ${word.prayer}` : ''}\n\nTheRenewGym · therenewgym.org`}
             />
             <button type="button" onClick={() => setUnderstand(true)} className="inline-flex items-center gap-1.5 rounded-full bg-white/20 px-4 py-2 text-sm font-semibold text-white backdrop-blur">
               <LineIcon name="lightbulb" className="h-4 w-4" /> Understand this verse
@@ -225,6 +232,32 @@ function SectionTitle({ children }: { children: ReactNode }) {
 
 
 type HomeData = ReturnType<typeof Route.useLoaderData>['h']
+
+/** The day's devotion: a few short paragraphs. The first shows; "Read more" opens the rest. */
+const paras = (t: string | null | undefined) => (t ?? '').split(/\n\s*\n/).map((x) => x.trim()).filter(Boolean)
+function Devotion({ text }: { text: string }) {
+  const [open, setOpen] = useState(false)
+  const ps = paras(text)
+  const shown = open ? ps : ps.slice(0, 1)
+  return (
+    <div className="relative mt-4">
+      <p className="text-xs font-bold tracking-[0.14em] text-[#fde7b0] uppercase">Today’s devotion</p>
+      {shown.map((p, i) => {
+        const step = /^today:/i.test(p)
+        return step ? (
+          <p key={i} className="mt-3 rounded-2xl border border-white/25 px-4 py-3 text-sm text-white"><b className="text-[#fde7b0]">Today:</b>{p.replace(/^today:/i, '')}</p>
+        ) : (
+          <p key={i} className="mt-2 text-[15px] leading-relaxed text-white/90">{p}</p>
+        )
+      })}
+      {ps.length > 1 && (
+        <button type="button" onClick={() => setOpen(!open)} className="mt-2 text-sm font-semibold text-[#fde7b0] underline-offset-4 hover:underline">
+          {open ? 'Show less' : 'Read the full devotion'}
+        </button>
+      )}
+    </div>
+  )
+}
 
 /** "Pick up where you left off": journey, Bible plan, book and memory verses as short rows in one card */
 function Continue({ h, dayNo, journeyPct }: { h: HomeData; dayNo: number; journeyPct: number }) {

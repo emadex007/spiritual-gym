@@ -34,7 +34,7 @@ function Devotions() {
     <>
       <PageHead
         title="Daily words"
-        sub={`A word for every day of the year (${list.length} in total): the verse, a reflection, a declaration and a prayer. It shows on Home, in workouts and on the wake-up screen, and is sent as the morning notification.`}
+        sub={`A word for every day of the year (${list.length} in total): the verse, a short devotion, a declaration and a prayer. It shows on Home, in workouts and on the wake-up screen, and is sent as the morning notification.`}
         action={<button className="btn-primary" onClick={() => setEditing({ sort: today, reference: '', text: '', reflection: '', declaration: '', prayer: '' })}>+ Add word</button>}
       />
       {editing && <DevotionForm d={editing} onDone={() => setEditing(null)} />}
@@ -105,7 +105,7 @@ function DevotionForm({ d, onDone }: { d: D; onDone: () => void }) {
         <button type="button" className="btn-ghost" disabled={!f.reference.trim()} onClick={fetchText}>Fetch text</button>
       </div>
       <textarea rows={3} className="input" placeholder="Verse text (KJV)" value={f.text} onChange={(e) => setF({ ...f, text: e.target.value })} />
-      <textarea rows={2} className="input" placeholder="A short reflection (1–2 sentences)" value={f.reflection} onChange={(e) => setF({ ...f, reflection: e.target.value })} />
+      <textarea rows={9} className="input" placeholder="The devotion: 3–4 short paragraphs (leave an empty line between them). End with a line starting “Today:” for one simple thing to do." value={f.reflection} onChange={(e) => setF({ ...f, reflection: e.target.value })} />
       <textarea rows={2} className="input" placeholder="Declaration, e.g. I arise and shine; the glory of the Lord is upon me." value={f.declaration} onChange={(e) => setF({ ...f, declaration: e.target.value })} />
       <textarea rows={3} className="input" placeholder="Prayer, ending with “In Jesus' name, Amen.”" value={f.prayer} onChange={(e) => setF({ ...f, prayer: e.target.value })} />
       <p className="text-xs text-muted">If two words share a date, the newest one is shown.</p>
