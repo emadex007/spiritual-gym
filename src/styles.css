@@ -278,3 +278,11 @@ a.card:active, button.card:active { transform: translateY(0) scale(0.99); }
 /* Sidebar "Support" button: a plain see-through gold that every Safari understands (older iPads drew bg-gold/20 as solid gold) */
 .support-link { background-color: rgba(227, 182, 72, 0.2); background-color: rgba(var(--brand-gold-rgb, 227, 182, 72), 0.2); }
 .support-link:hover { background-color: rgba(var(--brand-gold-rgb, 227, 182, 72), 0.3); }
+
+/* Sliders (Home: Coming up): swipeable, without a scroll bar */
+.no-scrollbar {
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}

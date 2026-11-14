@@ -11,6 +11,7 @@ import { Glyph, LineIcon } from '~/components/LineIcon'
 import { Avatar } from '~/components/Avatar'
 import { InstallApp } from '~/components/InstallApp'
 import { NotificationBell } from '~/components/NotificationBell'
+import { ComingUp } from '~/components/ComingUp'
 import { ShareButton } from '~/components/ShareButton'
 import { ListenButton } from '~/components/ListenButton'
 import { DevotionIcon } from '~/components/Art'
@@ -177,6 +178,9 @@ function Home() {
         </section>
       )}
       {understand && word && <UnderstandSheet reference={word.reference} onClose={() => setUnderstand(false)} />}
+
+      {/* Events and group meetings coming up (public, or ones I'm in) */}
+      <ComingUp items={h.comingUp} />
 
       <InstallApp variant="banner" />
 

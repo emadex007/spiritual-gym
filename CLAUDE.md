@@ -24,6 +24,8 @@ Free Christian spiritual-growth web app (installable PWA) at therenewgym.org. Ow
 - Notifications: `src/lib/notify.ts`, `public/sw.js` (focus mode), `src/lib/push-client.ts` (`syncPush` self-repair).
 
 ## Change log (newest first)
+- 2026-11-14 · Home "Coming up" slider (`src/components/ComingUp.tsx`, `comingUp()` in `src/fns/home.ts`): live first, then
+  soonest; events up to 31 days ahead, group meetings up to 3 days; public to everyone, private only to members; max 8.
 - 2026-11-14 · Live meetings: Q&A (ask, upvote, answered/dismiss) and polls (one at a time, live results, quick-vote pop-up),
   co-hosts (`cohost:<userId>` in room storage, survives reconnect), lock (`locked`; people already in can rejoin). All in
   `src/lib/prayer-room.ts`, cleared when the room empties. Calendar: `src/lib/calendar.ts` (Google link, .ics with RRULE),
