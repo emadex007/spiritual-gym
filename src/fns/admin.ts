@@ -618,7 +618,7 @@ export const adminSaveDevotion = createServerFn({ method: 'POST' })
       day: Math.max(1, Math.min(365, Math.round(Number(d?.day) || 1))),
       reference: clean(d?.reference, 80),
       text: clean(d?.text, 1500),
-      reflection: clean(d?.reflection, 600),
+      reflection: clean(d?.reflection, 2000),
       declaration: clean(d?.declaration, 400),
       prayer: clean(d?.prayer, 800),
     }

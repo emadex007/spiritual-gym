@@ -45,7 +45,23 @@ export const getHome = createServerFn({ method: 'GET' }).handler(async () => {
 
   const dailyMinutes = profile?.daily_minutes ?? 10
   const recovery = isRecovery(lastDay, profile?.onboarded_at ?? null)
-  const slug = recommendWorkout(dailyMinutes, checkin?.mood ?? null, recovery)
+  // A journey in progress sets today's length (its day's minutes); otherwise the goal from Profile does.
+  // Check-in mood and missed days then adjust it, and the card says why.
+  const onJourney = !!journey?.today && !journey.done_today
+  const base = onJourney ? journey!.today!.minutes || dailyMinutes : dailyMinutes
+  const mood = checkin?.mood ?? null
+  const slug = recommendWorkout(base, mood, recovery)
+  const workoutReason = recovery
+    ? 'Welcome back. A gentle restart, no catching up.'
+    : mood === 'tired' || mood === 'dry'
+      ? `Gentler today, because you said you feel ${mood}.`
+      : mood === 'hungry'
+        ? 'A little longer today, because you’re hungry for God.'
+        : mood === 'strong'
+          ? 'A little longer today, because you feel strong.'
+          : onJourney
+            ? `Day ${journey!.today!.day_number} of ${journey!.title} · ${base} min`
+            : `Your daily goal · ${base} min`
   const workout = await db()
     .prepare('SELECT id, slug, title, description, minutes, is_recovery FROM workouts WHERE slug = ?')
     .bind(slug)
@@ -181,6 +197,9 @@ export const getHome = createServerFn({ method: 'GET' }).handler(async () => {
     checkin: checkin ?? null,
     recovery,
     workout: workout ? { ...workout, steps: adaptSteps(steps, tongues) } : null,
+    workoutReason,
+    onJourney,
+    goalMinutes: base,
     devotion,
     header,
     plans,
