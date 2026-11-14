@@ -6,6 +6,7 @@ import { signOut } from '~/fns/auth'
 import { Logo } from '~/components/Logo'
 import { ThemeSwitch } from '~/components/ThemeSwitch'
 import { Glyph, LineIcon } from '~/components/LineIcon'
+import { AdminBell } from '~/components/AdminBell'
 
 export const Route = createFileRoute('/admin')({
   beforeLoad: async ({ location }) => {
@@ -20,6 +21,7 @@ export const Route = createFileRoute('/admin')({
 
 const NAV = [
   { to: '/admin', label: 'Dashboard', icon: '📊', exact: true },
+  { to: '/admin/alerts', label: 'Alerts', icon: '🔔', exact: false },
   { to: '/admin/insights', label: 'Insights', icon: '📈', exact: false },
   { to: '/admin/branding', label: 'Branding', icon: '🎨', exact: false },
   { to: '/admin/settings', label: 'Site content', icon: '📝', exact: false },
@@ -40,7 +42,7 @@ const NAV = [
   { to: '/admin/usage', label: 'Meetings & usage', icon: '📶', exact: false },
   { to: '/admin/reports', label: 'Reports', icon: '🚩', exact: false },
   { to: '/admin/mail', label: 'Mail', icon: '✉', exact: false },
-  { to: '/admin/notifications', label: 'Notifications', icon: '🔔', exact: false },
+  { to: '/admin/notifications', label: 'Send notifications', icon: '📤', exact: false },
   { to: '/admin/donations', label: 'Donations', icon: '💛', exact: false },
   { to: '/admin/payments', label: 'Payments', icon: '🔑', exact: false },
   { to: '/admin/users', label: 'Users', icon: '👥', exact: false },
@@ -65,8 +67,9 @@ function AdminLayout() {
   return (
     <div className="min-h-dvh bg-bg text-ink md:flex">
       <aside className="hidden w-64 shrink-0 flex-col bg-navy px-4 py-6 text-white md:sticky md:top-0 md:flex md:h-dvh md:overflow-hidden">
-        <div className="px-2">
+        <div className="flex items-center justify-between gap-2 px-2">
           <Logo onDark size="sm" />
+          <AdminBell />
         </div>
         <p className="mt-1 px-2 text-xs font-semibold tracking-[0.14em] text-gold uppercase">Admin portal</p>
         <nav className="-mx-2 mt-6 min-h-0 flex-1 space-y-1 overflow-y-auto overscroll-contain px-2 pb-4">
@@ -100,7 +103,10 @@ function AdminLayout() {
             <Logo onDark size="sm" />
             <span className="rounded-full bg-white/10 px-2 py-0.5 text-[10px] font-semibold tracking-[0.12em] text-gold uppercase">Admin</span>
           </span>
-          <button type="button" onClick={logout} className="text-sm text-white/70">Sign out</button>
+          <span className="flex items-center gap-3">
+            <AdminBell />
+            <button type="button" onClick={logout} className="text-sm text-white/70">Sign out</button>
+          </span>
         </div>
         <nav className="flex gap-1 overflow-x-auto px-3 pb-3">
           {NAV.map((n) => (

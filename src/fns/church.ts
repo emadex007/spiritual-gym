@@ -5,6 +5,7 @@ import { cleanText, inviteCode, membership, requireChurchAdmin, requireChurchMem
 import { CHURCH_COLORS, PROGRAM_KINDS } from '~/lib/content'
 import { PLANS, planByKey } from '~/lib/plans'
 import { notify } from '~/lib/notify'
+import { adminAlert } from '~/lib/admin-alerts'
 import { dayString, newId } from '~/lib/util'
 
 const MAX_CHURCHES_PER_PERSON = 5
@@ -75,8 +76,7 @@ export const requestChurch = createServerFn({ method: 'POST' })
       )
       .bind(id, `${slugify(data.name)}-${id.slice(0, 5)}`, data.name, data.city, data.country, data.denomination || null, data.description || null, inviteCode(), data.pastorName, data.phone, data.email, data.website || null, user.id, CHURCH_COLORS[0])
       .run()
-    const { results: admins } = await db().prepare(`SELECT id FROM users WHERE role = 'admin'`).all<{ id: string }>()
-    await notify({ userIds: admins.map((a) => a.id) }, { kind: 'admin', title: '⛪ New church request', body: `${data.name}, ${data.city} — ${data.pastorName}`, url: '/admin/churches' })
+    await adminAlert({ cat: 'review', title: `New church request: ${data.name}`, body: `${data.city}, ${data.country} · ${data.pastorName} · ${data.phone}`, url: '/admin/churches', actorId: user.id })
     return { id }
   })
 

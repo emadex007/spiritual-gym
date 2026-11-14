@@ -3,6 +3,7 @@ import { db, env } from '~/lib/env'
 import { requireUser } from '~/lib/auth'
 import { requireAdmin, audit } from '~/lib/admin'
 import { notify } from '~/lib/notify'
+import { adminAlert } from '~/lib/admin-alerts'
 import { dayString, daysBetween, newId } from '~/lib/util'
 import { MAX_DAYS, TOPICS } from '~/lib/topics'
 import { circleInfo, inviteCode, listComments } from '~/lib/reading'
@@ -379,8 +380,7 @@ export const submitTopicPlan = createServerFn({ method: 'POST' })
     if (empty.length) missing.push(`a title and text for day ${empty.slice(0, 5).join(', ')}${empty.length > 5 ? ` and ${empty.length - 5} more` : ''}`)
     if (missing.length) throw new Error(`Before sending, please add ${missing.join('; ')}.`)
     await db().prepare(`UPDATE topic_plans SET status = 'submitted', review_note = NULL, submitted_at = datetime('now') WHERE id = ?`).bind(data.id).run()
-    const admins = await db().prepare(`SELECT id FROM users WHERE role = 'admin'`).all<{ id: string }>()
-    await notify({ userIds: admins.results.map((a) => a.id) }, { kind: 'admin', title: `New plan to review: ${p.title}`, body: `${p.days}-day plan on ${p.topic} by ${p.author_name || user.name}.`, url: '/admin/topics' })
+    await adminAlert({ cat: 'review', title: `New topic plan to review: ${p.title}`, body: `${p.days}-day plan on ${p.topic} by ${p.author_name || user.name}.`, url: '/admin/topics', actorId: user.id })
     return { ok: true }
   })
 

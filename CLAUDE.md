@@ -23,9 +23,17 @@ Free Christian spiritual-growth web app (installable PWA) at therenewgym.org. Ow
 - Daily word: `devotions` table (reflection = multi-paragraph devotion ending "Today: …").
 - Picture uploads: best sizes in `src/lib/image-sizes.ts`; resize with `fitImage` (`src/lib/fit-image.ts`) and show
   `<PictureHint kind=… />`. Add any new upload to both.
+- Admin alerts: `adminAlert()` (`src/lib/admin-alerts.ts`), categories in `src/lib/alert-types.ts`, page `admin/alerts.tsx`.
 - Notifications: `src/lib/notify.ts`, `public/sw.js` (focus mode), `src/lib/push-client.ts` (`syncPush` self-repair).
 
 ## Change log (newest first)
+- 2026-11-14 · Admin alerts (migration 0052 `admin_alerts`, `admin_alert_seen`; backfills what's waiting + last week's members).
+  `adminAlert()` in `src/lib/admin-alerts.ts` saves to the feed, pushes and emails admins per settings (`src/lib/alert-types.ts`:
+  review / report / member / community / gift; keys `alert_<cat>_email|push`, new-member email keeps `admin_signup_email`),
+  never alerts the person who did it, max 25 alert emails a day. Hooked into book/plan/church/testimony submissions,
+  reports, sign-ups, new groups/events, gifts. Admin → Alerts (feed, filters, waiting counts, settings, "Send me a test"),
+  bell with unread count in the admin menu (`AdminBell`), "Latest activity" on the Dashboard. Admin email settings moved
+  from Site content to Alerts. Add `adminAlert()` to any new thing admins must review.
 - 2026-11-14 · Flyers for events and groups (`prayer_groups.flyer_key`, migration 0051, `/api/group-flyer` POST/DELETE for
   leaders/admins, `src/components/Flyer.tsx`): add at creation or in Edit; shown whole on the page, invite page, Home slider,
   Upcoming events and Admin → Community (Remove flyer). Picture sizes: `src/lib/image-sizes.ts` (one list of best sizes),

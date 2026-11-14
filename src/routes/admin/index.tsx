@@ -1,14 +1,16 @@
 import { useState } from 'react'
 import { Link, createFileRoute } from '@tanstack/react-router'
 import { getAdminStats, getCommunityStats } from '~/fns/admin'
+import { getAdminAlerts } from '~/fns/alerts'
+import { AlertRow } from '~/components/AlertList'
 import { PageHead, Stat } from '~/components/AdminUI'
 import { LineIcon } from '~/components/LineIcon'
 import { dayString } from '~/lib/util'
 
 export const Route = createFileRoute('/admin/')({
   loader: async () => {
-    const [s, c] = await Promise.all([getAdminStats(), getCommunityStats()])
-    return { ...s, community: c }
+    const [s, c, a] = await Promise.all([getAdminStats(), getCommunityStats(), getAdminAlerts({ data: {} }).catch(() => null)])
+    return { ...s, community: c, alerts: a }
   },
   component: Dashboard,
 })
@@ -26,6 +28,8 @@ function Dashboard() {
   return (
     <>
       <PageHead title={`Welcome, ${admin?.name.split(' ')[0] ?? 'Admin'}`} sub="How TheRenewGym is doing. Only totals are shown here; journals, check-ins and prayers stay private to each user." />
+
+      {s.alerts && <LatestActivity a={s.alerts} />}
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Stat label="Users" value={s.users} hint={`+${s.newWeek} this week`} />
@@ -123,5 +127,31 @@ function Dashboard() {
         </section>
       </div>
     </>
+  )
+}
+
+/** The newest alerts and what's waiting, at the top of the Dashboard */
+function LatestActivity({ a }: { a: NonNullable<Awaited<ReturnType<typeof getAdminAlerts>>> }) {
+  const unread = a.items.filter((x) => x.unread).length
+  const w = a.waiting
+  const waiting = w.books + w.plans + w.churches + w.testimonies + w.reports
+  return (
+    <section className="card mb-6 !p-2">
+      <div className="flex flex-wrap items-center justify-between gap-2 px-3 pt-2">
+        <p className="flex items-center gap-2 font-semibold">
+          <LineIcon name="bell" className="h-4 w-4 text-accent" /> Latest activity
+          {unread > 0 && <span className="rounded-full bg-red-600 px-2 py-0.5 text-xs font-bold text-white">{unread} new</span>}
+        </p>
+        <span className="flex items-center gap-3 text-sm">
+          {waiting > 0 && <span className="font-semibold text-accent">{waiting} waiting for you</span>}
+          <Link to="/admin/alerts" className="font-semibold text-accent">See all →</Link>
+        </span>
+      </div>
+      {a.items.length ? (
+        a.items.slice(0, 5).map((x) => <AlertRow key={x.id} a={x} />)
+      ) : (
+        <p className="px-3 py-4 text-sm text-muted">No activity yet. New members, things to review, reports and gifts will show here.</p>
+      )}
+    </section>
   )
 }

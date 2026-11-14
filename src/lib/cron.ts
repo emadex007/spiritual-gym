@@ -13,6 +13,7 @@ import { buildWeekly, newToken, sendBatch } from '~/lib/weekly'
 import { usageAlerts } from '~/lib/usage'
 import { runMailQueue } from '~/lib/mail'
 import { adminDailySummary } from '~/lib/welcome-mail'
+import { pruneAdminAlerts } from '~/lib/admin-alerts'
 
 const REMINDERS = [
   'Your time with God is waiting.',
@@ -39,6 +40,7 @@ export async function runCron(now = Date.now()) {
           db().prepare(`DELETE FROM error_log WHERE last_at < datetime('now', '-30 days')`),
           db().prepare(`DELETE FROM schedule_sent WHERE occurrence < ?`).bind(new Date(now - 7 * 86_400_000).toISOString()),
         ])
+        await pruneAdminAlerts()
       },
     ])
   }
