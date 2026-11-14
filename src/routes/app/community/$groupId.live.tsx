@@ -6,7 +6,7 @@ import { CAMERA_LIMIT, LIVE_ROOM_LIMIT, groupKind, groupLook } from '~/lib/conte
 import { useMeeting } from '~/hooks/useMeeting'
 import { MeetingShell, shareInvite } from '~/components/MeetingRoom'
 import { SunriseScene } from '~/components/Art'
-import { nextStart, relativeStart } from '~/lib/schedule'
+import { describeSchedule, nextStart, relativeStart } from '~/lib/schedule'
 import { Glyph, LineIcon } from '~/components/LineIcon'
 import { MEETING_LENGTHS, SizePicker, lengthLabel, type MeetingSize } from '~/components/SizePicker'
 import { setGroupLiveSize } from '~/fns/community'
@@ -71,7 +71,7 @@ function GroupLive() {
                   ? 'No one is here yet. Start it and the group will be told it’s live.'
                   : 'It hasn’t started yet. A leader will start it, and you’ll get a notification.'}
           </p>
-          {next && <p className="mx-auto mt-4 inline-block rounded-full bg-white/10 px-4 py-1.5 text-sm"><LineIcon name="clock" className="mr-1.5 inline h-4 w-4 -translate-y-px" />{next.s.title}: {relativeStart(next.t!, next.s.duration_min)}</p>}
+          {next && <p className="mx-auto mt-4 inline-block rounded-full bg-white/10 px-4 py-1.5 text-sm"><LineIcon name="clock" className="mr-1.5 inline h-4 w-4 -translate-y-px" />{next.s.title}: {relativeStart(next.t!, next.s.duration_min)}<span className="block text-xs text-white/70">{describeSchedule(next.s)}</span></p>}
           {meet.status === 'denied' && <p className="mt-5 rounded-2xl bg-white/10 px-4 py-3 text-sm">The host didn’t let you in this time.</p>}
           {meet.status === 'ended' && meet.endReason === 'time' && <p className="mt-5 rounded-2xl bg-white/10 px-4 py-3 text-sm">The meeting has ended: its time is up.</p>}
           {meet.status === 'removed' && <p className="mt-5 rounded-2xl bg-white/10 px-4 py-3 text-sm">The leader removed you from this meeting.</p>}

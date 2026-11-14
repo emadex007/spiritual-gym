@@ -3,9 +3,9 @@ import { db } from '~/lib/env'
 import { logError } from '~/lib/errors'
 import { kickDispatcher, notify, notifyMany, pushConfigured } from '~/lib/notify'
 import { dayLabel, planByKey, planDays, type PlanDay } from '~/lib/plans'
-import { dayOfYear, daysBetween } from '~/lib/util'
+import { dayOfYear, daysBetween, newId } from '~/lib/util'
 import { fastKind, fastState, type FastRow } from '~/lib/fasting'
-import { nextStart, type Schedule } from '~/lib/schedule'
+import { nextOccurrence, nextStart, type Schedule } from '~/lib/schedule'
 import { env } from '~/lib/env'
 import { buildWeekly, newToken, sendBatch } from '~/lib/weekly'
 import { usageAlerts } from '~/lib/usage'
@@ -55,7 +55,7 @@ export async function runCron(now = Date.now()) {
 async function scheduleReminders(now: number) {
   const { results } = await db()
     .prepare(
-      `SELECT s.id, s.title, s.days, s.time, s.timezone, s.duration_min, g.id AS group_id, g.name AS group_name
+      `SELECT s.id, s.title, s.days, s.time, s.timezone, s.duration_min, s.repeats, s.on_date, s.nth, g.id AS group_id, g.name AS group_name
        FROM prayer_schedules s JOIN prayer_groups g ON g.id = s.group_id WHERE g.is_hidden = 0`,
     )
     .all<Schedule & { group_id: string; group_name: string }>()
@@ -355,4 +355,32 @@ async function meetingReminders(now: number) {
          AND datetime(MAX(datetime(starts_at), datetime(COALESCE(started_at, starts_at))), '+' || (duration_min + CASE WHEN live_count > 0 THEN 65 ELSE 5 END) || ' minutes') < datetime('now')`,
     )
     .run()
+  await nextInSeries(now)
+}
+
+/** Weekly and monthly church meetings: when one is over, put the next date on the calendar (same time, same settings).
+ *  Deleting a meeting ends its series. */
+async function nextInSeries(now: number) {
+  const { results } = await db()
+    .prepare(
+      `SELECT id, church_id, title, kind, description, starts_at, duration_min, size, repeats, timezone, created_by FROM church_meetings
+       WHERE repeats IN ('weekly', 'monthly') AND status = 'ended' AND next_made = 0 LIMIT 10`,
+    )
+    .all<{ id: string; church_id: string; title: string; kind: string; description: string | null; starts_at: string; duration_min: number; size: string; repeats: string; timezone: string; created_by: string | null }>()
+  for (const m of results) {
+    // Claim it first, so two runs never add the same date twice
+    const claim = await db().prepare('UPDATE church_meetings SET next_made = 1 WHERE id = ? AND next_made = 0').bind(m.id).run()
+    if (!claim.meta.changes) continue
+    // The next date that hasn't already passed (if the app was quiet for a while, skip what's gone)
+    let t: number | null = Date.parse(m.starts_at)
+    for (let i = 0; i < 60 && t != null && t + m.duration_min * 60_000 <= now; i++) t = nextOccurrence(t, m.repeats, m.timezone)
+    if (t == null) continue
+    await db()
+      .prepare(
+        `INSERT INTO church_meetings (id, church_id, title, kind, description, starts_at, duration_min, size, repeats, timezone, created_by)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      )
+      .bind(newId(), m.church_id, m.title, m.kind, m.description, new Date(t).toISOString(), m.duration_min, m.size, m.repeats, m.timezone, m.created_by)
+      .run()
+  }
 }

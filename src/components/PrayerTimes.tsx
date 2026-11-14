@@ -4,8 +4,8 @@ import { deleteSchedule, saveSchedule, setGroupNotify } from '~/fns/community'
 import { describeSchedule, nextStart, relativeStart, type Schedule } from '~/lib/schedule'
 import { FormError, errorText } from '~/components/AuthShell'
 import { LineIcon } from '~/components/LineIcon'
+import { WhenPicker, defaultWhen, whenData, whenReady, type When } from '~/components/WhenPicker'
 
-const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
 export function PrayerTimes({ groupId, schedules, canSchedule, isMember, notifyOn, prayer = true, liveCount = 0 }: { groupId: string; schedules: Schedule[]; canSchedule: boolean; isMember: boolean; notifyOn: boolean; prayer?: boolean; liveCount?: number }) {
   const word = prayer ? 'prayer time' : 'meeting time'
@@ -22,6 +22,8 @@ export function PrayerTimes({ groupId, schedules, canSchedule, isMember, notifyO
 
   const upcoming = schedules
     .map((s) => ({ s, start: nextStart(s, now) }))
+    // A one-off date that has passed drops off the list
+    .filter(({ s, start }) => start != null || s.repeats !== 'once')
     .sort((a, b) => (a.start ?? Infinity) - (b.start ?? Infinity))
 
   async function toggleNotify() {
@@ -77,10 +79,8 @@ export function PrayerTimes({ groupId, schedules, canSchedule, isMember, notifyO
 function AddTime({ groupId, prayer, onDone }: { groupId: string; prayer: boolean; onDone: () => void }) {
   const router = useRouter()
   const [title, setTitle] = useState('')
-  const [daily, setDaily] = useState(false)
-  const [days, setDays] = useState<number[]>([new Date().getDay()])
-  const [time, setTime] = useState('21:00')
-  const [duration, setDuration] = useState(30)
+  const [when, setWhen] = useState<When>(defaultWhen)
+  const [duration, setDuration] = useState(60)
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
 
@@ -89,7 +89,7 @@ function AddTime({ groupId, prayer, onDone }: { groupId: string; prayer: boolean
     setError(null)
     try {
       await saveSchedule({
-        data: { groupId, title: title || (prayer ? 'Group prayer' : 'Group meeting'), days: daily ? 'daily' : days.join(','), time, durationMin: duration, timezone: Intl.DateTimeFormat().resolvedOptions().timeZone },
+        data: { groupId, title: title || (prayer ? 'Group prayer' : 'Group meeting'), ...whenData(when), durationMin: duration, timezone: Intl.DateTimeFormat().resolvedOptions().timeZone },
       })
       await router.invalidate()
       onDone()
@@ -102,34 +102,18 @@ function AddTime({ groupId, prayer, onDone }: { groupId: string; prayer: boolean
   return (
     <div className="fade-in mt-4 space-y-3 border-t border-line pt-4">
       <input className="input" placeholder={prayer ? 'Name, e.g. Night Watch' : 'Name, e.g. Tuesday Bible Study'} value={title} onChange={(e) => setTitle(e.target.value)} maxLength={60} />
-      <div className="flex flex-wrap gap-1.5">
-        <button type="button" onClick={() => setDaily(!daily)} className={`chip !px-3 !py-1.5 text-xs ${daily ? 'chip-on' : ''}`}>Every day</button>
-        {!daily && DAYS.map((d, i) => {
-          const on = days.includes(i)
-          return (
-            <button key={d} type="button" onClick={() => setDays(on ? days.filter((x) => x !== i) : [...days, i])} className={`chip !px-3 !py-1.5 text-xs ${on ? 'chip-on' : ''}`}>
-              {d}
-            </button>
-          )
-        })}
-      </div>
-      <div className="grid grid-cols-2 gap-3">
-        <label className="block">
-          <span className="label">Start time</span>
-          <input type="time" className="input" value={time} onChange={(e) => setTime(e.target.value)} />
-        </label>
-        <label className="block">
-          <span className="label">How long</span>
-          <select className="input" value={duration} onChange={(e) => setDuration(Number(e.target.value))}>
-            {[15, 30, 45, 60, 90, 120].map((m) => <option key={m} value={m}>{m < 60 ? `${m} min` : `${m / 60} hour${m > 60 ? 's' : ''}`}</option>)}
-          </select>
-        </label>
-      </div>
+      <WhenPicker value={when} onChange={setWhen} />
+      <label className="block">
+        <span className="label">How long</span>
+        <select className="input" value={duration} onChange={(e) => setDuration(Number(e.target.value))}>
+          {[15, 30, 45, 60, 90, 120, 180, 240].map((m) => <option key={m} value={m}>{m < 60 ? `${m} min` : `${m / 60} hour${m > 60 ? 's' : ''}`.replace('1.5 hours', '1½ hours')}</option>)}
+        </select>
+      </label>
       <p className="text-xs text-muted">Members get a reminder 15 minutes before. Times use your current time zone.</p>
       <FormError message={error} />
       <div className="flex gap-2">
         <button type="button" className="btn-ghost !py-2" onClick={onDone}>Cancel</button>
-        <button type="button" className="btn-primary !py-2" disabled={busy || (!daily && !days.length)} onClick={save}>{busy ? 'Saving…' : prayer ? 'Save prayer time' : 'Save meeting time'}</button>
+        <button type="button" className="btn-primary !py-2" disabled={busy || !whenReady(when)} onClick={save}>{busy ? 'Saving…' : prayer ? 'Save prayer time' : 'Save meeting time'}</button>
       </div>
     </div>
   )

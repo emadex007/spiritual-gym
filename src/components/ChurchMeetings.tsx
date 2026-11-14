@@ -3,6 +3,7 @@ import { MEETING_LENGTHS, SizePicker, lengthLabel, type MeetingSize } from '~/co
 import { Link, useRouter } from '@tanstack/react-router'
 import { listMeetings, meetingAction, saveMeeting, startInstantMeeting } from '~/fns/meetings'
 import { MEETING_KINDS, meetingKind, meetingTime } from '~/lib/content'
+import { describeRepeat } from '~/lib/schedule'
 import { errorText } from '~/components/AuthShell'
 import { Portal } from '~/components/Portal'
 import { Glyph, LineIcon } from '~/components/LineIcon'
@@ -87,6 +88,9 @@ export function ChurchMeetings({ churchId }: { churchId: string }) {
                   <p className="text-xs font-semibold text-accent uppercase">{k.label}</p>
                   <p className="font-display text-lg font-semibold">{m.title}</p>
                   <p className="text-sm text-muted"><LineIcon name="calendar" className="mr-1 inline h-3.5 w-3.5 -translate-y-px" />{meetingTime(m.starts_at)} · {m.duration_min} min</p>
+                  {(m.repeats === 'weekly' || m.repeats === 'monthly') && (
+                    <p className="mt-0.5 text-xs font-semibold text-accent"><LineIcon name="history" className="mr-1 inline h-3.5 w-3.5 -translate-y-px" />{describeRepeat(Date.parse(m.starts_at), m.repeats, m.timezone)}</p>
+                  )}
                   {m.description && <p className="mt-1 text-sm">{m.description}</p>}
                 </div>
               </div>
@@ -231,7 +235,7 @@ function QuickStart({ onClose, onStart, busy }: { onClose: () => void; onStart: 
 function MeetingForm({ initial, onClose, onSave, busy, error }: {
   initial: Partial<Meeting>
   onClose: () => void
-  onSave: (v: { title: string; kind: string; description: string; startsAt: string; durationMin: number; size: MeetingSize }) => void
+  onSave: (v: { title: string; kind: string; description: string; startsAt: string; durationMin: number; size: MeetingSize; repeats: string; timezone: string }) => void
   busy: boolean
   error: string | null
 }) {
@@ -246,12 +250,15 @@ function MeetingForm({ initial, onClose, onSave, busy, error }: {
   const [when, setWhen] = useState(localInput(initial.starts_at ? new Date(initial.starts_at) : defaultStart()))
   const [duration, setDuration] = useState(initial.duration_min ?? 60)
   const [size, setSize] = useState<MeetingSize>(initial.size === 'large' || initial.size === 'event' ? initial.size : 'small')
+  const [repeats, setRepeats] = useState(initial.repeats === 'weekly' || initial.repeats === 'monthly' ? initial.repeats : 'once')
+  const tz = Intl.DateTimeFormat().resolvedOptions().timeZone
+  const startMs = Date.parse(when)
   return (
     <Dialog title={initial.id ? 'Edit meeting' : 'Schedule a meeting'} onClose={onClose}>
       <form
         onSubmit={(e) => {
           e.preventDefault()
-          onSave({ title: title || meetingKind(kind).label, kind, description, startsAt: new Date(when).toISOString(), durationMin: duration, size })
+          onSave({ title: title || meetingKind(kind).label, kind, description, startsAt: new Date(when).toISOString(), durationMin: duration, size, repeats, timezone: tz })
         }}
       >
         <KindPicker kind={kind} setKind={setKind} />
@@ -259,7 +266,7 @@ function MeetingForm({ initial, onClose, onSave, busy, error }: {
           Title
           <input className="input mt-1" value={title} maxLength={100} placeholder={meetingKind(kind).label} onChange={(e) => setTitle(e.target.value)} />
         </label>
-        <div className="mt-3 grid grid-cols-[1fr_auto] gap-3">
+        <div className="mt-3 grid gap-3 sm:grid-cols-[1fr_auto]">
           <label className="block text-sm font-semibold">
             Date and time
             <input className="input mt-1" type="datetime-local" value={when} onChange={(e) => setWhen(e.target.value)} required />
@@ -272,6 +279,25 @@ function MeetingForm({ initial, onClose, onSave, busy, error }: {
               ))}
             </select>
           </label>
+        </div>
+        <div className="mt-3">
+          <span className="text-sm font-semibold">Repeats</span>
+          <div className="mt-1 grid grid-cols-3 gap-1.5" role="radiogroup" aria-label="Repeats">
+            {[
+              ['once', 'Just once'],
+              ['weekly', 'Every week'],
+              ['monthly', 'Every month'],
+            ].map(([k, label]) => (
+              <button key={k} type="button" role="radio" aria-checked={repeats === k} onClick={() => setRepeats(k)} className={`chip !justify-center !px-2 !py-2 text-xs ${repeats === k ? 'chip-on' : ''}`}>
+                {label}
+              </button>
+            ))}
+          </div>
+          {Number.isFinite(startMs) && (
+            <p className="mt-2 rounded-2xl bg-accent-soft/60 px-3 py-2 text-sm font-semibold text-accent">
+              {repeats === 'once' ? `One meeting · ${meetingTime(new Date(startMs).toISOString())}` : `${describeRepeat(startMs, repeats, tz)}. The next date is added after each meeting.`}
+            </p>
+          )}
         </div>
         <label className="mt-3 block text-sm font-semibold">
           Details <span className="font-normal text-muted">(optional)</span>
