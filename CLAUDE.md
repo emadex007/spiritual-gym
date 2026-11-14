@@ -23,10 +23,16 @@ Free Christian spiritual-growth web app (installable PWA) at therenewgym.org. Ow
 - Daily word: `devotions` table (reflection = multi-paragraph devotion ending "Today: …").
 - Picture uploads: best sizes in `src/lib/image-sizes.ts`; resize with `fitImage` (`src/lib/fit-image.ts`) and show
   `<PictureHint kind=… />`. Add any new upload to both.
+- New public things for everyone: `announceNew()` (`src/lib/public-news.ts`). Call it when anything new goes public.
 - Admin alerts: `adminAlert()` (`src/lib/admin-alerts.ts`), categories in `src/lib/alert-types.ts`, page `admin/alerts.tsx`.
 - Notifications: `src/lib/notify.ts`, `public/sw.js` (focus mode), `src/lib/push-client.ts` (`syncPush` self-repair).
 
 ## Change log (newest first)
+- 2026-11-14 · Home: "New books" and "New topic plans" sliders (`src/components/NewOnShelf.tsx`, `newOnShelf()` in
+  `src/fns/home.ts`, 10 newest each, "New" badge for 14 days). Public news (migration 0053 `public_news`,
+  `profiles.notify_new`): `announceNew()` in `src/lib/public-news.ts` on book publish/approve, topic plan approve, new
+  journey, new public event; cron `sendNews` sends 8am–9pm Lagos, max every 4 h, several in one notification, skips things
+  no longer public, drops after 3 days. Audience `{ all: true, optIn: 'notify_new' }`. Setting "New in the app" in Profile.
 - 2026-11-14 · Admin alerts (migration 0052 `admin_alerts`, `admin_alert_seen`; backfills what's waiting + last week's members).
   `adminAlert()` in `src/lib/admin-alerts.ts` saves to the feed, pushes and emails admins per settings (`src/lib/alert-types.ts`:
   review / report / member / community / gift; keys `alert_<cat>_email|push`, new-member email keeps `admin_signup_email`),

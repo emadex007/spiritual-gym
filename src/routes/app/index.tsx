@@ -12,6 +12,7 @@ import { Avatar } from '~/components/Avatar'
 import { InstallApp } from '~/components/InstallApp'
 import { NotificationBell } from '~/components/NotificationBell'
 import { ComingUp } from '~/components/ComingUp'
+import { NewBooks, NewPlans } from '~/components/NewOnShelf'
 import { ShareButton } from '~/components/ShareButton'
 import { ListenButton } from '~/components/ListenButton'
 import { DevotionIcon } from '~/components/Art'
@@ -181,6 +182,10 @@ function Home() {
 
       {/* Events and group meetings coming up (public, or ones I'm in) */}
       <ComingUp items={h.comingUp} />
+
+      {/* The newest books and topic plans, each in its own slider */}
+      <NewBooks items={h.newBooks} />
+      <NewPlans items={h.newPlans} />
 
       <InstallApp variant="banner" />
 

@@ -1,4 +1,5 @@
 import { createServerFn } from '@tanstack/react-start'
+import { announceNew } from '~/lib/public-news'
 import { db, env } from '~/lib/env'
 import { requireUser } from '~/lib/auth'
 import { requireAdmin, audit } from '~/lib/admin'
@@ -420,6 +421,7 @@ export const reviewTopicPlan = createServerFn({ method: 'POST' })
       .bind(data.approve ? 'approved' : 'declined', data.note, data.approve ? 1 : 0, data.id)
       .run()
     await audit(admin, data.approve ? 'topic.approve' : 'topic.decline', data.id, p.title)
+    if (data.approve) await announceNew({ kind: 'plan', id: p.id, title: p.title, url: `/app/topics/${p.id}` })
     await notify(
       { userIds: [p.author_id] },
       data.approve

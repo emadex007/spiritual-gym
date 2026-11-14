@@ -4,6 +4,7 @@ import { audit, requireAdmin } from '~/lib/admin'
 import { currentUser } from '~/lib/auth'
 import { dayString, newId, weekOfYear } from '~/lib/util'
 import { notify } from '~/lib/notify'
+import { announceNew } from '~/lib/public-news'
 import { confirmDonation, payConfig, testKey } from '~/lib/donations'
 import { checkAwards } from '~/lib/award-server'
 import { siteOrigin } from '~/lib/origin'
@@ -303,6 +304,7 @@ export const adminSaveJourney = createServerFn({ method: 'POST' })
     ]
     await db().batch(stmts)
     await audit(admin, 'journey.save', id, `${data.title} (${data.days.length} days)`)
+    if (!data.id) await announceNew({ kind: 'journey', id, title: data.title, url: '/app/train' })
     return { id }
   })
 

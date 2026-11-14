@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { getNotifySettings, getPushConfig, removePushSubscription, savePushSubscription, setNewsEmail, setWeeklyEmail, updateNotifySettings } from '~/fns/notifications'
+import { getNotifySettings, getPushConfig, removePushSubscription, savePushSubscription, setNewsEmail, setNotifyNew, setWeeklyEmail, updateNotifySettings } from '~/fns/notifications'
 import { disablePush, enablePush, pushState, type PushState } from '~/lib/push-client'
 import { LineIcon } from '~/components/LineIcon'
 
@@ -13,7 +13,7 @@ const TIMES = Array.from({ length: 36 }, (_, i) => {
 export function NotificationSettings() {
   const [state, setState] = useState<PushState | 'loading'>('loading')
   const [config, setConfig] = useState<{ publicKey: string; enabled: boolean } | null>(null)
-  const [prefs, setPrefs] = useState<{ reminderTime: string | null; wordTime: string | null; planTime: string | null; timezone: string; notifyPrayed: boolean; notifyReplies: boolean; weeklyEmail: boolean; newsEmail: boolean } | null>(null)
+  const [prefs, setPrefs] = useState<{ reminderTime: string | null; wordTime: string | null; planTime: string | null; timezone: string; notifyPrayed: boolean; notifyReplies: boolean; weeklyEmail: boolean; newsEmail: boolean; notifyNew: boolean } | null>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [saved, setSaved] = useState(false)
@@ -142,6 +142,13 @@ export function NotificationSettings() {
           </label>
         )
       })}
+      <label className="flex cursor-pointer items-center justify-between gap-4">
+        <span className="text-sm">
+          New in the app
+          <span className="block text-xs text-muted">New books, topic plans, journeys and public events. In the daytime, at most every few hours.</span>
+        </span>
+        <input type="checkbox" className="h-5 w-5 accent-[#4f7a63]" checked={prefs.notifyNew} onChange={async () => { const on = !prefs.notifyNew; setPrefs({ ...prefs, notifyNew: on }); setSaved(false); await setNotifyNew({ data: { on } }); setSaved(true) }} />
+      </label>
       <label className="flex cursor-pointer items-center justify-between gap-4 border-t border-line pt-4">
         <span className="text-sm">
           <LineIcon name="mail" className="mr-1.5 inline h-4 w-4 -translate-y-px" />Weekly email: “Your week with God”

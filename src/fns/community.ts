@@ -1,4 +1,5 @@
 import { createServerFn } from '@tanstack/react-start'
+import { announceNew } from '~/lib/public-news'
 import { asSize } from '~/lib/sfu'
 import { asRepeat, describeSchedule } from '~/lib/schedule'
 import { invitePath } from '~/lib/invite'
@@ -163,6 +164,7 @@ export const createGroup = createServerFn({ method: 'POST' })
           ]
         : []),
     ])
+    if (data.isEvent && !data.isPrivate) await announceNew({ kind: 'event', id, title: data.name, url: `/app/community/${id}` })
     await adminAlert({
       cat: 'community',
       title: `New ${data.isEvent ? 'event' : 'group'}: ${data.name}`,
