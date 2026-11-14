@@ -2,7 +2,7 @@ import { createServerFn } from '@tanstack/react-start'
 import { db } from '~/lib/env'
 import { communityAccess, requireCommunityUser, requireUser } from '~/lib/auth'
 import { TESTIMONY_CATEGORIES } from '~/lib/content'
-import { notify } from '~/lib/notify'
+import { adminAlert } from '~/lib/admin-alerts'
 import { newId } from '~/lib/util'
 
 type Card = {
@@ -84,8 +84,7 @@ export const submitTestimony = createServerFn({ method: 'POST' })
       .prepare('INSERT INTO testimonies (id, user_id, prayer_item_id, category, title, body, scripture, is_anonymous) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
       .bind(newId(), user.id, prayer?.id ?? null, data.category, data.title, data.body, data.scripture, data.anonymous)
       .run()
-    const { results: admins } = await db().prepare(`SELECT id FROM users WHERE role = 'admin'`).all<{ id: string }>()
-    await notify({ userIds: admins.map((a) => a.id) }, { kind: 'admin', title: '🎉 New testimony to review', body: data.title, url: '/admin/testimonies' }, { push: false })
+    await adminAlert({ cat: 'review', title: 'New testimony to review', body: `“${data.title}” by ${data.anonymous ? 'someone (anonymous)' : user.name}`, url: '/admin/testimonies', actorId: user.id })
     return { ok: true }
   })
 

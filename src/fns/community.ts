@@ -8,6 +8,7 @@ import { requireCommunityUser as requireUser } from '~/lib/auth'
 import { GROUP_KINDS, PRAYER_PURPOSES, POST_KINDS, REPORT_REASONS, groupKind } from '~/lib/content'
 import { newId } from '~/lib/util'
 import { notify } from '~/lib/notify'
+import { adminAlert } from '~/lib/admin-alerts'
 import { sendEmail } from '~/lib/email'
 import { env } from '~/lib/env'
 
@@ -162,6 +163,13 @@ export const createGroup = createServerFn({ method: 'POST' })
           ]
         : []),
     ])
+    await adminAlert({
+      cat: 'community',
+      title: `New ${data.isEvent ? 'event' : 'group'}: ${data.name}`,
+      body: `${groupKind(data.kind).label} · ${data.isPrivate ? 'private' : 'public'} · created by ${user.name}`,
+      url: '/admin/community',
+      actorId: user.id,
+    })
     return { id }
   })
 
@@ -553,6 +561,7 @@ export const reportContent = createServerFn({ method: 'POST' })
       .prepare('INSERT INTO reports (id, reporter_id, target_type, target_id, reason) VALUES (?, ?, ?, ?, ?)')
       .bind(newId(), user.id, data.targetType, data.targetId, data.reason)
       .run()
+    await adminAlert({ cat: 'report', title: `New report: a ${data.targetType === 'user' ? 'person' : data.targetType}`, body: `${data.reason} (reported by ${user.name})`, url: '/admin/reports', actorId: user.id })
     return { ok: true }
   })
 

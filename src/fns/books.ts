@@ -6,6 +6,7 @@ import { askCoach } from '~/lib/coach'
 import { dayString, newId } from '~/lib/util'
 import { BOOK_CATEGORIES, splitDays } from '~/lib/books'
 import { notify } from '~/lib/notify'
+import { adminAlert } from '~/lib/admin-alerts'
 import { sendEmail } from '~/lib/email'
 import { circleInfo, inviteCode, listComments } from '~/lib/reading'
 
@@ -380,8 +381,7 @@ export const submitBook = createServerFn({ method: 'POST' })
       .prepare(`UPDATE books SET author = ?, description = ?, author_bio = ?, category = ?, share_status = 'submitted', share_note = NULL, submitted_at = datetime('now') WHERE id = ?`)
       .bind(data.author, data.description, data.authorBio, data.category, data.id)
       .run()
-    const admins = await db().prepare(`SELECT id FROM users WHERE role = 'admin'`).all<{ id: string }>()
-    await notify({ userIds: admins.results.map((a) => a.id) }, { kind: 'admin', title: `New book to review: ${b.title}`, body: `By ${data.author}. Read it and approve it for the library.`, url: '/admin/books' })
+    await adminAlert({ cat: 'review', title: `New book to review: ${b.title}`, body: `By ${data.author}${data.author.toLowerCase() === user.name.toLowerCase() ? '' : `, sent by ${user.name}`}. Read it and approve it for the library.`, url: '/admin/books', actorId: user.id })
     return { ok: true, live: false }
   })
 

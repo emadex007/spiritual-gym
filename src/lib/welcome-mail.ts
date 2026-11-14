@@ -9,6 +9,7 @@ import { db, env } from '~/lib/env'
 import { sendEmail } from '~/lib/email'
 import { countSent, dailyLimit, escapeHtml, sentToday } from '~/lib/mail'
 import { siteUrl } from '~/lib/weekly'
+import { adminAlert } from '~/lib/admin-alerts'
 
 const SIGNUP_ALERTS = 15
 /** Welcome and admin emails may use a few of the slots kept back from news emails (password resets still have room) */
@@ -52,6 +53,7 @@ async function send(to: string, subject: string, m: { html: string; text: string
 
 /** A new member joined (email + password, or Google). Never throws: signing up must not fail because of email. */
 export async function onNewMember(u: { id: string; name: string; email: string }, via: 'email' | 'google') {
+  await adminAlert({ id: `u-${u.id}`, cat: 'member', title: `${u.name} joined`, body: `${u.email} · signed up ${via === 'google' ? 'with Google' : 'with email'}`, url: '/admin/users', actorId: u.id, email: false })
   if (!env().RESEND_API_KEY) return
   try {
     const first = u.name.trim().split(/\s+/)[0] || 'friend'

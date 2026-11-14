@@ -2,6 +2,7 @@
 // Amounts are stored in hundredths (kobo, cents…). A gift is only marked paid after we confirm it with the provider's API.
 import { db, env } from '~/lib/env'
 import { notify } from '~/lib/notify'
+import { adminAlert } from '~/lib/admin-alerts'
 import { sendEmail } from '~/lib/email'
 import { CURRENCIES, formatMoney } from '~/lib/give'
 
@@ -146,7 +147,10 @@ export async function confirmDonation(reference: string) {
       .prepare(`UPDATE donations SET status = 'success', provider_ref = ?, amount_minor = ?, paid_at = datetime('now') WHERE id = ? AND status != 'success'`)
       .bind(c.providerRef, c.amountMinor, d.id)
       .run()
-    if (r.meta.changes) await thankGiver({ ...d, amount_minor: c.amountMinor })
+    if (r.meta.changes) {
+      await thankGiver({ ...d, amount_minor: c.amountMinor })
+      await adminAlert({ id: `gift-${d.id}`, cat: 'gift', title: `New gift: ${formatMoney(c.amountMinor / 100, d.currency)}`, body: `From ${d.name || 'someone'}${d.mode === 'test' ? ' (a test payment)' : ''}. Thank God!`, url: '/admin/donations', actorId: d.user_id })
+    }
     return { ...d, status: 'success', amount_minor: c.amountMinor }
   }
   if (c.failed) {

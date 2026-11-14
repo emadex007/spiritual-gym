@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react'
-import { createFileRoute, useRouter } from '@tanstack/react-router'
+import { Link, createFileRoute, useRouter } from '@tanstack/react-router'
 import { getAdminSettings, saveSettings } from '~/fns/admin'
 import { Field, PageHead, Toast } from '~/components/AdminUI'
 import { FormError, errorText } from '~/components/AuthShell'
@@ -130,24 +130,12 @@ function Settings() {
           </Field>
         </section>
 
-        <section className="card space-y-4">
+        <section className="card flex flex-wrap items-center justify-between gap-3">
           <div>
-            <p className="font-semibold">Emails to admins</p>
-            <p className="mt-1 text-sm text-muted">Sent to every admin’s email address. New members always get a welcome email.</p>
+            <p className="font-semibold">Emails and phone alerts to admins</p>
+            <p className="mt-1 text-sm text-muted">New members, things to review, reports, gifts, the daily summary: now in Admin → Alerts.</p>
           </div>
-          {([
-            ['admin_signup_email', 'An email when someone new signs up', 'Up to 15 a day. After that, new members are listed in the evening summary.'],
-            ['admin_daily_email', 'A daily summary at 7pm', 'New members, workouts, live prayer, meetings, and anything waiting for you to review. Not sent on a day with no activity.'],
-          ] as const).map(([key, label, hint]) => (
-            <label key={key} className="flex cursor-pointer items-start gap-3 rounded-2xl border border-line px-4 py-3">
-              <input type="checkbox" className="mt-1 h-5 w-5 shrink-0 accent-[var(--color-accent)]" checked={(f[key] ?? '1') === '1'} onChange={(e) => (setF({ ...f, [key]: e.target.checked ? '1' : '0' }), setMsg(null))} />
-              <span><span className="font-semibold">{label}</span><span className="mt-0.5 block text-sm text-muted">{hint}</span></span>
-            </label>
-          ))}
-          <Field label="Also send them to" hint="Optional. Other email addresses, separated by commas (for example a team inbox).">
-            <input className="input" placeholder="e.g. team@therenewgym.org" value={f.admin_email_to ?? ''} onChange={set('admin_email_to')} />
-          </Field>
-          <p className="text-xs text-muted">The free email plan allows about 100 emails a day in total (welcome emails, these, and weekly emails). See Admin → Mail for today’s count.</p>
+          <Link to="/admin/alerts" className="btn-ghost !px-4 !py-2 text-sm">Open Alerts →</Link>
         </section>
 
         <section className="card space-y-4">
