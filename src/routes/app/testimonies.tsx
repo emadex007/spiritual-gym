@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { createFileRoute, useRouter } from '@tanstack/react-router'
-import { deleteMyTestimony, listTestimonies, reactTestimony, submitTestimony } from '~/fns/testimonies'
+import { deleteMyTestimony, editMyTestimony, listTestimonies, reactTestimony, submitTestimony } from '~/fns/testimonies'
 import { TESTIMONY_CATEGORIES, testimonyCategory } from '~/lib/content'
 import { Avatar, timeAgo } from '~/components/Avatar'
 import { ReportDialog } from '~/components/ReportDialog'
@@ -71,6 +71,10 @@ function Testimonies() {
 function TestimonyCard({ t, onReport }: { t: Data['wall'][number]; onReport: () => void }) {
   const router = useRouter()
   const [open, setOpen] = useState(false)
+  const [editing, setEditing] = useState(false)
+  const [ed, setEd] = useState({ title: t.title, body: t.body, scripture: t.scripture ?? '' })
+  const [edErr, setEdErr] = useState<string | null>(null)
+  const [edDone, setEdDone] = useState(false)
   const [mine, setMine] = useState({ amen: !!t.my_amen, praise: !!t.my_praise, amens: t.amens, praises: t.praises })
   const c = testimonyCategory(t.category)
   const long = t.body.length > 320
@@ -92,16 +96,51 @@ function TestimonyCard({ t, onReport }: { t: Data['wall'][number]; onReport: () 
           <p className="text-xs text-muted"><Glyph e={c.emoji} className="mr-1 inline h-3.5 w-3.5 -translate-y-px" />{c.label} · {timeAgo(t.approved_at)}</p>
         </div>
       </div>
+      {editing ? (
+        <div className="mt-3 space-y-2">
+          <input className="input font-display text-lg" value={ed.title} maxLength={100} onChange={(e) => setEd({ ...ed, title: e.target.value })} aria-label="Title" />
+          <textarea className="input min-h-32" value={ed.body} maxLength={2000} onChange={(e) => setEd({ ...ed, body: e.target.value })} aria-label="Your testimony" />
+          <input className="input" value={ed.scripture} maxLength={80} placeholder="Scripture (optional)" onChange={(e) => setEd({ ...ed, scripture: e.target.value })} aria-label="Scripture" />
+          <p className="text-xs text-muted">After you save, it’s checked again before it shows on the wall (usually within a day).</p>
+          {edErr && <p className="text-sm text-red-600">{edErr}</p>}
+          <div className="flex gap-2">
+            <button type="button" className="btn-ghost" onClick={() => (setEditing(false), setEdErr(null))}>Cancel</button>
+            <button
+              type="button"
+              className="btn-primary"
+              onClick={async () => {
+                setEdErr(null)
+                try {
+                  await editMyTestimony({ data: { id: t.id, ...ed } })
+                  setEditing(false)
+                  setEdDone(true)
+                } catch (e) {
+                  setEdErr(e instanceof Error ? e.message : 'Couldn’t save. Try again.')
+                }
+              }}
+            >
+              Save
+            </button>
+          </div>
+        </div>
+      ) : (
+      <>
+      {edDone && <p className="mt-3 rounded-xl bg-sage-soft px-3 py-2 text-sm text-sage">Saved. It will show again once it’s been checked.</p>}
       <h2 className="mt-3 font-display text-xl font-semibold">{t.title}</h2>
       <p className="mt-1 leading-relaxed whitespace-pre-wrap">{open || !long ? t.body : t.body.slice(0, 300) + '…'}</p>
       {long && <button type="button" className="mt-1 text-sm font-semibold text-accent" onClick={() => setOpen(!open)}>{open ? 'Show less' : 'Read more'}</button>}
       {t.scripture && <p className="mt-2 text-sm font-semibold text-accent"><LineIcon name="bookOpen" className="mr-1 inline h-4 w-4 -translate-y-px" />{t.scripture}</p>}
+      </>
+      )}
       <div className="mt-4 flex flex-wrap items-center gap-2">
         <button type="button" onClick={() => react('amen')} className={`rounded-full px-4 py-2 text-sm font-semibold transition ${mine.amen ? 'bg-navy text-white dark:bg-accent' : 'bg-surface-2'}`}>🙏 Amen {mine.amens > 0 && mine.amens}</button>
         <button type="button" onClick={() => react('praise')} className={`rounded-full px-4 py-2 text-sm font-semibold transition ${mine.praise ? 'bg-gold text-navy' : 'bg-surface-2'}`}>🎉 Praise God {mine.praises > 0 && mine.praises}</button>
         <span className="ml-auto flex gap-3 text-xs text-muted">
           {t.mine ? (
-            <button type="button" className="underline" onClick={async () => { if (confirm('Remove your testimony from the wall?')) { await deleteMyTestimony({ data: { id: t.id } }); await router.invalidate() } }}>Remove</button>
+            <>
+              <button type="button" className="underline" onClick={() => setEditing(true)}>Edit</button>
+              <button type="button" className="underline" onClick={async () => { if (confirm('Remove your testimony from the wall?')) { await deleteMyTestimony({ data: { id: t.id } }); await router.invalidate() } }}>Remove</button>
+            </>
           ) : (
             <button type="button" className="underline" onClick={onReport}>Report</button>
           )}

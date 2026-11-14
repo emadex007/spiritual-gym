@@ -19,7 +19,7 @@ export function PushTest() {
     try {
       // Make sure this phone's registration is fresh and saved first
       const c = await getPushConfig()
-      await syncPush(c.publicKey, (d) => savePushSubscription({ data: d })).catch(() => {})
+      await syncPush(c.publicKey, (d) => savePushSubscription({ data: d }), { force: true }).catch(() => {})
       const endpoint = await currentEndpoint()
       if (!endpoint) throw new Error('This phone isn’t registered for notifications. Turn the switch above off and on again.')
       setR(await testMyPush({ data: { endpoint } }))

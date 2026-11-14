@@ -129,16 +129,22 @@ export const getHome = createServerFn({ method: 'GET' }).handler(async () => {
           : onJourney
             ? `Day ${journey!.today!.day_number} of ${journey!.title} · ${base} min`
             : `Your daily goal · ${base} min`
-  const workout = await db()
+  // Everything below is independent: start it all at once (each lookup is a trip to the database)
+  const workoutP = db()
     .prepare('SELECT id, slug, title, description, minutes, is_recovery FROM workouts WHERE slug = ?')
     .bind(slug)
     .first<{ id: string; slug: string; title: string; description: string | null; minutes: number; is_recovery: number }>()
-  const pastorRow = await db()
+  const stepsP = workoutP.then((w) =>
+    w ? db().prepare('SELECT label, kind, seconds FROM workout_steps WHERE workout_id = ? ORDER BY position').bind(w.id).all<{ label: string; kind: string; seconds: number }>().then((r) => r.results) : [],
+  )
+  const comingUpP = comingUp(user.id, today).catch(() => [])
+  const shelfP = newOnShelf()
+  const pastorP = db()
     .prepare(`SELECT p.pastor_mode, p.ministry_role, (SELECT COUNT(*) FROM ministry_log m WHERE m.user_id = p.user_id AND m.day = ? AND m.kind <> 'ai-revise') AS ministry FROM profiles p WHERE p.user_id = ?`)
     .bind(today, user.id)
     .first<{ pastor_mode: number; ministry_role: string | null; ministry: number }>()
     .catch(() => null)
-  const [devotion, tongues, unseen, header, planRows] = await Promise.all([
+  const batch2P = Promise.all([
     devotionOfTheDay(),
     includeTongues(user.id),
     db().prepare('SELECT award_key, times FROM user_awards WHERE user_id = ? AND seen_at IS NULL').bind(user.id).all<{ award_key: string; times: number }>().then((r) => r.results.map((x) => ({ key: x.award_key, times: x.times }))).catch(() => [] as { key: string; times: number }[]),
@@ -154,6 +160,55 @@ export const getHome = createServerFn({ method: 'GET' }).handler(async () => {
       .all<{ id: string; plan_key: string; start_date: string; done: number; last_done: string | null }>()
       .then((r) => r.results)
       .catch(() => []),
+  ])
+  const retreatP = db()
+    .prepare(
+      `SELECT r.id, r.retreat_key, r.start_date, (SELECT COUNT(*) FROM retreat_days_done d WHERE d.user_retreat_id = r.id) AS done
+       FROM user_retreats r WHERE r.user_id = ? AND r.status = 'active' ORDER BY r.created_at DESC LIMIT 3`,
+    )
+    .bind(user.id)
+    .all<{ id: string; retreat_key: string; start_date: string; done: number }>()
+    .then((r) => r.results)
+    .catch(() => [])
+  // Topic plans I'm reading (written by members), with today's day title in the same query
+  const topicP = db()
+    .prepare(
+      `SELECT p.id, p.title, p.days, u.start_date, x.done,
+              (SELECT d.title FROM topic_plan_days d WHERE d.plan_id = p.id AND d.day = MIN(p.days, x.done + 1)) AS day_title
+       FROM user_topic_plans u JOIN topic_plans p ON p.id = u.plan_id
+       JOIN (SELECT u2.id, (SELECT COUNT(*) FROM topic_days_done d WHERE d.user_plan_id = u2.id) AS done FROM user_topic_plans u2 WHERE u2.user_id = ?1) x ON x.id = u.id
+       WHERE u.user_id = ?1 AND u.status = 'active' ORDER BY u.created_at DESC LIMIT 5`,
+    )
+    .bind(user.id)
+    .all<{ id: string; title: string; days: number; start_date: string; done: number; day_title: string | null }>()
+    .then((r) =>
+      r.results.map((t) => {
+        const day = Math.min(t.days, t.done + 1)
+        const todayIdx = Math.min(t.days, Math.max(1, daysBetween(t.start_date, today) + 1))
+        return { id: t.id, title: t.title, days: t.days, done: t.done, day, dayTitle: t.day_title ?? '', caughtUp: t.done >= todayIdx }
+      }),
+    )
+    .catch(() => [] as { id: string; title: string; days: number; done: number; day: number; dayTitle: string; caughtUp: boolean }[])
+  // The books I'm reading (Books): all of them, like plans
+  const booksP = db()
+    .prepare(
+      `SELECT b.id, b.title, b.cover_key, ub.days, ub.done, ub.start_date FROM user_books ub JOIN books b ON b.id = ub.book_id
+       WHERE ub.user_id = ? AND ub.status = 'active' ORDER BY ub.created_at DESC LIMIT 5`,
+    )
+    .bind(user.id)
+    .all<{ id: string; title: string; cover_key: string | null; days: number; done: number; start_date: string }>()
+    .then((r) => r.results)
+    .catch(() => [])
+  const [workout, steps, pastorRow, [devotion, tongues, unseen, header, planRows], retreatRows, topicPlans, books, comingUpList, shelf] = await Promise.all([
+    workoutP,
+    stepsP,
+    pastorP,
+    batch2P,
+    retreatP,
+    topicP,
+    booksP,
+    comingUpP,
+    shelfP,
   ])
   // Every plan the member is following (up to 5), not just the newest, so starting a second plan doesn't hide the first
   const plans: { id: string; planKey: string; title: string; day: number; label: string; book: number; chapter: number; caughtUp: boolean; doneToday: boolean; pct: number }[] = []
@@ -179,15 +234,6 @@ export const getHome = createServerFn({ method: 'GET' }).handler(async () => {
   // Plans still to read today first, then the ones already done
   plans.sort((a, b) => Number(a.caughtUp) - Number(b.caughtUp))
   // Retreats in progress (or starting soon)
-  const retreatRows = await db()
-    .prepare(
-      `SELECT r.id, r.retreat_key, r.start_date, (SELECT COUNT(*) FROM retreat_days_done d WHERE d.user_retreat_id = r.id) AS done
-       FROM user_retreats r WHERE r.user_id = ? AND r.status = 'active' ORDER BY r.created_at DESC LIMIT 3`,
-    )
-    .bind(user.id)
-    .all<{ id: string; retreat_key: string; start_date: string; done: number }>()
-    .then((r) => r.results)
-    .catch(() => [])
   const retreats = retreatRows
     .map((r) => {
       const def = retreatByKey(r.retreat_key)
@@ -197,45 +243,6 @@ export const getHome = createServerFn({ method: 'GET' }).handler(async () => {
       return { id: r.id, key: def.key, title: def.title, days: def.days.length, day, dayTitle: def.days[day - 1].title, done: r.done, upcoming: offset < 0, startsIn: -offset, caughtUp: r.done >= day }
     })
     .filter((x): x is NonNullable<typeof x> => !!x)
-
-  // Topic plans I'm reading (written by members)
-  const topicPlans = await db()
-    .prepare(
-      `SELECT p.id, p.title, p.days, u.start_date, (SELECT COUNT(*) FROM topic_days_done d WHERE d.user_plan_id = u.id) AS done
-       FROM user_topic_plans u JOIN topic_plans p ON p.id = u.plan_id WHERE u.user_id = ? AND u.status = 'active' ORDER BY u.created_at DESC LIMIT 5`,
-    )
-    .bind(user.id)
-    .all<{ id: string; title: string; days: number; start_date: string; done: number }>()
-    .then(async (r) =>
-      Promise.all(
-        r.results.map(async (t) => {
-          const day = Math.min(t.days, t.done + 1)
-          const row = await db().prepare('SELECT title FROM topic_plan_days WHERE plan_id = ? AND day = ?').bind(t.id, day).first<{ title: string }>()
-          const todayIdx = Math.min(t.days, Math.max(1, daysBetween(t.start_date, today) + 1))
-          return { id: t.id, title: t.title, days: t.days, done: t.done, day, dayTitle: row?.title ?? '', caughtUp: t.done >= todayIdx }
-        }),
-      ),
-    )
-    .catch(() => [])
-
-  // The books I'm reading (Books): all of them, like plans
-  const books = await db()
-    .prepare(
-      `SELECT b.id, b.title, b.cover_key, ub.days, ub.done, ub.start_date FROM user_books ub JOIN books b ON b.id = ub.book_id
-       WHERE ub.user_id = ? AND ub.status = 'active' ORDER BY ub.created_at DESC LIMIT 5`,
-    )
-    .bind(user.id)
-    .all<{ id: string; title: string; cover_key: string | null; days: number; done: number; start_date: string }>()
-    .then((r) => r.results)
-    .catch(() => [])
-  const steps = workout
-    ? (
-        await db()
-          .prepare('SELECT label, kind, seconds FROM workout_steps WHERE workout_id = ? ORDER BY position')
-          .bind(workout.id)
-          .all<{ label: string; kind: string; seconds: number }>()
-      ).results
-    : []
 
   // Today's minutes by discipline
   const todayByKind: Record<string, number> = {}
@@ -276,8 +283,8 @@ export const getHome = createServerFn({ method: 'GET' }).handler(async () => {
     pastor: pastorRow?.pastor_mode ? { ministryToday: pastorRow.ministry, role: pastorRow.ministry_role || 'Minister' } : null,
     unseenAwards: unseen,
     journey,
-    comingUp: await comingUp(user.id, today),
-    ...(await newOnShelf()),
+    comingUp: comingUpList,
+    ...shelf,
     verse,
     todayMinutes: Math.round(todayMinutes),
     todayByKind,

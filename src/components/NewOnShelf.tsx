@@ -1,6 +1,6 @@
 // Home: "New books" and "New topic plans", two separate swipeable sliders of the newest ones.
-// They move on by themselves every few seconds until touched; arrows on bigger screens.
-import { useEffect, useRef, useState, type ReactNode } from 'react'
+// Swipe to browse; arrows on bigger screens. (They don't move by themselves: easier on slower phones.)
+import { useRef, useState, type ReactNode } from 'react'
 import { Link } from '@tanstack/react-router'
 import { BookCover } from '~/components/BookCover'
 import { TopicCover } from '~/components/TopicCover'
@@ -20,11 +20,6 @@ function Shelf({ title, icon, all, children, count }: { title: string; icon: str
     if (dir === 1 && atEnd) el.scrollTo({ left: 0, behavior: 'smooth' })
     else el.scrollBy({ left: dir * by, behavior: 'smooth' })
   }
-  useEffect(() => {
-    if (touched || count < 3) return
-    const t = setInterval(() => document.visibilityState === 'visible' && step(1), 5000)
-    return () => clearInterval(t)
-  }, [touched, count])
   if (!count) return null
   return (
     <section className="mt-6" aria-roledescription="carousel" aria-label={title}>

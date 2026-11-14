@@ -5,7 +5,7 @@ import { BookSharing } from '~/components/BookSharing'
 import { ReadTogether } from '~/components/ReadTogether'
 import { joinCircle } from '~/fns/topics'
 import { deleteMyBook, getBook, startBook, stopBook, updateMyBook } from '~/fns/books'
-import { BOOK_PLANS, bookDay } from '~/lib/books'
+import { BOOK_CATEGORIES, BOOK_PLANS, bookDay } from '~/lib/books'
 import { BookCover } from '~/components/BookCover'
 import { CoverPicker } from '~/components/CoverPicker'
 import { FormError, errorText } from '~/components/AuthShell'
@@ -221,53 +221,70 @@ function BookPage() {
           />
         </section>
       )}
-      {d.mine && <OwnerTools id={b.id} title={b.title} author={b.author} />}
+      {d.mine && <OwnerTools b={b} />}
     </main>
   )
 }
 
-/** My own book: rename it or delete it */
-function OwnerTools({ id, title, author }: { id: string; title: string; author: string | null }) {
+/** My own book: edit its details, or delete it */
+function OwnerTools({ b }: { b: { id: string; title: string; author: string | null; description: string | null; category: string | null; author_bio: string | null } }) {
   const router = useRouter()
   const [edit, setEdit] = useState(false)
-  const [f, setF] = useState({ title, author: author ?? '' })
+  const start = () => ({ title: b.title, author: b.author ?? '', description: b.description ?? '', category: b.category ?? '', authorBio: b.author_bio ?? '' })
+  const [f, setF] = useState(start)
   const [error, setError] = useState<string | null>(null)
+  const [busy, setBusy] = useState(false)
   return (
-    <section className="mt-8 border-t border-line pt-5 text-sm">
+    <section className="card mt-6 text-sm">
       {edit ? (
         <div className="space-y-3">
-          <input className="input" value={f.title} onChange={(e) => setF({ ...f, title: e.target.value })} aria-label="Title" />
-          <input className="input" value={f.author} placeholder="Author" onChange={(e) => setF({ ...f, author: e.target.value })} aria-label="Author" />
+          <p className="font-semibold">Edit book details</p>
+          <label className="block"><span className="label">Title</span><input className="input" value={f.title} maxLength={160} onChange={(e) => setF({ ...f, title: e.target.value })} /></label>
+          <label className="block"><span className="label">Author</span><input className="input" value={f.author} maxLength={120} onChange={(e) => setF({ ...f, author: e.target.value })} /></label>
+          <label className="block"><span className="label">What is the book about?</span><textarea className="input min-h-24" maxLength={1200} value={f.description} onChange={(e) => setF({ ...f, description: e.target.value })} /></label>
+          <label className="block">
+            <span className="label">Category</span>
+            <select className="input" value={f.category} onChange={(e) => setF({ ...f, category: e.target.value })}>
+              <option value="">Choose…</option>
+              {BOOK_CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
+            </select>
+          </label>
+          <label className="block"><span className="label">About the author</span><textarea className="input min-h-16" maxLength={600} value={f.authorBio} onChange={(e) => setF({ ...f, authorBio: e.target.value })} /></label>
           <FormError message={error} />
           <div className="flex gap-2">
-            <button type="button" className="btn-ghost" onClick={() => setEdit(false)}>Cancel</button>
+            <button type="button" className="btn-ghost" onClick={() => (setF(start()), setError(null), setEdit(false))}>Cancel</button>
             <button
               type="button"
               className="btn-primary"
+              disabled={busy}
               onClick={async () => {
+                setBusy(true)
+                setError(null)
                 try {
-                  await updateMyBook({ data: { id, ...f } })
+                  await updateMyBook({ data: { id: b.id, ...f } })
                   await router.invalidate()
                   setEdit(false)
                 } catch (e) {
                   setError(errorText(e))
+                } finally {
+                  setBusy(false)
                 }
               }}
             >
-              Save
+              {busy ? 'Saving…' : 'Save changes'}
             </button>
           </div>
         </div>
       ) : (
-        <div className="flex flex-wrap gap-4">
-          <button type="button" className="font-semibold text-accent" onClick={() => setEdit(true)}>Edit title</button>
+        <div className="flex flex-wrap items-center gap-3">
+          <button type="button" className="btn-ghost !px-4 !py-2" onClick={() => setEdit(true)}><LineIcon name="pen" className="h-4 w-4" />Edit book details</button>
           <button
             type="button"
             className="font-semibold text-red-600"
             onClick={async () => {
-              if (!confirm(`Delete “${title}”? Your reading plan and highlights for it will be removed.`)) return
-              await deleteMyBook({ data: { id } })
-              await router.navigate({ to: '/app/books' })
+              if (!confirm(`Delete “${b.title}”? Your reading plan and highlights for it will be removed.`)) return
+              await deleteMyBook({ data: { id: b.id } })
+              await router.navigate({ to: '/app/books', replace: true })
             }}
           >
             Delete this book
