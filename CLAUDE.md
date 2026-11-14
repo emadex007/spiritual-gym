@@ -30,6 +30,13 @@ Free Christian spiritual-growth web app (installable PWA) at therenewgym.org. Ow
 - Notifications: `src/lib/notify.ts`, `public/sw.js` (focus mode), `src/lib/push-client.ts` (`syncPush` self-repair).
 
 ## Change log (newest first)
+- 2026-11-14 · Back keeps the right order: `useGoBack` / `UpLink` in `src/components/BackLink.tsx` (history back, else the
+  fallback with replace) for the book reader (← and "Back to the book"), workout close, "Back to the church"; reader day
+  links replace; pages reached after a form (new group, new book, join links) replace the form. Use `BackLink`/`UpLink`
+  for every back/close control. Editing: book details (`updateMyBook`: description, category, author bio), prayer posts
+  (`editPost`), testimonies (`editMyTestimony`, back to pending + admin alert). Speed: Home loader runs its lookups in
+  parallel (≈10 sequential DB rounds → 3), Home shelves no longer auto-scroll, "Coming up" only moves on screen, push
+  registration saved once a day. "App version" + "Update now" at the bottom of Profile (`AppVersion`).
 - 2026-11-14 · Cover pictures: `CoverPicker` (`src/components/CoverPicker.tsx`) + `bookCover` in `image-sizes.ts` (1000×1500,
   2:3). Book upload: optional cover (else PDF page 1); owner can change it on the book page (`/api/book-file` kind=cover).
   Topic plan editor: a clear "Plan picture" section with a button under the preview.

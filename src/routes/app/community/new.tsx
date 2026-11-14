@@ -42,7 +42,7 @@ function NewGroup() {
     try {
       const r = await createGroup({ data: { ...f, isEvent, when: whenData(isEvent ? { ...when, repeats: 'once' } : when), timezone: Intl.DateTimeFormat().resolvedOptions().timeZone } })
       if (flyer) await uploadFlyer(r.id, flyer)
-      await router.navigate({ to: '/app/community/$groupId', params: { groupId: r.id } })
+      await router.navigate({ to: '/app/community/$groupId', params: { groupId: r.id }, replace: true })
     } catch (e) {
       setError(errorText(e))
       setBusy(false)

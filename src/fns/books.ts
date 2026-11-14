@@ -320,12 +320,31 @@ Reply with JSON only: {"christian": true or false, "reason": "one short sentence
 }
 
 export const updateMyBook = createServerFn({ method: 'POST' })
-  .validator((d: { id: string; title?: string; author?: string }) => ({ id: String(d?.id ?? ''), title: String(d?.title ?? '').trim().slice(0, 160), author: String(d?.author ?? '').trim().slice(0, 120) || null }))
+  .validator((d: { id: string; title?: string; author?: string; description?: string; category?: string; authorBio?: string }) => ({
+    id: String(d?.id ?? ''),
+    title: String(d?.title ?? '').trim().slice(0, 160),
+    author: String(d?.author ?? '').trim().slice(0, 120) || null,
+    description: d?.description === undefined ? undefined : String(d.description).trim().slice(0, 1200) || null,
+    category: d?.category === undefined ? undefined : (BOOK_CATEGORIES as readonly string[]).includes(String(d.category)) ? String(d.category) : null,
+    authorBio: d?.authorBio === undefined ? undefined : String(d.authorBio).trim().slice(0, 600) || null,
+  }))
   .handler(async ({ data }) => {
     const user = await requireUser()
-    await mine(data.id, user)
+    const b = await mine(data.id, user)
     if (data.title.length < 2) throw new Error('Give the book a title.')
-    await db().prepare('UPDATE books SET title = ?, author = ? WHERE id = ?').bind(data.title, data.author, data.id).run()
+    // A book in the library must keep an author and a description readers can use
+    if (b.share_status === 'approved' && !data.author) throw new Error('Books in the library need the author’s name.')
+    if (b.share_status === 'approved' && data.description !== undefined && (data.description ?? '').length < 30) throw new Error('Keep a description of at least a few sentences for readers.')
+    await db()
+      .prepare(
+        `UPDATE books SET title = ?1, author = ?2,
+           description = CASE WHEN ?3 = 1 THEN ?4 ELSE description END,
+           category = CASE WHEN ?5 = 1 THEN ?6 ELSE category END,
+           author_bio = CASE WHEN ?7 = 1 THEN ?8 ELSE author_bio END
+         WHERE id = ?9`,
+      )
+      .bind(data.title, data.author, data.description !== undefined ? 1 : 0, data.description ?? null, data.category !== undefined ? 1 : 0, data.category ?? null, data.authorBio !== undefined ? 1 : 0, data.authorBio ?? null, data.id)
+      .run()
     return { ok: true }
   })
 

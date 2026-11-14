@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { Link, createFileRoute, useRouter } from '@tanstack/react-router'
 import { BackLink } from '~/components/BackLink'
-import { answerJoinRequest, blockUser, cancelJoinRequest, createPost, deleteGroup, deletePost, getGroup, inviteToGroup, joinGroup, leaveGroup, removeMember, replyToPost, setApproveJoins, setGroupRole, togglePrayed } from '~/fns/community'
+import { answerJoinRequest, blockUser, cancelJoinRequest, createPost, deleteGroup, deletePost, editPost, getGroup, inviteToGroup, joinGroup, leaveGroup, removeMember, replyToPost, setApproveJoins, setGroupRole, togglePrayed } from '~/fns/community'
 import { POST_KINDS, groupKind, groupLook, spaceOf } from '~/lib/content'
 import { JourneyCover } from '~/components/Art'
 import { FormError, errorText } from '~/components/AuthShell'
@@ -446,6 +446,14 @@ function PostCard({ post, me, canModerate, isMember, onReport }: { post: Post; m
     setShowReplies(true)
     await router.invalidate()
   }
+  const [editing, setEditing] = useState(false)
+  const [draft, setDraft] = useState(post.body)
+  async function saveEdit() {
+    if (draft.trim().length < 3) return
+    await editPost({ data: { postId: post.id, body: draft } })
+    setEditing(false)
+    await router.invalidate()
+  }
   async function remove() {
     if (!confirm('Remove this post?')) return
     await deletePost({ data: { postId: post.id } })
@@ -472,6 +480,7 @@ function PostCard({ post, me, canModerate, isMember, onReport }: { post: Post; m
           <button type="button" aria-label="More" className="rounded-full px-2 py-1 text-muted hover:bg-surface-2" onClick={() => setMenu(!menu)}>⋯</button>
           {menu && (
             <div className="absolute right-0 z-10 mt-1 w-40 overflow-hidden rounded-2xl border border-line bg-surface text-sm shadow-lg" onMouseLeave={() => setMenu(false)}>
+              {mine && <button type="button" className="block w-full px-4 py-2.5 text-left hover:bg-surface-2" onClick={() => { setMenu(false); setDraft(post.body); setEditing(true) }}>Edit post</button>}
               {(mine || canModerate) && <button type="button" className="block w-full px-4 py-2.5 text-left hover:bg-surface-2" onClick={remove}>Remove post</button>}
               {!mine && <button type="button" className="block w-full px-4 py-2.5 text-left hover:bg-surface-2" onClick={() => { setMenu(false); onReport('post', post.id) }}>Report</button>}
               {!mine && <button type="button" className="block w-full px-4 py-2.5 text-left hover:bg-surface-2" onClick={block}>Block person</button>}
@@ -479,7 +488,17 @@ function PostCard({ post, me, canModerate, isMember, onReport }: { post: Post; m
           )}
         </div>
       </div>
-      <p className="mt-3 whitespace-pre-wrap leading-relaxed">{post.body}</p>
+      {editing ? (
+        <div className="mt-3 space-y-2">
+          <textarea className="input min-h-24" value={draft} maxLength={2000} onChange={(e) => setDraft(e.target.value)} aria-label="Edit your post" />
+          <div className="flex gap-2">
+            <button type="button" className="btn-ghost !py-2" onClick={() => setEditing(false)}>Cancel</button>
+            <button type="button" className="btn-primary !py-2" disabled={draft.trim().length < 3} onClick={saveEdit}>Save</button>
+          </div>
+        </div>
+      ) : (
+        <p className="mt-3 whitespace-pre-wrap leading-relaxed">{post.body}</p>
+      )}
       <div className="mt-4 flex items-center gap-2">
         <button
           type="button"

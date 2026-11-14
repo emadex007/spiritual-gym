@@ -2,6 +2,7 @@
 import { b64urlToBytes, bytesToB64url } from '~/lib/webpush'
 
 const OFF = 'rg-push-off'
+const SAVED = 'rg-push-saved'
 
 export type PushState = 'unsupported' | 'needs-install' | 'blocked' | 'off' | 'on'
 
@@ -58,7 +59,7 @@ export async function enablePush(publicKey: string, save: (s: { endpoint: string
  *  phone has a registration made with today's key and that the server has it. A registration can go stale (an update,
  *  the browser clearing it, the server dropping one that failed), and then reminders silently stop; this repairs that
  *  without asking anything. */
-export async function syncPush(publicKey: string, save: (s: { endpoint: string; p256dh: string; auth: string; device?: string }) => Promise<unknown>) {
+export async function syncPush(publicKey: string, save: (s: { endpoint: string; p256dh: string; auth: string; device?: string }) => Promise<unknown>, opts?: { force?: boolean }) {
   if (!publicKey || !('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) return
   if (Notification.permission !== 'granted') return
   if (isIos() && !isStandalone()) return
@@ -78,7 +79,15 @@ export async function syncPush(publicKey: string, save: (s: { endpoint: string; 
   }
   if (!sub) sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64urlToBytes(publicKey) })
   const json = sub.toJSON() as { endpoint: string; keys: { p256dh: string; auth: string } }
+  // Saved already today with the same registration: nothing to do (saves a server call on every app open)
+  const mark = `${json.endpoint}|${new Date().toISOString().slice(0, 10)}`
+  try {
+    if (!opts?.force && localStorage.getItem(SAVED) === mark) return
+  } catch {}
   await save({ endpoint: json.endpoint, p256dh: json.keys.p256dh, auth: json.keys.auth, device: deviceLabel() })
+  try {
+    localStorage.setItem(SAVED, mark)
+  } catch {}
 }
 
 export async function disablePush(remove: (s: { endpoint: string }) => Promise<unknown>) {

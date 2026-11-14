@@ -14,6 +14,15 @@ export function ComingUp({ items }: { items: ComingUpItem[] }) {
   const track = useRef<HTMLDivElement>(null)
   const [at, setAt] = useState(0)
   const [touched, setTouched] = useState(false)
+  // Only moves while it's on screen (saves work on slower phones)
+  const [onScreen, setOnScreen] = useState(false)
+  useEffect(() => {
+    const el = track.current
+    if (!el || typeof IntersectionObserver === 'undefined') return
+    const io = new IntersectionObserver(([e]) => setOnScreen(e.isIntersecting), { threshold: 0.5 })
+    io.observe(el)
+    return () => io.disconnect()
+  }, [])
 
   // Which slide is showing (from the scroll position)
   const onScroll = () => {
@@ -28,7 +37,7 @@ export function ComingUp({ items }: { items: ComingUpItem[] }) {
   }
   // Moves on by itself every 6 seconds until someone touches it
   useEffect(() => {
-    if (touched || items.length < 2) return
+    if (touched || items.length < 2 || !onScreen) return
     const t = setInterval(() => {
       const el = track.current
       if (!el || document.visibilityState !== 'visible') return
@@ -36,7 +45,7 @@ export function ComingUp({ items }: { items: ComingUpItem[] }) {
       go(i + 1 >= items.length ? 0 : i + 1)
     }, 6000)
     return () => clearInterval(t)
-  }, [touched, items.length])
+  }, [touched, items.length, onScreen])
 
   if (!items.length) return null
   return (

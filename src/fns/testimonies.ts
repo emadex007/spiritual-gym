@@ -107,6 +107,24 @@ export const reactTestimony = createServerFn({ method: 'POST' })
     return { on: false }
   })
 
+/** Edit my testimony. Shared ones go back to a quick check before they show again (like a new one). */
+export const editMyTestimony = createServerFn({ method: 'POST' })
+  .validator((d: { id: string; title: string; body: string; scripture?: string }) => {
+    const title = String(d?.title ?? '').trim().slice(0, 100)
+    const body = String(d?.body ?? '').trim().slice(0, 2000)
+    if (title.length < 3) throw new Error('Give your testimony a short title.')
+    if (body.length < 20) throw new Error('Tell us a little more about what God did.')
+    return { id: String(d?.id ?? ''), title, body, scripture: String(d?.scripture ?? '').trim().slice(0, 80) || null }
+  })
+  .handler(async ({ data }) => {
+    const user = await requireUser()
+    const t = await db().prepare('SELECT status, is_anonymous FROM testimonies WHERE id = ? AND user_id = ?').bind(data.id, user.id).first<{ status: string; is_anonymous: number }>()
+    if (!t) throw new Error('You can only edit your own testimony.')
+    await db().prepare(`UPDATE testimonies SET title = ?, body = ?, scripture = ?, status = 'pending', review_note = NULL WHERE id = ?`).bind(data.title, data.body, data.scripture, data.id).run()
+    await adminAlert({ cat: 'review', title: 'Edited testimony to review', body: `“${data.title}” by ${t.is_anonymous ? 'someone (anonymous)' : user.name}`, url: '/admin/testimonies', actorId: user.id })
+    return { ok: true }
+  })
+
 export const deleteMyTestimony = createServerFn({ method: 'POST' })
   .validator((d: { id: string }) => ({ id: String(d?.id ?? '') }))
   .handler(async ({ data }) => {

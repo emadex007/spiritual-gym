@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { AppVersion } from '~/components/AppVersion'
 import { Link, createFileRoute, useRouter } from '@tanstack/react-router'
 import { deleteAccount, getProfile, updateProfile } from '~/fns/profile'
 import { signOut } from '~/fns/auth'
@@ -198,6 +199,7 @@ function Profile() {
       )}
 
       <DeleteAccount />
+      <AppVersion />
     </main>
   )
 }

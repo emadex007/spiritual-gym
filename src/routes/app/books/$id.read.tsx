@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { UpLink } from '~/components/BackLink'
 import { Link, createFileRoute, useNavigate } from '@tanstack/react-router'
 import { explainBookText, finishBookDay, readBook, saveHighlight } from '~/fns/books'
 import { Discussion } from '~/components/Discussion'
@@ -131,7 +132,7 @@ function Reader() {
     <div className="min-h-dvh bg-[#fbf7ef] text-[#2b2118] dark:bg-[#15120e] dark:text-[#ece3d6]">
       <header className="sticky top-0 z-20 border-b border-black/5 bg-[#fbf7ef]/95 backdrop-blur dark:border-white/10 dark:bg-[#15120e]/95">
         <div className="mx-auto flex max-w-2xl items-center gap-2 px-4 py-2.5">
-          <Link to="/app/books/$id" params={{ id: b.id }} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full hover:bg-black/5 dark:hover:bg-white/10" aria-label="Back to the book">←</Link>
+          <UpLink to="/app/books/$id" params={{ id: b.id }} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full hover:bg-black/5 dark:hover:bg-white/10" aria-label="Back">←</UpLink>
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-semibold">{b.title}</p>
             <p className="truncate text-xs opacity-60">{day ? `Day ${day} of ${d.plan?.days} · ` : ''}pages {d.range.from}–{d.range.to}</p>
@@ -178,15 +179,15 @@ function Reader() {
               <p className="mt-2 font-display text-2xl font-semibold">{finished.next ? `Day ${day} done!` : 'You finished the book!'}</p>
               <p className="mt-1 text-sm opacity-70">{finished.next ? 'Come back tomorrow for the next reading, or carry on now.' : 'Well done for reading faithfully, day by day.'}</p>
               <div className="mt-4 flex flex-wrap justify-center gap-2">
-                {finished.next && <button type="button" className="btn-primary" onClick={() => navigate({ to: '/app/books/$id/read', params: { id: b.id }, search: { day: finished.next! } })}>Read day {finished.next} now</button>}
-                <Link to="/app/books/$id" params={{ id: b.id }} className="btn-ghost">Back to the book</Link>
+                {finished.next && <button type="button" className="btn-primary" onClick={() => navigate({ to: '/app/books/$id/read', params: { id: b.id }, search: { day: finished.next! }, replace: true })}>Read day {finished.next} now</button>}
+                <UpLink to="/app/books/$id" params={{ id: b.id }} className="btn-ghost">Back to the book</UpLink>
               </div>
             </div>
           ) : day ? (
             doneAlready ? (
               <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-white p-4 shadow-sm dark:bg-white/5">
                 <span className="inline-flex items-center gap-1.5 font-semibold"><LineIcon name="check" className="h-5 w-5 text-sage" />Day {day} read</span>
-                {d.plan && day < d.plan.days && <Link to="/app/books/$id/read" params={{ id: b.id }} search={{ day: day + 1 }} className="btn-primary !py-2">Day {day + 1} →</Link>}
+                {d.plan && day < d.plan.days && <Link to="/app/books/$id/read" params={{ id: b.id }} search={{ day: day + 1 }} replace className="btn-primary !py-2">Day {day + 1} →</Link>}
               </div>
             ) : (
               <button type="button" onClick={markDone} className="btn-primary w-full py-4 text-base">✓ I’ve read day {day}</button>

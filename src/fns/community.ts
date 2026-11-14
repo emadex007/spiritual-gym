@@ -535,6 +535,20 @@ export const togglePrayed = createServerFn({ method: 'POST' })
   })
 
 /** Authors can delete their own posts; group owners can remove any post in their group */
+/** Edit my own post on the prayer wall */
+export const editPost = createServerFn({ method: 'POST' })
+  .validator((d: { postId: string; body: string }) => {
+    const body = String(d?.body ?? '').trim()
+    if (body.length < 3) throw new Error('Write a little more.')
+    return { postId: String(d?.postId ?? ''), body: body.slice(0, 2000) }
+  })
+  .handler(async ({ data }) => {
+    const user = await requireUser()
+    const r = await db().prepare('UPDATE prayer_posts SET body = ? WHERE id = ? AND user_id = ?').bind(data.body, data.postId, user.id).run()
+    if (!r.meta.changes) throw new Error('You can only edit your own posts.')
+    return { ok: true }
+  })
+
 export const deletePost = createServerFn({ method: 'POST' })
   .validator((d: { postId: string }) => ({ postId: String(d?.postId ?? '') }))
   .handler(async ({ data }) => {
