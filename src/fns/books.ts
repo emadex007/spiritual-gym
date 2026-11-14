@@ -368,13 +368,21 @@ export const submitBook = createServerFn({ method: 'POST' })
     const b = await mine(data.id, user)
     if (b.status !== 'ready') throw new Error('The book needs to finish uploading and pass the check first.')
     if (b.share_status === 'approved') throw new Error('This book is already in the library.')
+    // An admin's own book goes straight into the library; everyone else's is checked by an admin first
+    if (user.role === 'admin') {
+      await db()
+        .prepare(`UPDATE books SET author = ?, description = ?, author_bio = ?, category = ?, share_status = 'approved', share_note = NULL, submitted_at = datetime('now'), approved_at = datetime('now'), visibility = 'public' WHERE id = ?`)
+        .bind(data.author, data.description, data.authorBio, data.category, data.id)
+        .run()
+      return { ok: true, live: true }
+    }
     await db()
       .prepare(`UPDATE books SET author = ?, description = ?, author_bio = ?, category = ?, share_status = 'submitted', share_note = NULL, submitted_at = datetime('now') WHERE id = ?`)
       .bind(data.author, data.description, data.authorBio, data.category, data.id)
       .run()
     const admins = await db().prepare(`SELECT id FROM users WHERE role = 'admin'`).all<{ id: string }>()
     await notify({ userIds: admins.results.map((a) => a.id) }, { kind: 'admin', title: `New book to review: ${b.title}`, body: `By ${data.author}. Read it and approve it for the library.`, url: '/admin/books' })
-    return { ok: true }
+    return { ok: true, live: false }
   })
 
 /** The author takes their book out of the library (or withdraws it from review). Readers keep their place if they've started. */

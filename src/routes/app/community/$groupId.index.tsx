@@ -29,10 +29,10 @@ function GroupPage() {
   const g = d.group
   const p = groupLook(g)
   const gk = groupKind(g.kind)
-  const isPrayer = gk.key === 'prayer'
   const search = Route.useSearch()
-  // An event: its one date, shown at the top and in what's shared
+  // An event: its one date, shown at the top and in what's shared. Events aren't prayer groups.
   const event = !!g.is_event
+  const isPrayer = gk.key === 'prayer' && !event
   const eventSched = event ? (d.schedules.find((x) => x.repeats === 'once') ?? null) : null
   const eventWhen = eventSched ? describeSchedule(eventSched) : null
   const eventStart = eventSched ? nextStart(eventSched) : null
@@ -202,9 +202,9 @@ function GroupPage() {
 
         {tab === 'wall' ? (
           <>
-            {d.isMember && <Composer groupId={g.id} prayer={isPrayer} leader={d.leads} />}
+            {d.isMember && <Composer groupId={g.id} prayer={isPrayer && !event} event={event} leader={d.leads} />}
             <div className="mt-4 space-y-3">
-              {d.posts.length === 0 && <p className="py-8 text-center text-muted">{isPrayer ? 'No prayer requests yet. Be the first to share.' : 'Nothing posted yet. Share a thought, a question or your notes.'}</p>}
+              {d.posts.length === 0 && <p className="py-8 text-center text-muted">{event ? 'Nothing posted yet. Ask a question or share what you’re looking forward to.' : isPrayer ? 'No prayer requests yet. Be the first to share.' : 'Nothing posted yet. Share a thought, a question or your notes.'}</p>}
               {d.posts.map((post) => (
                 <PostCard key={post.id} post={post} me={d.me} canModerate={d.leads} isMember={d.isMember} onReport={(type, id) => setReport({ type, id })} />
               ))}
@@ -355,9 +355,12 @@ const PLACEHOLDER: Record<string, string> = {
   announcement: 'Tell the group what’s coming up, e.g. the next meeting or outreach.',
 }
 
-function Composer({ groupId, prayer, leader }: { groupId: string; prayer: boolean; leader: boolean }) {
+function Composer({ groupId, prayer, leader, event = false }: { groupId: string; prayer: boolean; leader: boolean; event?: boolean }) {
   const router = useRouter()
-  const kinds = (prayer ? ['request', 'testimony', 'encouragement', 'question'] : ['note', 'question', 'encouragement', 'request', 'testimony']).concat(leader ? ['announcement'] : [])
+  // An event's wall: announcements, questions, encouragement and notes (not prayer requests)
+  const kinds = event
+    ? (leader ? ['announcement'] : []).concat(['question', 'encouragement', 'note'])
+    : (prayer ? ['request', 'testimony', 'encouragement', 'question'] : ['note', 'question', 'encouragement', 'request', 'testimony']).concat(leader ? ['announcement'] : [])
   const [kind, setKind] = useState<string>(kinds[0])
   const [body, setBody] = useState('')
   const [busy, setBusy] = useState(false)
