@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { SizePicker, type MeetingSize } from '~/components/SizePicker'
 import { Link, useRouter } from '@tanstack/react-router'
 import { listMeetings, meetingAction, saveMeeting, startInstantMeeting } from '~/fns/meetings'
 import { MEETING_KINDS, meetingKind, meetingTime } from '~/lib/content'
@@ -135,9 +136,9 @@ export function ChurchMeetings({ churchId }: { churchId: string }) {
       {quick && (
         <QuickStart
           onClose={() => setQuick(false)}
-          onStart={(title, kind, durationMin) =>
+          onStart={(title, kind, durationMin, size) =>
             act('quick', async () => {
-              const r = await startInstantMeeting({ data: { churchId, title, kind, durationMin } })
+              const r = await startInstantMeeting({ data: { churchId, title, kind, durationMin, size } })
               await router.navigate({ to: '/app/meet/$id', params: { id: r.id } })
             })
           }
@@ -194,8 +195,9 @@ function KindPicker({ kind, setKind }: { kind: string; setKind: (k: string) => v
 const LENGTHS = [30, 45, 60, 90, 120, 180, 240]
 const lengthLabel = (n: number) => (n < 60 ? `${n} min` : `${n / 60} hr${n > 60 ? 's' : ''}`.replace('1.5 hrs', '1½ hrs'))
 
-function QuickStart({ onClose, onStart, busy }: { onClose: () => void; onStart: (title: string, kind: string, durationMin: number) => void; busy: boolean }) {
+function QuickStart({ onClose, onStart, busy }: { onClose: () => void; onStart: (title: string, kind: string, durationMin: number, size: MeetingSize) => void; busy: boolean }) {
   const [kind, setKind] = useState('prayer')
+  const [size, setSize] = useState<MeetingSize>('small')
   const [duration, setDuration] = useState(120)
   const [title, setTitle] = useState('Prayer meeting')
   const [touched, setTouched] = useState(false)
@@ -218,8 +220,9 @@ function QuickStart({ onClose, onStart, busy }: { onClose: () => void; onStart: 
           {LENGTHS.map((n) => <option key={n} value={n}>{lengthLabel(n)}</option>)}
         </select>
       </label>
+      <div className="mt-3"><SizePicker value={size} onChange={setSize} /></div>
       <p className="mt-3 text-xs text-muted">Members get a notification that it has started. You can add more time during the meeting.</p>
-      <button type="button" className="btn-primary mt-4 w-full" disabled={busy || title.trim().length < 3} onClick={() => onStart(title, kind, duration)}>
+      <button type="button" className="btn-primary mt-4 w-full" disabled={busy || title.trim().length < 3} onClick={() => onStart(title, kind, duration, size)}>
         {busy ? 'Starting…' : '● Start and join'}
       </button>
     </Dialog>
@@ -229,7 +232,7 @@ function QuickStart({ onClose, onStart, busy }: { onClose: () => void; onStart: 
 function MeetingForm({ initial, onClose, onSave, busy, error }: {
   initial: Partial<Meeting>
   onClose: () => void
-  onSave: (v: { title: string; kind: string; description: string; startsAt: string; durationMin: number }) => void
+  onSave: (v: { title: string; kind: string; description: string; startsAt: string; durationMin: number; size: MeetingSize }) => void
   busy: boolean
   error: string | null
 }) {
@@ -243,12 +246,13 @@ function MeetingForm({ initial, onClose, onSave, busy, error }: {
   const [description, setDescription] = useState(initial.description ?? '')
   const [when, setWhen] = useState(localInput(initial.starts_at ? new Date(initial.starts_at) : defaultStart()))
   const [duration, setDuration] = useState(initial.duration_min ?? 60)
+  const [size, setSize] = useState<MeetingSize>(initial.size === 'large' || initial.size === 'event' ? initial.size : 'small')
   return (
     <Dialog title={initial.id ? 'Edit meeting' : 'Schedule a meeting'} onClose={onClose}>
       <form
         onSubmit={(e) => {
           e.preventDefault()
-          onSave({ title: title || meetingKind(kind).label, kind, description, startsAt: new Date(when).toISOString(), durationMin: duration })
+          onSave({ title: title || meetingKind(kind).label, kind, description, startsAt: new Date(when).toISOString(), durationMin: duration, size })
         }}
       >
         <KindPicker kind={kind} setKind={setKind} />
@@ -274,6 +278,7 @@ function MeetingForm({ initial, onClose, onSave, busy, error }: {
           Details <span className="font-normal text-muted">(optional)</span>
           <textarea className="input mt-1 min-h-20" value={description} maxLength={600} placeholder="What we’ll pray about or study" onChange={(e) => setDescription(e.target.value)} />
         </label>
+        <div className="mt-3"><SizePicker value={size} onChange={setSize} /></div>
         {error && <p className="mt-3 rounded-2xl bg-red-500/10 px-3 py-2 text-sm text-red-600">{error}</p>}
         <p className="mt-3 text-xs text-muted">Members are notified{initial.id ? '' : ' now, and again 15 minutes before it starts'}.</p>
         <button type="submit" className="btn-primary mt-4 w-full" disabled={busy}>{busy ? 'Saving…' : initial.id ? 'Save changes' : 'Schedule meeting'}</button>

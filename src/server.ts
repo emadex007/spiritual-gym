@@ -9,6 +9,7 @@ import { unsubscribe } from '~/lib/weekly'
 import { receiveMail } from '~/lib/mail'
 import { googleCallback, googleStart } from '~/lib/google'
 import { logError } from '~/lib/errors'
+import { closeTracks, effectiveSize, asSize, newSession, renegotiate, tracksNew } from '~/lib/sfu'
 import { BRAND_KEYS, brandCss, cleanBrand } from '~/lib/brand'
 
 const COOKIE = 'sg_session'
@@ -372,23 +373,45 @@ async function routeRequest(request: Request, env: AppEnv): Promise<Response> {
     return json(await iceServers(env))
   }
 
+  // Big meetings: the browser's connection to Cloudflare Realtime, through us (the app token stays on the server). See src/lib/sfu.ts
+  if (url.pathname.startsWith('/api/sfu/')) {
+    const user = await userFromCookie(request, env)
+    if (!user) return json({ error: 'Please sign in.' }, 401)
+    const body = request.method === 'GET' ? {} : ((await request.json().catch(() => ({}))) as Record<string, unknown>)
+    let r: { status: number; data: unknown } | null = null
+    if (url.pathname === '/api/sfu/session' && request.method === 'POST') {
+      const room = String(body.room ?? '')
+      if (!/^(meet|group):[\w-]{1,64}$/.test(room)) return json({ error: 'Bad room.' }, 400)
+      r = await newSession(user.id, room)
+    } else {
+      const m = url.pathname.match(/^\/api\/sfu\/([\w-]{8,128})\/(tracks\/new|renegotiate|tracks\/close)$/)
+      if (m && m[2] === 'tracks/new' && request.method === 'POST') r = await tracksNew(user.id, m[1], body)
+      else if (m && m[2] === 'renegotiate' && request.method === 'PUT') r = await renegotiate(user.id, m[1], body)
+      else if (m && m[2] === 'tracks/close' && request.method === 'PUT') r = await closeTracks(user.id, m[1], body)
+    }
+    if (!r) return json({ error: 'Not found.' }, 404)
+    return json(r.data, r.status >= 200 && r.status < 600 ? r.status : 502)
+  }
+
   // Meetings usage meter: each device reports its connection data every 30 seconds (see useMeeting)
   if (url.pathname === '/api/meet-usage' && request.method === 'POST') {
     const user = await userFromCookie(request, env)
     if (!user) return json({ error: 'Please sign in.' }, 401)
-    const b = (await request.json().catch(() => null)) as { room?: string; relay?: number; direct?: number; seconds?: number } | null
+    const b = (await request.json().catch(() => null)) as { room?: string; relay?: number; direct?: number; sfu?: number; seconds?: number } | null
     const room = String(b?.room ?? '')
     if (!/^(meet|group):[\w-]{1,64}$/.test(room)) return json({ error: 'Bad room.' }, 400)
     const clamp = (n: unknown, max: number) => Math.max(0, Math.min(max, Math.round(Number(n) || 0)))
     const relay = clamp(b?.relay, 2 * 1024 ** 3)
     const direct = clamp(b?.direct, 2 * 1024 ** 3)
+    const sfu = clamp(b?.sfu, 2 * 1024 ** 3)
     const seconds = clamp(b?.seconds, 600)
-    if (relay || direct || seconds) {
+    if (relay || direct || sfu || seconds) {
       await env.DB.prepare(
-        `INSERT INTO meeting_usage (day, user_id, room, relay_bytes, direct_bytes, seconds) VALUES (?, ?, ?, ?, ?, ?)
-         ON CONFLICT(day, user_id, room) DO UPDATE SET relay_bytes = relay_bytes + excluded.relay_bytes, direct_bytes = direct_bytes + excluded.direct_bytes, seconds = seconds + excluded.seconds`,
+        `INSERT INTO meeting_usage (day, user_id, room, relay_bytes, direct_bytes, sfu_bytes, seconds) VALUES (?, ?, ?, ?, ?, ?, ?)
+         ON CONFLICT(day, user_id, room) DO UPDATE SET relay_bytes = relay_bytes + excluded.relay_bytes, direct_bytes = direct_bytes + excluded.direct_bytes,
+           sfu_bytes = sfu_bytes + excluded.sfu_bytes, seconds = seconds + excluded.seconds`,
       )
-        .bind(new Date().toISOString().slice(0, 10), user.id, room, relay, direct, seconds)
+        .bind(new Date().toISOString().slice(0, 10), user.id, room, relay, direct, sfu, seconds)
         .run()
     }
     return json({ ok: true })
@@ -401,11 +424,11 @@ async function routeRequest(request: Request, env: AppEnv): Promise<Response> {
     const user = await userFromCookie(request, env)
     if (!user) return new Response('Please sign in.', { status: 401 })
     const m = await env.DB.prepare(
-      `SELECT mt.status, mt.starts_at, mt.started_at, mt.duration_min, cm.role, c.status AS church_status FROM church_meetings mt JOIN churches c ON c.id = mt.church_id
+      `SELECT mt.status, mt.starts_at, mt.started_at, mt.duration_min, mt.size, cm.role, c.status AS church_status FROM church_meetings mt JOIN churches c ON c.id = mt.church_id
        LEFT JOIN church_members cm ON cm.church_id = mt.church_id AND cm.user_id = ? WHERE mt.id = ?`,
     )
       .bind(user.id, meet[1])
-      .first<{ status: string; starts_at: string; started_at: string | null; duration_min: number; role: string | null; church_status: string }>()
+      .first<{ status: string; starts_at: string; started_at: string | null; duration_min: number; size: string | null; role: string | null; church_status: string }>()
     if (!m || m.church_status !== 'approved') return new Response('Meeting not found.', { status: 404 })
     if (!m.role && user.role !== 'admin') return new Response('This meeting is for members of the church.', { status: 403 })
     if (m.status === 'ended') return new Response('This meeting has ended.', { status: 410 })
@@ -428,6 +451,8 @@ async function routeRequest(request: Request, env: AppEnv): Promise<Response> {
     headers.set('x-adult', adult ? '1' : '0')
     headers.set('x-waiting', '1') // church meetings: the host lets people in
     if (Number.isFinite(endsAt)) headers.set('x-ends-at', String(endsAt))
+    headers.set('x-size', await effectiveSize(asSize(m.size)))
+    headers.set('x-size-wanted', asSize(m.size))
     const stub = env.PRAYER_ROOMS.get(env.PRAYER_ROOMS.idFromName(`meet:${meet[1]}`))
     return stub.fetch(new Request(request.url, { headers }))
   }
@@ -441,11 +466,11 @@ async function routeRequest(request: Request, env: AppEnv): Promise<Response> {
     if (!user.birth_year || new Date().getFullYear() - user.birth_year < 18) return new Response('Community meetings are for adults (18+).', { status: 403 })
     const groupId = room[1]
     const member = await env.DB.prepare(
-      `SELECT m.role FROM prayer_group_members m JOIN prayer_groups g ON g.id = m.group_id
+      `SELECT m.role, g.live_size FROM prayer_group_members m JOIN prayer_groups g ON g.id = m.group_id
        WHERE m.group_id = ? AND m.user_id = ? AND g.is_hidden = 0`,
     )
       .bind(groupId, user.id)
-      .first<{ role: string }>()
+      .first<{ role: string; live_size: string | null }>()
     if (!member) return new Response('Join the group first.', { status: 403 })
     const headers = new Headers(request.headers)
     headers.set('x-user-id', user.id)
@@ -456,6 +481,8 @@ async function routeRequest(request: Request, env: AppEnv): Promise<Response> {
     // Community members are all adults.
     headers.set('x-host', member.role === 'owner' || member.role === 'leader' || user.role === 'admin' ? '1' : '0')
     headers.set('x-adult', '1')
+    headers.set('x-size', await effectiveSize(asSize(member.live_size)))
+    headers.set('x-size-wanted', asSize(member.live_size))
     const stub = env.PRAYER_ROOMS.get(env.PRAYER_ROOMS.idFromName(groupId))
     return stub.fetch(new Request(request.url, { headers }))
   }

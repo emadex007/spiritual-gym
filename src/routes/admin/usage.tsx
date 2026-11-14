@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link, createFileRoute, useRouter } from '@tanstack/react-router'
-import { adminSaveUsageSettings, adminUsage } from '~/fns/usage'
+import { adminSaveBigMeetings, adminSaveUsageSettings, adminUsage } from '~/fns/usage'
 import { Field, PageHead, Toast } from '~/components/AdminUI'
 import { Bars, ChartHead, Empty, Ranked, Tile } from '~/components/AdminCharts'
 import { errorText } from '~/components/AuthShell'
@@ -32,7 +32,7 @@ function Usage() {
     <>
       <PageHead
         title="Meetings & usage"
-        sub="Voice and video in meetings go directly between phones, which is free. When a phone network blocks that, Cloudflare’s relay carries it, and that relayed data is what can cost money. The app measures it on every device."
+        sub="Normal meetings go directly between phones, which is free. Data through Cloudflare (the relay, when a phone network blocks a direct call, and big meetings of 50 people or events) counts toward the free 1,000 GB a month, then costs money. The app measures it on every device."
         action={
           <div className="flex items-center gap-1 rounded-full bg-surface-2 p-1 text-sm">
             <Link to="/admin/usage" search={{ month: shift(d.month, -1) }} className="rounded-full px-3 py-1.5 hover:bg-surface" aria-label="Previous month">‹</Link>
@@ -54,7 +54,7 @@ function Usage() {
       )}
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <Tile label="Relayed this month (paid data)" value={`${gb(d.relayGb)} GB`} hint={s.alertGb ? `Alert at ${s.alertGb} GB` : undefined} />
+        <Tile label="Through Cloudflare this month" value={`${gb(d.relayGb)} GB`} hint={s.alertGb ? `Alert at ${s.alertGb} GB` : undefined} />
         <Tile label="Estimated bill this month" value={money(d.cost)} hint={d.cost ? `${gb(d.billableGb)} GB × $${s.priceGb}` : 'Inside the free allowance'} />
         <Tile label="Free relay left" value={`${gb(d.freeLeftGb)} GB`} hint={`of ${s.freeGb.toLocaleString()} GB${s.freeMonthly ? ' this month' : ' (one-time)'}`} />
         <Tile label="Meeting hours" value={d.hours >= 10 ? Math.round(d.hours) : Number(d.hours.toFixed(1))} hint={`${d.people} ${d.people === 1 ? 'person' : 'people'} · ${gb(d.directGb)} GB direct (free)`} />
@@ -110,6 +110,7 @@ function Usage() {
         </section>
       </div>
 
+      <BigMeetings d={d} />
       <Settings d={d} />
     </>
   )
@@ -126,6 +127,56 @@ function Meter({ label, pct, warn }: { label: string; pct: number; warn: boolean
         <div className={`h-3 rounded-full ${warn ? 'bg-red-500' : 'bg-navy dark:bg-gold'}`} style={{ width: `${pct}%`, minWidth: pct ? 6 : 0 }} />
       </div>
     </div>
+  )
+}
+
+/** Big meetings (50 people, events): set up, on/off, data used, and whether to keep going after the free allowance */
+function BigMeetings({ d }: { d: ReturnType<typeof Route.useLoaderData> }) {
+  const router = useRouter()
+  const b = d.big
+  const [busy, setBusy] = useState(false)
+  async function save(v: { enabled: boolean; allowPaid: boolean }) {
+    setBusy(true)
+    try {
+      await adminSaveBigMeetings({ data: v })
+      await router.invalidate()
+    } finally {
+      setBusy(false)
+    }
+  }
+  const state = !b.configured ? 'Not set up' : !b.enabled ? 'Switched off' : b.status === 'allowance-used' ? 'Paused: free data used up' : 'Ready'
+  return (
+    <section className="card mt-6">
+      <ChartHead title="Big meetings (up to 50 people, and events)" sub="Large meetings and big events send voice and pictures through Cloudflare Realtime. When this month’s free data is nearly used up, they run as normal meetings (up to 12) by themselves, unless you allow paying for more." />
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
+        <Tile label="Status" value={state} />
+        <Tile label="Big meetings this month" value={`${gb(b.gb)} GB`} hint="Part of the Cloudflare total above" />
+        <Tile label="Relay this month" value={`${gb(b.relayOnlyGb)} GB`} hint="Normal meetings on strict networks" />
+      </div>
+      {!b.configured ? (
+        <div className="mt-4 rounded-2xl bg-gold/15 p-4 text-sm">
+          <p className="font-semibold">How to set up big meetings (5 minutes, free)</p>
+          <ol className="mt-2 list-decimal space-y-1 pl-5">
+            <li>Cloudflare dashboard → <b>Realtime</b> → <b>Serverless SFU</b> → <b>Create application</b>.</li>
+            <li>Copy the <b>App ID</b> and the <b>App token</b>.</li>
+            <li>In the project folder run <code>npx wrangler secret put REALTIME_APP_ID</code> and paste the App ID, then <code>npx wrangler secret put REALTIME_APP_TOKEN</code> and paste the token.</li>
+            <li>Deploy, then come back here: the status says Ready.</li>
+          </ol>
+        </div>
+      ) : (
+        <div className="mt-4 grid gap-2">
+          <label className="option !py-3">
+            <span className="flex-1 text-sm"><b>Big meetings on</b><span className="block text-xs text-muted">Off: every meeting runs as a normal meeting (up to 12).</span></span>
+            <input type="checkbox" className="h-5 w-5" disabled={busy} checked={b.enabled} onChange={(e) => save({ enabled: e.target.checked, allowPaid: b.allowPaid })} />
+          </label>
+          <label className="option !py-3">
+            <span className="flex-1 text-sm"><b>Keep going after the free allowance</b><span className="block text-xs text-muted">Cloudflare then charges ${d.settings.priceGb}/GB. Off (safer): big meetings pause when the free data is nearly used up.</span></span>
+            <input type="checkbox" className="h-5 w-5" disabled={busy} checked={b.allowPaid} onChange={(e) => save({ enabled: b.enabled, allowPaid: e.target.checked })} />
+          </label>
+        </div>
+      )}
+      <p className="mt-3 text-xs text-muted">Roughly: a 2-hour big event with 100 people watching uses about 50–100 GB; a 2-hour large meeting with 30 people about 20–60 GB (less when cameras are off).</p>
+    </section>
   )
 }
 

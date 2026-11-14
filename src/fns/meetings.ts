@@ -6,9 +6,10 @@ import { notify } from '~/lib/notify'
 import { newId } from '~/lib/util'
 import { CAPTION_LANGS, MEETING_KINDS } from '~/lib/content'
 import { askCoach } from '~/lib/coach'
+import { asSize, sfuStatus } from '~/lib/sfu'
 
-type MeetingRow = { id: string; church_id: string; title: string; kind: string; description: string | null; starts_at: string; duration_min: number; status: string; live_count: number; started_at: string | null }
-const COLS = 'id, church_id, title, kind, description, starts_at, duration_min, status, live_count, started_at'
+type MeetingRow = { id: string; church_id: string; title: string; kind: string; description: string | null; starts_at: string; duration_min: number; status: string; live_count: number; started_at: string | null; size: string }
+const COLS = 'id, church_id, title, kind, description, starts_at, duration_min, status, live_count, started_at, size'
 
 /** A church's meetings: live now, coming up, and the last few */
 export const listMeetings = createServerFn({ method: 'GET' })
@@ -49,7 +50,7 @@ export const getMeeting = createServerFn({ method: 'GET' })
 
 /** Schedule or edit a meeting (church admins) */
 export const saveMeeting = createServerFn({ method: 'POST' })
-  .validator((d: { id?: string; churchId: string; title: string; kind: string; description?: string; startsAt: string; durationMin: number }) => {
+  .validator((d: { id?: string; churchId: string; title: string; kind: string; description?: string; startsAt: string; durationMin: number; size?: string }) => {
     const title = cleanText(d?.title, 100)
     if (title.length < 3) throw new Error('Give the meeting a title.')
     const t = Date.parse(String(d?.startsAt ?? ''))
@@ -62,21 +63,22 @@ export const saveMeeting = createServerFn({ method: 'POST' })
       description: cleanText(d?.description, 600) || null,
       startsAt: new Date(t).toISOString(),
       durationMin: Math.max(15, Math.min(240, Math.round(Number(d?.durationMin) || 60))),
+      size: asSize(d?.size),
     }
   })
   .handler(async ({ data }) => {
     const user = await requireChurchAdmin(data.churchId)
     if (data.id) {
       await db()
-        .prepare(`UPDATE church_meetings SET title = ?, kind = ?, description = ?, starts_at = ?, duration_min = ?, reminded = CASE WHEN starts_at = ? THEN reminded ELSE 0 END WHERE id = ? AND church_id = ?`)
-        .bind(data.title, data.kind, data.description, data.startsAt, data.durationMin, data.startsAt, data.id, data.churchId)
+        .prepare(`UPDATE church_meetings SET title = ?, kind = ?, description = ?, starts_at = ?, duration_min = ?, size = ?, reminded = CASE WHEN starts_at = ? THEN reminded ELSE 0 END WHERE id = ? AND church_id = ?`)
+        .bind(data.title, data.kind, data.description, data.startsAt, data.durationMin, data.size, data.startsAt, data.id, data.churchId)
         .run()
       return { id: data.id }
     }
     const id = newId()
     await db()
-      .prepare('INSERT INTO church_meetings (id, church_id, title, kind, description, starts_at, duration_min, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
-      .bind(id, data.churchId, data.title, data.kind, data.description, data.startsAt, data.durationMin, user.id)
+      .prepare('INSERT INTO church_meetings (id, church_id, title, kind, description, starts_at, duration_min, size, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)')
+      .bind(id, data.churchId, data.title, data.kind, data.description, data.startsAt, data.durationMin, data.size, user.id)
       .run()
     await notify({ churchId: data.churchId, exceptUserId: user.id }, { kind: 'church', title: `🗓️ ${data.title}`, body: `New meeting: ${new Date(data.startsAt).toLocaleString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit', timeZone: 'Africa/Lagos' })}. Tap for details.`, url: `/app/meet/${id}` })
     return { id }
@@ -105,18 +107,19 @@ export const meetingAction = createServerFn({ method: 'POST' })
 
 /** "Start a meeting now" in one tap (church admins): creates it and opens it */
 export const startInstantMeeting = createServerFn({ method: 'POST' })
-  .validator((d: { churchId: string; title?: string; kind?: string; durationMin?: number }) => ({
+  .validator((d: { churchId: string; title?: string; kind?: string; durationMin?: number; size?: string }) => ({
     churchId: String(d?.churchId ?? ''),
     title: cleanText(d?.title, 100) || 'Prayer meeting',
     kind: MEETING_KINDS.some((k) => k.key === d?.kind) ? String(d.kind) : 'prayer',
     durationMin: Math.max(15, Math.min(240, Math.round(Number(d?.durationMin) || 120))),
+    size: asSize(d?.size),
   }))
   .handler(async ({ data }) => {
     const user = await requireChurchAdmin(data.churchId)
     const id = newId()
     await db()
-      .prepare(`INSERT INTO church_meetings (id, church_id, title, kind, starts_at, duration_min, status, started_at, reminded, created_by) VALUES (?, ?, ?, ?, ?, ?, 'live', datetime('now'), 1, ?)`)
-      .bind(id, data.churchId, data.title, data.kind, new Date().toISOString(), data.durationMin, user.id)
+      .prepare(`INSERT INTO church_meetings (id, church_id, title, kind, starts_at, duration_min, size, status, started_at, reminded, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, 'live', datetime('now'), 1, ?)`)
+      .bind(id, data.churchId, data.title, data.kind, new Date().toISOString(), data.durationMin, data.size, user.id)
       .run()
     await notify({ churchId: data.churchId, exceptUserId: user.id }, { kind: 'church', title: `🔴 ${data.title} has started`, body: 'Tap to join now.', url: `/app/meet/${id}`, tag: `meet-${id}`, urgent: true })
     return { id }
@@ -160,3 +163,9 @@ export const translateCaption = createServerFn({ method: 'POST' })
     )
     return { text: (out ?? '').trim().replace(/^["“]|["”]$/g, '') }
   })
+
+/** Are large meetings and big events available right now? (for the size picker) */
+export const meetingSizeStatus = createServerFn({ method: 'GET' }).handler(async () => {
+  await requireUser()
+  return sfuStatus()
+})

@@ -28,8 +28,8 @@ export const monthOf = (d = new Date()) => d.toISOString().slice(0, 7)
 export async function usageSummary(month = monthOf(), s?: UsageSettings) {
   const set = s ?? (await usageSettings())
   const [m, before] = await db().batch([
-    db().prepare(`SELECT COALESCE(SUM(relay_bytes),0) AS relay, COALESCE(SUM(direct_bytes),0) AS direct, COALESCE(SUM(seconds),0) AS seconds, COUNT(DISTINCT user_id) AS people FROM meeting_usage WHERE day LIKE ?`).bind(`${month}%`),
-    db().prepare(`SELECT COALESCE(SUM(relay_bytes),0) AS relay FROM meeting_usage WHERE day < ?`).bind(`${month}-01`),
+    db().prepare(`SELECT COALESCE(SUM(relay_bytes + sfu_bytes),0) AS relay, COALESCE(SUM(direct_bytes),0) AS direct, COALESCE(SUM(seconds),0) AS seconds, COUNT(DISTINCT user_id) AS people FROM meeting_usage WHERE day LIKE ?`).bind(`${month}%`),
+    db().prepare(`SELECT COALESCE(SUM(relay_bytes + sfu_bytes),0) AS relay FROM meeting_usage WHERE day < ?`).bind(`${month}-01`),
   ])
   const r = (m.results[0] ?? {}) as { relay: number; direct: number; seconds: number; people: number }
   const prior = ((before.results[0] ?? {}) as { relay: number }).relay / GB
@@ -90,7 +90,7 @@ export async function usageAlerts(now: number) {
         <p style="font-size:13px;letter-spacing:.12em;text-transform:uppercase;color:#866724;margin:0">TheRenewGym · Admin alert</p>
         <h1 style="font-size:22px;margin:8px 0 12px">${a.title}</h1>
         <p style="font-size:15px;line-height:1.5">${a.body}</p>
-        <p style="font-size:15px;line-height:1.5">This is data that went through the Cloudflare relay because a phone network blocked a direct connection. Direct connections are free.</p>
+        <p style="font-size:15px;line-height:1.5">This is meeting data that went through Cloudflare: big meetings (50 people and events), and the relay when a phone network blocks a direct connection. Small meetings that connect directly are free. When the free allowance runs out, big meetings switch to the small mode by themselves unless you allow paying for more.</p>
         <p><a href="${link}" style="display:inline-block;background:#e3b648;color:#002e54;padding:12px 20px;border-radius:999px;font-weight:700;text-decoration:none">Open Meetings &amp; usage</a></p>
         <p style="font-size:12px;color:#527088">Change the alert level in Admin → Meetings &amp; usage.</p></div>`
       for (const to of emails) await sendEmail(to, `TheRenewGym: ${a.title}`, html, `${a.title}\n\n${a.body}\n\nOpen: ${link}`).catch(() => false)

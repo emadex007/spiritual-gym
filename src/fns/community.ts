@@ -1,4 +1,5 @@
 import { createServerFn } from '@tanstack/react-start'
+import { asSize } from '~/lib/sfu'
 import { db } from '~/lib/env'
 import { requireCommunityUser as requireUser } from '~/lib/auth'
 import { GROUP_KINDS, PRAYER_PURPOSES, POST_KINDS, REPORT_REASONS } from '~/lib/content'
@@ -127,7 +128,7 @@ export const getGroup = createServerFn({ method: 'GET' })
     const user = await requireUser()
     const g = await db()
       .prepare(
-        `SELECT g.id, g.name, g.purpose, g.kind, g.description, g.is_private, g.is_featured, g.invite_code, g.created_by, g.member_count, g.live_count, g.is_hidden, g.approve_joins,
+        `SELECT g.id, g.name, g.purpose, g.kind, g.description, g.is_private, g.is_featured, g.invite_code, g.created_by, g.member_count, g.live_count, g.is_hidden, g.approve_joins, g.live_size,
                 m.role AS my_role, m.notify AS my_notify
          FROM prayer_groups g LEFT JOIN prayer_group_members m ON m.group_id = g.id AND m.user_id = ?
          WHERE g.id = ?`,
@@ -135,7 +136,7 @@ export const getGroup = createServerFn({ method: 'GET' })
       .bind(user.id, id)
       .first<{
         id: string; name: string; purpose: string; kind: string; description: string | null; is_private: number; is_featured: number; invite_code: string
-        created_by: string | null; member_count: number; live_count: number; is_hidden: number; approve_joins: number; my_role: string | null; my_notify: number | null
+        created_by: string | null; member_count: number; live_count: number; is_hidden: number; approve_joins: number; live_size: string | null; my_role: string | null; my_notify: number | null
       }>()
     const [pending, invited] = await Promise.all([
       db().prepare('SELECT 1 AS x FROM prayer_group_requests WHERE group_id = ? AND user_id = ?').bind(id, user.id).first(),
@@ -554,4 +555,14 @@ export const setGroupNotify = createServerFn({ method: 'POST' })
     const user = await requireUser()
     await db().prepare('UPDATE prayer_group_members SET notify = ? WHERE group_id = ? AND user_id = ?').bind(data.on, data.groupId, user.id).run()
     return { ok: true }
+  })
+
+/** Leaders: how big the group's live meeting is (normal, large or a big event). Takes effect the next time it starts. */
+export const setGroupLiveSize = createServerFn({ method: 'POST' })
+  .validator((d: { groupId: string; size: string }) => ({ groupId: String(d?.groupId ?? ''), size: asSize(d?.size) }))
+  .handler(async ({ data }) => {
+    const user = await requireUser()
+    await requireLeader(data.groupId, user)
+    await db().prepare('UPDATE prayer_groups SET live_size = ? WHERE id = ?').bind(data.size, data.groupId).run()
+    return { ok: true, size: data.size }
   })

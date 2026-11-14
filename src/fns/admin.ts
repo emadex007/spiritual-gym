@@ -529,7 +529,7 @@ export const getCommunityStats = createServerFn({ method: 'GET' }).handler(async
       q<{ n: number }>(`SELECT COUNT(*) AS n FROM prayer_live_log WHERE joined_at > datetime('now','-7 days')`),
       q<{ n: number }>(`SELECT COUNT(*) AS n FROM reports WHERE status = 'open'`),
       q<{ n: number }>('SELECT COUNT(*) AS n FROM bible_verses'),
-      q<{ n: number }>(`SELECT COALESCE(SUM(relay_bytes),0) AS n FROM meeting_usage WHERE day >= strftime('%Y-%m-01','now')`).catch(() => ({ n: 0 })),
+      q<{ n: number }>(`SELECT COALESCE(SUM(relay_bytes + sfu_bytes),0) AS n FROM meeting_usage WHERE day >= strftime('%Y-%m-01','now')`).catch(() => ({ n: 0 })),
       q<{ value: string }>(`SELECT value FROM settings WHERE key = 'usage_alert_gb'`).catch(() => null),
     ])
     return {

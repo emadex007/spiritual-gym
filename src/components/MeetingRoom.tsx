@@ -1,6 +1,7 @@
 // The live meeting room, shared by church meetings and community groups. Laid out like Google Meet / Zoom:
 // one big "stage" (the host by default, or whoever is presenting, spotlighted or pinned) with everyone else in a strip
 // underneath (on phones) or down the side (on computers). Compact round controls at the bottom; everything else in menus.
+// Events (big meetings for hundreds): only the people on stage are shown; everyone else is the audience (counted, in People).
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { useMeeting, type MeetPeer } from '~/hooks/useMeeting'
 import { Avatar } from '~/components/Avatar'
@@ -12,6 +13,8 @@ import { Glyph, LineIcon } from '~/components/LineIcon'
 export type Meet = ReturnType<typeof useMeeting>
 export type Me = { name: string; avatar: string | null }
 type Panel = 'chat' | 'people' | 'notes' | null
+/** Most people a meeting of each size can hold */
+const SIZE_MAX = { small: MEETING_LIMIT, large: 50, event: 300 } as const
 
 // ---------- Icons (simple line icons, sized by the button) ----------
 const PATHS: Record<string, string> = {
@@ -59,6 +62,7 @@ export function MeetingShell({ meet, title, emoji, me, back, invite, lobby, onEn
   roomExtra?: { label: string; content: ReactNode } | null
 }) {
   const inRoom = meet.status === 'live' || meet.status === 'connecting' || meet.status === 'reconnecting'
+  const [sizeNoteSeen, setSizeNoteSeen] = useState(false)
   const [panel, setPanel] = useState<Panel>(null)
   const [view, setView] = useState<'stage' | 'grid'>('stage')
   const [recorded, setRecorded] = useState<Recording | null>(null)
@@ -152,6 +156,14 @@ export function MeetingShell({ meet, title, emoji, me, back, invite, lobby, onEn
           </div>
         )}
         {meet.notice && <p className="fade-in w-fit max-w-full rounded-2xl bg-white px-4 py-2 text-center text-sm text-[#08131f] shadow-xl">{meet.notice}</p>}
+        {inRoom && meet.host && meet.sizeWanted && !sizeNoteSeen && (
+          <div className="fade-in flex w-full max-w-md items-start gap-3 rounded-2xl bg-white p-3 text-sm text-[#08131f] shadow-xl" role="status">
+            <p className="flex-1">
+              <b>Running as a normal meeting (up to {MEETING_LIMIT} people).</b> {meet.sizeWanted === 'event' ? 'Big event' : 'Large meeting'} mode isn’t available right now: it isn’t set up yet, it was switched off, or this month’s free data is used up. See Admin → Meetings &amp; usage.
+            </p>
+            <button type="button" className="shrink-0 font-semibold text-accent" onClick={() => setSizeNoteSeen(true)}>OK</button>
+          </div>
+        )}
         {inRoom && <EndingSoon meet={meet} />}
         {inRoom && meet.host && meet.knocks.length > 0 && <KnockBar meet={meet} openPeople={() => openPanel('people')} />}
         {inRoom && meet.askUnmute && (
@@ -260,9 +272,12 @@ function Room({ meet, me, view, openPeople }: { meet: Meet; me: Me; view: 'stage
     trouble: false,
     screen: meet.screenOn,
   }
+  // In an event, only the people on stage are shown (the audience is counted)
+  const event = meet.size === 'event'
+  const audience = event ? meet.peers.filter((p) => !p.stage).length + (meet.onStage ? 0 : 1) : 0
   const people: Person[] = [
-    meP,
-    ...meet.peers.map((p) => ({ ...p, me: false, avatar: p.avatar || null, stream: meet.peerStream(p.id) })),
+    ...(event && !meet.onStage ? [] : [meP]),
+    ...meet.peers.filter((p) => !event || p.stage).map((p) => ({ ...p, me: false, avatar: p.avatar || null, stream: meet.peerStream(p.id) })),
   ]
   const byId = (id: string | null) => (id ? people.find((p) => p.id === id) : undefined)
   const presenter = people.find((p) => p.screen)
@@ -279,16 +294,27 @@ function Room({ meet, me, view, openPeople }: { meet: Meet; me: Me; view: 'stage
     // The host leads from the top. The host themself sees whoever is speaking.
     const hostP = people.find((p) => p.host && !p.me)
     const speaker = byId(lastSpeaker)
+    const other = people.find((p) => !p.me)
     if (hostP) focus = { kind: 'person', p: hostP, why: 'host' }
     else if (speaker) focus = { kind: 'person', p: speaker, why: 'speaker' }
-    else if (people.length > 1) focus = { kind: 'person', p: people[1], why: 'speaker' }
-    else focus = { kind: 'person', p: meP, why: 'only' }
+    else if (other) focus = { kind: 'person', p: other, why: 'speaker' }
+    else focus = { kind: 'person', p: people[0] ?? meP, why: 'only' }
   }
   const togglePin = (key: string) => setPin((p) => (p === key ? null : key))
   const mute = (p: Person) => (meet.host && !p.me ? () => meet.hostMute(p.id) : undefined)
 
   if (meet.status === 'connecting') {
     return <main className="flex min-h-0 flex-1 items-center justify-center text-white/70">Joining…</main>
+  }
+  // An event with nobody on stage yet
+  if (!people.length) {
+    return (
+      <main className="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 px-6 text-center">
+        <span className="flex h-16 w-16 items-center justify-center rounded-full bg-white/10"><Icon name="users" className="h-7 w-7 text-gold" /></span>
+        <p className="font-display text-xl font-semibold">You’re in. The program will start soon.</p>
+        <p className="max-w-sm text-sm text-white/70">{audience} watching. Say hello in the chat while you wait.</p>
+      </main>
+    )
   }
 
   // Grid view (when nobody is presenting): everyone the same size
@@ -324,6 +350,11 @@ function Room({ meet, me, view, openPeople }: { meet: Meet; me: Me; view: 'stage
           )}
           {focus.why === 'spotlight' && <span className="flex items-center gap-1 rounded-full bg-gold px-2.5 py-1 text-xs font-semibold text-navy"><Icon name="star" className="h-3.5 w-3.5" /> Spotlight</span>}
           {focus.kind === 'screen' && <span className="rounded-full bg-black/60 px-2.5 py-1 text-xs font-semibold backdrop-blur">{focus.p.me ? 'You are presenting' : `${focus.p.name} is presenting`}</span>}
+          {event && (
+            <button type="button" onClick={openPeople} className="pointer-events-auto flex items-center gap-1 rounded-full bg-black/60 px-2.5 py-1 text-xs font-semibold backdrop-blur">
+              <Icon name="users" className="h-3.5 w-3.5" /> {audience} watching
+            </button>
+          )}
         </div>
         {people.length === 1 && meet.status === 'live' && <div className="absolute inset-x-0 bottom-4"><FirstHere /></div>}
       </div>
@@ -598,9 +629,9 @@ function Controls({ meet, panel, openPanel, view, setView, rec, hasExtra, extraL
     <>
       <nav className="shrink-0 border-t border-white/10 bg-[#08131f] px-2 pt-2 pb-[max(.6rem,env(safe-area-inset-bottom))]">
         <div className="mx-auto flex max-w-xl items-center justify-center gap-1.5 sm:gap-3">
-          <RoundButton icon={meet.muted ? 'micOff' : 'mic'} label={meet.muted ? 'Unmute' : 'Mute'} onClick={meet.toggleMute} danger={meet.muted} />
-          {meet.adult && <RoundButton icon={meet.camOn ? 'cam' : 'camOff'} label={meet.camOn ? 'Turn camera off' : 'Turn camera on'} onClick={meet.toggleCamera} danger={!meet.camOn} />}
-          {meet.adult && <RoundButton icon="present" label={meet.screenOn ? 'Stop presenting' : 'Present'} onClick={() => (meet.screenOn ? meet.stopPresenting() : setSheet('present'))} active={meet.screenOn} />}
+          <RoundButton icon={meet.muted ? 'micOff' : 'mic'} label={!meet.onStage ? 'Listening (raise your hand to speak)' : meet.muted ? 'Unmute' : 'Mute'} onClick={meet.toggleMute} danger={meet.muted && meet.onStage} />
+          {meet.adult && meet.onStage && <RoundButton icon={meet.camOn ? 'cam' : 'camOff'} label={meet.camOn ? 'Turn camera off' : 'Turn camera on'} onClick={meet.toggleCamera} danger={!meet.camOn} />}
+          {meet.adult && meet.onStage && <RoundButton icon="present" label={meet.screenOn ? 'Stop presenting' : 'Present'} onClick={() => (meet.screenOn ? meet.stopPresenting() : setSheet('present'))} active={meet.screenOn} />}
           <RoundButton icon="hand" label={meet.hand ? 'Lower hand' : 'Raise hand'} onClick={meet.toggleHand} active={meet.hand} />
           <RoundButton icon="chat" label="Chat" onClick={() => openPanel(panel === 'chat' ? null : 'chat')} active={panel === 'chat'} badge={meet.unread} />
           <RoundButton icon="more" label="More" onClick={() => setSheet('more')} />
@@ -770,7 +801,7 @@ function ConnectionNote({ meet }: { meet: Meet }) {
           : stuck.length
             ? `Still connecting to ${stuck.map((p) => p.name).join(', ')}.`
             : `Connected to everyone (${meet.peers.length}).`}{' '}
-        {meet.relay ? 'Relay is on for strict networks.' : 'Direct connections only.'}
+        {meet.size !== 'small' ? `Big meeting mode (up to ${SIZE_MAX[meet.size]} people): everyone connects through Cloudflare.` : meet.relay ? 'Relay is on for strict networks.' : 'Direct connections only.'}
       </p>
       {stuck.length > 0 && <p className="mt-1">If it stays like this: try Wi-Fi, or leave and join again. Each person should use their own account.</p>}
     </div>
@@ -858,11 +889,16 @@ function ChatPanel({ meet, onClose }: { meet: Meet; onClose: () => void }) {
 
 function PeoplePanel({ meet, me, onClose }: { meet: Meet; me: Me; onClose: () => void }) {
   const cams = meet.peers.filter((p) => p.video).length + (meet.camOn ? 1 : 0)
-  const sorted = [...meet.peers].sort((a, b) => Number(b.hand) - Number(a.hand) || Number(b.host) - Number(a.host) || a.name.localeCompare(b.name))
+  const event = meet.size === 'event'
+  const sorted = [...meet.peers].sort((a, b) => Number(b.stage) - Number(a.stage) || Number(b.hand) - Number(a.hand) || Number(b.host) - Number(a.host) || a.name.localeCompare(b.name))
   const chip = 'chip !py-1 text-xs'
+  const audience = meet.peers.filter((p) => !p.stage).length + (meet.onStage ? 0 : 1)
   return (
     <SidePanel title={`People (${meet.peers.length + 1})`} onClose={onClose}>
-      <p className="text-xs text-muted"><Icon name="cam" className="mr-1 inline h-3.5 w-3.5 -translate-y-px" />{cams} of {CAMERA_LIMIT} cameras on · up to {MEETING_LIMIT} people</p>
+      <p className="text-xs text-muted">
+        {event ? <>Big event · {meet.peers.length + 1 - audience} on stage · {audience} watching · up to {SIZE_MAX.event} people</> : <><Icon name="cam" className="mr-1 inline h-3.5 w-3.5 -translate-y-px" />{cams} of {CAMERA_LIMIT} cameras on · up to {SIZE_MAX[meet.size]} people</>}
+      </p>
+      {event && meet.host && <p className="mt-1 text-xs text-muted">Only people on stage can speak, show a camera or present. Invite someone up when they raise a hand.</p>}
       {meet.host && meet.knocks.length > 0 && (
         <section className="mt-3 rounded-2xl bg-gold/15 p-3">
           <div className="flex items-center justify-between gap-2">
@@ -906,12 +942,21 @@ function PeoplePanel({ meet, me, onClose }: { meet: Meet; me: Me; onClose: () =>
                 {p.hand && <Icon name="hand" className="mr-1 inline h-4 w-4 -translate-y-px text-gold" />}
                 {p.name}
                 {p.host && <span className="ml-1 text-xs text-accent">· host</span>}
+                {event && !p.host && p.stage && <span className="ml-1 text-xs text-accent">· on stage</span>}
                 {!p.connected && <span className="ml-1 text-xs text-muted">· connecting</span>}
               </p>
               <span className="flex shrink-0 items-center gap-1.5 text-muted">{p.screen && <Icon name="present" className="h-4 w-4" />}{p.video && <Icon name="cam" className="h-4 w-4" />}<Icon name={p.muted ? 'micOff' : 'mic'} className={`h-4 w-4 ${p.muted ? 'text-red-500' : ''}`} /></span>
             </div>
-            {meet.host && (
+            {meet.host && event && !p.stage && (
               <div className="mt-2 flex flex-wrap gap-1.5 pl-[3.25rem]">
+                <button type="button" className={`${chip} !bg-gold/20`} onClick={() => meet.hostStage(p.id, true)}><Icon name="mic" className="mr-1 inline h-3.5 w-3.5 -translate-y-px" />Invite on stage</button>
+                {p.hand && <button type="button" className={chip} onClick={() => meet.hostLowerHand(p.id)}><Icon name="hand" className="mr-1 inline h-3.5 w-3.5 -translate-y-px" />Lower hand</button>}
+                <button type="button" className={`${chip} text-red-600`} onClick={() => confirm(`Remove ${p.name} from this meeting?`) && meet.hostRemove(p.id)}>Remove</button>
+              </div>
+            )}
+            {meet.host && (!event || p.stage) && (
+              <div className="mt-2 flex flex-wrap gap-1.5 pl-[3.25rem]">
+                {event && !p.host && <button type="button" className={chip} onClick={() => meet.hostStage(p.id, false)}>Back to audience</button>}
                 {meet.spotlight === p.id ? (
                   <button type="button" className={chip} onClick={() => meet.hostSpotlight(null)}><Icon name="star" className="mr-1 inline h-3.5 w-3.5 -translate-y-px" />Remove spotlight</button>
                 ) : (

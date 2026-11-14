@@ -10,6 +10,9 @@ export type AppEnv = {
   /** Optional: Cloudflare Realtime TURN key, improves live prayer on strict mobile networks */
   TURN_KEY_ID?: string
   TURN_KEY_API_TOKEN?: string
+  /** Optional: Cloudflare Realtime SFU app for big meetings (50 people, events). See src/lib/sfu.ts */
+  REALTIME_APP_ID?: string
+  REALTIME_APP_TOKEN?: string
   /** Optional: Resend API key for password-reset emails (resend.com, free tier) */
   RESEND_API_KEY?: string
   /** "Continue with Google" sign-in (see GOOGLE-LOGIN.md). Both are secrets: wrangler secret put … */

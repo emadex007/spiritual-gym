@@ -8,6 +8,8 @@ import { MeetingShell, shareInvite } from '~/components/MeetingRoom'
 import { SunriseScene } from '~/components/Art'
 import { nextStart, relativeStart } from '~/lib/schedule'
 import { Glyph, LineIcon } from '~/components/LineIcon'
+import { SizePicker, type MeetingSize } from '~/components/SizePicker'
+import { setGroupLiveSize } from '~/fns/community'
 
 export const Route = createFileRoute('/app/community/$groupId/live')({
   loader: ({ params }) => getGroup({ data: params.groupId }),
@@ -23,6 +25,8 @@ function GroupLive() {
   const isPrayer = gk.key === 'prayer'
   const meet = useMeeting(`/api/rooms/${g.id}/ws`)
   const [camera, setCamera] = useState(false)
+  const [size, setSize] = useState<MeetingSize>(g.live_size === 'large' || g.live_size === 'event' ? g.live_size : 'small')
+  const big = size !== 'small'
   const posts = d.posts.filter((x) => (isPrayer ? x.kind === 'request' : ['note', 'announcement', 'question'].includes(x.kind))).slice(0, 10)
   const next = d.schedules.map((s) => ({ s, t: nextStart(s) })).filter((x) => x.t != null).sort((a, b) => a.t! - b.t!)[0]
 
@@ -71,7 +75,7 @@ function GroupLive() {
           {meet.status === 'ended' && meet.endReason === 'time' && <p className="mt-5 rounded-2xl bg-white/10 px-4 py-3 text-sm">The meeting has ended: its time is up.</p>}
           {meet.status === 'removed' && <p className="mt-5 rounded-2xl bg-white/10 px-4 py-3 text-sm">The leader removed you from this meeting.</p>}
           {meet.status === 'not-started' && <p className="mt-5 rounded-2xl bg-white/10 px-4 py-3 text-sm">It hasn’t started yet. Only the group’s leaders can start it. You’ll get a notification the moment it begins.</p>}
-          {meet.status === 'full' && <p className="mt-5 rounded-2xl bg-white/10 px-4 py-3 text-sm">It’s full ({LIVE_ROOM_LIMIT} people). Please try again a little later.</p>}
+          {meet.status === 'full' && <p className="mt-5 rounded-2xl bg-white/10 px-4 py-3 text-sm">It’s full ({meet.fullLimit} people). Please try again a little later.</p>}
           {meet.error && <p className="mt-5 rounded-2xl bg-red-500/20 px-4 py-3 text-sm">{meet.error}</p>}
           {d.isMember ? (
             <>
@@ -80,12 +84,24 @@ function GroupLive() {
                 <li className="flex gap-2.5"><LineIcon name="camera" className="mt-0.5 h-4 w-4 shrink-0 text-gold" /><span>Cameras are optional, up to {CAMERA_LIMIT} at once. Chat and raise your hand.</span></li>
                 <li className="flex gap-2.5"><LineIcon name="presentation" className="mt-0.5 h-4 w-4 shrink-0 text-gold" /><span>Share your screen or show slides and pictures.</span></li>
                 <li className="flex gap-2.5"><LineIcon name="headphones" className="mt-0.5 h-4 w-4 shrink-0 text-gold" /><span>Headphones help others hear you clearly.</span></li>
-                <li className="flex gap-2.5"><LineIcon name="heart" className="mt-0.5 h-4 w-4 shrink-0 text-gold" /><span>Be kind. Never share bank or contact details. Up to {LIVE_ROOM_LIMIT} people.</span></li>
+                <li className="flex gap-2.5"><LineIcon name="heart" className="mt-0.5 h-4 w-4 shrink-0 text-gold" /><span>Be kind. Never share bank or contact details. {size === 'event' ? 'A big event: hundreds can watch; a few people speak on stage.' : `Up to ${big ? 50 : LIVE_ROOM_LIMIT} people.`}</span></li>
               </ul>
               <label className="mx-auto mt-5 flex cursor-pointer items-center gap-3 rounded-2xl bg-white/10 px-4 py-3 text-sm">
                 <input type="checkbox" className="h-5 w-5 accent-[#d4a64a]" checked={camera} onChange={(e) => setCamera(e.target.checked)} />
                 Turn my camera on when I join
               </label>
+              {d.leads && g.live_count === 0 && (
+                <div className="mt-5">
+                  <SizePicker
+                    dark
+                    value={size}
+                    onChange={(v) => {
+                      setSize(v)
+                      setGroupLiveSize({ data: { groupId: g.id, size: v } }).catch(() => {})
+                    }}
+                  />
+                </div>
+              )}
               <button type="button" className="btn-gold mt-6 w-full py-4 text-base" disabled={meet.status === 'connecting'} onClick={() => meet.join({ camera })}>
                 {meet.status === 'connecting' ? 'Joining…' : g.live_count > 0 ? 'Join now' : d.leads ? 'Start now' : 'Join if it has started'}
               </button>

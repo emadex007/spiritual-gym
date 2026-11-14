@@ -8,14 +8,21 @@
 // - Host tools: mute one or everyone, ask someone to unmute, turn off a camera, stop a presentation, remove, spotlight,
 //   announce recording, end the meeting, add time.
 // - Church meetings end on their own at their end time (a Durable Object alarm), with a 5-minute warning.
+// - Sizes: small rooms (up to 12) connect everyone directly. Large rooms (up to 50) and events (hundreds) send voice and
+//   pictures through Cloudflare Realtime (src/lib/sfu.ts): each person tells the room the names of their tracks ("sfu"),
+//   and everyone else pulls them from Cloudflare. In an event only the people on stage (hosts, and anyone a host invites up)
+//   can speak, turn on a camera or present; everyone else watches, chats, reacts and raises a hand.
 // - Staying connected: pings are answered without waking the room, and someone whose connection drops comes back by
 //   themselves (the phone reconnects). Anyone the host already let in goes straight back in, not to the waiting room.
 import { DurableObject } from 'cloudflare:workers'
 import type { AppEnv } from '~/lib/env'
 import { notify } from '~/lib/notify'
+import { asSize, SIZE_LIMIT, type RoomSize } from '~/lib/sfu'
 
-export const LIVE_ROOM_LIMIT = 12
+export const LIVE_ROOM_LIMIT = SIZE_LIMIT.small
 const CAMERA_LIMIT = 4
+/** Events: people on stage at once (hosts included) */
+const STAGE_LIMIT = 6
 const WARN_BEFORE = 5 * 60_000
 /** The chat is kept so people who join late (or reconnect) see what was said: the last 60 messages of the last 4 hours */
 const CHAT_KEEP = 60
@@ -39,8 +46,13 @@ type Peer = {
   screen?: boolean
   /** In the waiting room: not in the meeting yet */
   waiting?: boolean
+  /** Events: on stage (can speak, show a camera, present). Hosts always are; in other sizes everyone is. */
+  stage?: boolean
+  /** Large rooms and events: this person's Cloudflare session and track names, for others to pull */
+  sfu?: SfuInfo
 }
-type Msg = { t?: string; to?: string; data?: unknown; muted?: boolean; on?: boolean; text?: string; id?: string; final?: boolean; minutes?: number }
+type SfuInfo = { session: string; tracks: { a?: string; v?: string; s?: string } }
+type Msg = { t?: string; to?: string; data?: unknown; muted?: boolean; on?: boolean; text?: string; id?: string; final?: boolean; minutes?: number; session?: string; tracks?: Record<string, unknown> }
 
 export class PrayerRoom extends DurableObject<AppEnv> {
   constructor(ctx: DurableObjectState, env: AppEnv) {
@@ -69,6 +81,12 @@ export class PrayerRoom extends DurableObject<AppEnv> {
     // Room settings, kept while the room exists
     if (meetingId && !(await this.ctx.storage.get('meetingId'))) await this.ctx.storage.put('meetingId', meetingId)
     if ((await this.ctx.storage.get<boolean>('waitingRoom')) === undefined) await this.ctx.storage.put('waitingRoom', request.headers.get('x-waiting') === '1')
+    // The size is set when the room starts (nobody in it yet): small, large or event
+    if (!this.peers().length || !(await this.ctx.storage.get<RoomSize>('size'))) await this.ctx.storage.put('size', asSize(request.headers.get('x-size')))
+    const size = await this.size()
+    const limit = SIZE_LIMIT[size]
+    // What the host asked for (when big meetings aren't available, the room runs small and the host is told why)
+    await this.ctx.storage.put('sizeWanted', asSize(request.headers.get('x-size-wanted')))
     const endsAt = Number(request.headers.get('x-ends-at')) || 0
     if (endsAt && !(await this.ctx.storage.get<number>('endsAt'))) await this.setEnd(endsAt)
 
@@ -86,13 +104,14 @@ export class PrayerRoom extends DurableObject<AppEnv> {
         await this.leave(s)
       }
     }
-    if (this.peers().length >= LIVE_ROOM_LIMIT) {
-      server.send(JSON.stringify({ t: 'full', limit: LIVE_ROOM_LIMIT }))
+    if (this.peers().length >= limit) {
+      server.send(JSON.stringify({ t: 'full', limit }))
       server.close(4000, 'Room full')
       return new Response(null, { status: 101, webSocket: client })
     }
 
-    const me: Peer = { id: crypto.randomUUID(), userId, name, avatar, muted: false, groupId, meetingId, host, adult, video: false, hand: false, screen: false }
+    const me: Peer = { id: crypto.randomUUID(), userId, name, avatar, muted: size === 'event' && !host, groupId, meetingId, host, adult, video: false, hand: false, screen: false, stage: size !== 'event' || host || (!!userId && !!(await this.ctx.storage.get<boolean>(`stage:${userId}`))) }
+    if (me.stage) me.muted = false
     // Community groups: only a leader can start the live meeting. Everyone else joins once it's going.
     if (groupId && !meetingId && !host && this.peers().length === 0) {
       server.send(JSON.stringify({ t: 'not-started' }))
@@ -123,6 +142,9 @@ export class PrayerRoom extends DurableObject<AppEnv> {
       JSON.stringify({
         t: 'welcome',
         you: me.id,
+        size: await this.size(),
+        sizeWanted: me.host ? asSize(await this.ctx.storage.get<RoomSize>('sizeWanted')) : undefined,
+        stage: !!me.stage,
         host: !!me.host,
         adult: !!me.adult,
         peers: others.map(publicPeer),
@@ -168,11 +190,22 @@ export class PrayerRoom extends DurableObject<AppEnv> {
       case 'signal':
         if (msg.to) tell(msg.to, { t: 'signal', from: me.id, data: msg.data })
         return
+      case 'sfu': {
+        // My Cloudflare session and track names (large rooms and events), so others can pull them
+        const t = msg.tracks ?? {}
+        const name = (v: unknown) => (typeof v === 'string' && /^[\w:-]{1,128}$/.test(v) ? v : undefined)
+        if (typeof msg.session !== 'string' || !/^[\w-]{8,128}$/.test(msg.session)) return
+        save({ sfu: { session: msg.session, tracks: { a: name(t.a), v: name(t.v), s: name(t.s) } } })
+        return this.broadcast({ t: 'peer-sfu', id: me.id, sfu: me.sfu }, me.id)
+      }
       case 'mute':
+        // In an event, only people on stage can unmute
+        if (!msg.muted && !me.stage) return ws.send(JSON.stringify({ t: 'notice', text: 'Raise your hand and a host can invite you up to speak.' }))
         save({ muted: !!msg.muted })
         return this.broadcast({ t: 'mute', id: me.id, muted: me.muted }, me.id)
       case 'video':
         if (msg.on && !me.adult) return ws.send(JSON.stringify({ t: 'video-denied' }))
+        if (msg.on && !me.stage) return ws.send(JSON.stringify({ t: 'notice', text: 'Only people on stage can turn on a camera.' }))
         if (msg.on && this.peers().filter((p) => p.video && p.id !== me.id).length >= CAMERA_LIMIT) return ws.send(JSON.stringify({ t: 'video-full', limit: CAMERA_LIMIT }))
         save({ video: !!msg.on })
         ws.send(JSON.stringify({ t: 'video-ok', on: me.video }))
@@ -181,6 +214,7 @@ export class PrayerRoom extends DurableObject<AppEnv> {
         // One presenter at a time. The host can take over; anyone else is asked to wait.
         if (msg.on) {
           if (!me.adult) return ws.send(JSON.stringify({ t: 'screen-denied' }))
+          if (!me.stage) return ws.send(JSON.stringify({ t: 'screen-denied', stage: true }))
           const other = this.peers().find((p) => p.screen && p.id !== me.id)
           if (other && !me.host) return ws.send(JSON.stringify({ t: 'screen-busy', name: other.name }))
           if (other) this.stopScreen(other.id)
@@ -222,16 +256,17 @@ export class PrayerRoom extends DurableObject<AppEnv> {
           s.serializeAttachment(null)
           s.close(1000, 'denied')
         } else {
-          if (this.peers().length >= LIVE_ROOM_LIMIT) return ws.send(JSON.stringify({ t: 'notice', text: `The meeting is full (${LIVE_ROOM_LIMIT} people).` }))
+          if (this.peers().length >= SIZE_LIMIT[await this.size()]) return ws.send(JSON.stringify({ t: 'notice', text: `The meeting is full (${SIZE_LIMIT[await this.size()]} people).` }))
           p.waiting = false
           s.serializeAttachment(p)
           await this.welcome(s, p)
         }
         return this.toHosts({ t: 'knock-done', id: p.id })
       }
-      case 'admit-all':
+      case 'admit-all': {
+        const max = SIZE_LIMIT[await this.size()]
         for (const s of this.waitingSockets()) {
-          if (this.peers().length >= LIVE_ROOM_LIMIT) break
+          if (this.peers().length >= max) break
           const p = s.deserializeAttachment() as Peer
           p.waiting = false
           s.serializeAttachment(p)
@@ -239,6 +274,29 @@ export class PrayerRoom extends DurableObject<AppEnv> {
           this.toHosts({ t: 'knock-done', id: p.id })
         }
         return
+      }
+      case 'stage': {
+        // Events: invite someone up to speak, or send them back to the audience
+        const s = target(msg.id)
+        const p = s?.deserializeAttachment() as Peer | null
+        if (!s || !p || p.waiting || (await this.size()) !== 'event') return
+        if (!msg.on && p.host) return
+        if (msg.on && this.peers().filter((x) => x.stage).length >= STAGE_LIMIT) return ws.send(JSON.stringify({ t: 'notice', text: `The stage is full (${STAGE_LIMIT} people). Move someone back to the audience first.` }))
+        p.stage = !!msg.on
+        p.hand = false
+        // Remembered, so someone on stage whose connection drops comes back on stage
+        if (p.userId) await (p.stage ? this.ctx.storage.put(`stage:${p.userId}`, true) : this.ctx.storage.delete(`stage:${p.userId}`))
+        if (!p.stage) {
+          p.muted = true
+          p.video = false
+          p.screen = false
+        }
+        s.serializeAttachment(p)
+        try {
+          s.send(JSON.stringify({ t: 'stage', on: p.stage, by: me.name }))
+        } catch {}
+        return this.broadcast({ t: 'peer-stage', id: p.id, on: p.stage, muted: p.muted, video: p.video, screen: p.screen }, p.id)
+      }
       case 'waiting-room':
         await this.ctx.storage.put('waitingRoom', !!msg.on)
         this.toHosts({ t: 'waiting-room', on: !!msg.on })
@@ -358,6 +416,7 @@ export class PrayerRoom extends DurableObject<AppEnv> {
     this.broadcast({ t: 'peer-left', id: me.id }, me.id)
     const left = this.peers().length
     if (!left) {
+      await this.ctx.storage.delete('size')
       await this.ctx.storage.delete('spotlight')
       await this.ctx.storage.delete('captions')
     }
@@ -376,6 +435,10 @@ export class PrayerRoom extends DurableObject<AppEnv> {
       s.send(JSON.stringify({ t: 'force-screen-off' }))
     } catch {}
     this.broadcast({ t: 'screen', id: p.id, on: false }, p.id)
+  }
+
+  private async size(): Promise<RoomSize> {
+    return asSize(await this.ctx.storage.get<RoomSize>('size'))
   }
 
   /** People in the meeting (not those still in the waiting room) */
@@ -455,7 +518,7 @@ export class PrayerRoom extends DurableObject<AppEnv> {
   }
 }
 
-const publicPeer = (p: Peer) => ({ id: p.id, name: p.name, avatar: p.avatar ?? '', muted: p.muted, host: !!p.host, video: !!p.video, hand: !!p.hand, screen: !!p.screen })
+const publicPeer = (p: Peer) => ({ id: p.id, name: p.name, avatar: p.avatar ?? '', muted: p.muted, host: !!p.host, video: !!p.video, hand: !!p.hand, screen: !!p.screen, stage: p.stage !== false, sfu: p.sfu ?? null })
 
 function safeDecode(v: string | null) {
   try {
