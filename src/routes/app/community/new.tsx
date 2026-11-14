@@ -7,6 +7,7 @@ import { FormError, errorText } from '~/components/AuthShell'
 import { JourneyCover } from '~/components/Art'
 import { Glyph, LineIcon } from '~/components/LineIcon'
 import { MEETING_LENGTHS, SizePicker, lengthLabel, type MeetingSize } from '~/components/SizePicker'
+import { WhenPicker, defaultWhen, whenData, whenReady, type When } from '~/components/WhenPicker'
 
 export const Route = createFileRoute('/app/community/new')({
   validateSearch: (s: Record<string, unknown>): { kind?: string } => ({ kind: GROUP_KINDS.some((k) => k.key === s.kind) ? String(s.kind) : undefined }),
@@ -17,6 +18,7 @@ function NewGroup() {
   const router = useRouter()
   const search = Route.useSearch()
   const [f, setF] = useState({ name: '', kind: search.kind ?? 'prayer', purpose: 'general', description: '', isPrivate: false, minutes: 60, size: 'small' as MeetingSize })
+  const [when, setWhen] = useState<When>(defaultWhen)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const look = groupLook(f)
@@ -26,7 +28,7 @@ function NewGroup() {
     setBusy(true)
     setError(null)
     try {
-      const r = await createGroup({ data: f })
+      const r = await createGroup({ data: { ...f, when: whenData(when), timezone: Intl.DateTimeFormat().resolvedOptions().timeZone } })
       await router.navigate({ to: '/app/community/$groupId', params: { groupId: r.id } })
     } catch (e) {
       setError(errorText(e))
@@ -56,6 +58,10 @@ function NewGroup() {
           <span className="label">Group name</span>
           <input className="input" placeholder={f.kind === 'prayer' ? 'e.g. Mothers in Prayer, UNILAG Night Watch' : f.kind === 'bible_study' ? 'e.g. Romans Bible Study, Tuesday Word Class' : 'e.g. Lekki House Fellowship, Grace Choir'} value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} maxLength={60} />
         </label>
+        <div>
+          <span className="label">When do you meet?</span>
+          <WhenPicker value={when} onChange={setWhen} />
+        </div>
         <label className="block">
           <span className="label">How long are your live meetings?</span>
           <select className="input" value={f.minutes} onChange={(e) => setF({ ...f, minutes: Number(e.target.value) })}>
@@ -92,7 +98,7 @@ function NewGroup() {
           ))}
         </div>
         <FormError message={error} />
-        <button type="button" className="btn-primary w-full" disabled={busy || f.name.trim().length < 3} onClick={save}>
+        <button type="button" className="btn-primary w-full" disabled={busy || f.name.trim().length < 3 || !whenReady(when)} onClick={save}>
           {busy ? 'Creating…' : 'Create group'}
         </button>
       </div>

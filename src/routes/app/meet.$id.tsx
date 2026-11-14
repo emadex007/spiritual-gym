@@ -6,6 +6,7 @@ import { useMeeting } from '~/hooks/useMeeting'
 import { MeetingShell, shareInvite, type Meet } from '~/components/MeetingRoom'
 import { errorText } from '~/components/AuthShell'
 import { MEETING_LIMIT, CAMERA_LIMIT, meetingKind, meetingTime } from '~/lib/content'
+import { describeRepeat } from '~/lib/schedule'
 import { Glyph, LineIcon } from '~/components/LineIcon'
 
 export const Route = createFileRoute('/app/meet/$id')({
@@ -59,6 +60,9 @@ function Lobby({ d, meet, camera, setCamera }: { d: ReturnType<typeof Route.useL
           <><LineIcon name="calendar" className="mr-1.5 inline h-4 w-4 -translate-y-px" />{meetingTime(m.starts_at)} · {m.duration_min} min</>
         )}
       </p>
+      {(m.repeats === 'weekly' || m.repeats === 'monthly') && (
+        <p className="mt-2 text-sm font-semibold text-gold"><LineIcon name="history" className="mr-1.5 inline h-4 w-4 -translate-y-px" />{describeRepeat(Date.parse(m.starts_at), m.repeats, m.timezone)}</p>
+      )}
 
       {meet.status === 'denied' && <p className="mt-5 rounded-2xl bg-white/10 px-4 py-3 text-sm">The host didn’t let you in this time.</p>}
       {meet.status === 'ended' && meet.endReason === 'time' && <p className="mt-5 rounded-2xl bg-white/10 px-4 py-3 text-sm">The meeting has ended: its time is up.</p>}

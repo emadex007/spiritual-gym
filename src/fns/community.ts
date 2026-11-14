@@ -1,18 +1,29 @@
 import { createServerFn } from '@tanstack/react-start'
 import { asSize } from '~/lib/sfu'
+import { asRepeat } from '~/lib/schedule'
+import { db } from '~/lib/env'
+import { requireCommunityUser as requireUser } from '~/lib/auth'
+import { GROUP_KINDS, PRAYER_PURPOSES, POST_KINDS, REPORT_REASONS, groupKind } from '~/lib/content'
+import { newId } from '~/lib/util'
+import { notify } from '~/lib/notify'
+import { sendEmail } from '~/lib/email'
+import { env } from '~/lib/env'
+
+const zoneOr = (v: unknown) => {
+  const tz = String(v || 'Africa/Lagos').slice(0, 60)
+  try {
+    new Intl.DateTimeFormat('en', { timeZone: tz })
+    return tz
+  } catch {
+    return 'Africa/Lagos'
+  }
+}
 
 /** A group meeting's length in minutes: one of the offered lengths, or 0 for no set time */
 const liveMinutes = (v: unknown) => {
   const n = Math.round(Number(v) || 0)
   return [30, 45, 60, 90, 120, 180, 240].includes(n) ? n : 0
 }
-import { db } from '~/lib/env'
-import { requireCommunityUser as requireUser } from '~/lib/auth'
-import { GROUP_KINDS, PRAYER_PURPOSES, POST_KINDS, REPORT_REASONS } from '~/lib/content'
-import { newId } from '~/lib/util'
-import { notify } from '~/lib/notify'
-import { sendEmail } from '~/lib/email'
-import { env } from '~/lib/env'
 
 export type GroupCard = {
   id: string
@@ -94,16 +105,16 @@ export const listGroups = createServerFn({ method: 'GET' }).handler(async () => 
     .all<GroupCard>()
   const { results: schedules } = await db()
     .prepare(
-      `SELECT s.id, s.group_id, s.title, s.days, s.time, s.timezone, s.duration_min FROM prayer_schedules s
+      `SELECT s.id, s.group_id, s.title, s.days, s.time, s.timezone, s.duration_min, s.repeats, s.on_date, s.nth FROM prayer_schedules s
        JOIN prayer_group_members m ON m.group_id = s.group_id AND m.user_id = ?`,
     )
     .bind(user.id)
-    .all<{ id: string; group_id: string; title: string; days: string; time: string; timezone: string; duration_min: number }>()
+    .all<{ id: string; group_id: string; title: string; days: string; time: string; timezone: string; duration_min: number; repeats: string; on_date: string | null; nth: number | null }>()
   return { groups: results, schedules }
 })
 
 export const createGroup = createServerFn({ method: 'POST' })
-  .validator((d: { name: string; kind?: string; purpose: string; description?: string; isPrivate: boolean; size?: string; minutes?: number }) => {
+  .validator((d: { name: string; kind?: string; purpose: string; description?: string; isPrivate: boolean; size?: string; minutes?: number; when?: { repeats?: string; days?: string; nth?: number; onDate?: string; time?: string }; timezone?: string }) => {
     const name = String(d?.name ?? '').trim()
     if (name.length < 3) throw new Error('Give your group a name (at least 3 letters).')
     return {
@@ -114,6 +125,8 @@ export const createGroup = createServerFn({ method: 'POST' })
       isPrivate: d.isPrivate ? 1 : 0,
       size: asSize(d.size),
       minutes: liveMinutes(d.minutes),
+      // When the group meets: becomes its first meeting time (members get reminders and it shows before each meeting)
+      when: d.when ? { ...cleanWhen(d.when), time: /^([01]\d|2[0-3]):[0-5]\d$/.test(String(d.when.time)) ? String(d.when.time) : '18:00', timezone: zoneOr(d.timezone) } : null,
     }
   })
   .handler(async ({ data }) => {
@@ -126,6 +139,13 @@ export const createGroup = createServerFn({ method: 'POST' })
         .prepare('INSERT INTO prayer_groups (id, name, kind, purpose, description, is_private, invite_code, created_by, member_count, live_size, live_minutes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)')
         .bind(id, data.name, data.kind, data.purpose, data.description, data.isPrivate, inviteCode(), user.id, data.size, data.minutes),
       db().prepare(`INSERT INTO prayer_group_members (group_id, user_id, role) VALUES (?, ?, 'owner')`).bind(id, user.id),
+      ...(data.when
+        ? [
+            db()
+              .prepare('INSERT INTO prayer_schedules (id, group_id, title, days, time, timezone, duration_min, repeats, on_date, nth, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
+              .bind(newId(), id, groupKind(data.kind).live, data.when.days, data.when.time, data.when.timezone, data.minutes || 60, data.when.repeats, data.when.onDate, data.when.nth, user.id),
+          ]
+        : []),
     ])
     return { id }
   })
@@ -183,9 +203,9 @@ export const getGroup = createServerFn({ method: 'GET' })
         .bind(id)
         .all<{ id: string; name: string; avatar_key: string | null; role: string }>(),
       db()
-        .prepare('SELECT id, title, days, time, timezone, duration_min FROM prayer_schedules WHERE group_id = ? ORDER BY time')
+        .prepare('SELECT id, title, days, time, timezone, duration_min, repeats, on_date, nth FROM prayer_schedules WHERE group_id = ? ORDER BY time')
         .bind(id)
-        .all<{ id: string; title: string; days: string; time: string; timezone: string; duration_min: number }>(),
+        .all<{ id: string; title: string; days: string; time: string; timezone: string; duration_min: number; repeats: string; on_date: string | null; nth: number | null }>(),
     ])
     const isOwner = g.my_role === 'owner'
     const isAdmin = user.role === 'admin'
@@ -515,16 +535,34 @@ export const blockUser = createServerFn({ method: 'POST' })
   })
 
 // ---------------- Scheduled prayer times ----------------
+
+/** A meeting time's "when": every week (days), once a month (one weekday + nth) or one date — checked */
+function cleanWhen(d: { repeats?: string; days?: string; onDate?: string; nth?: number }) {
+  const repeats = asRepeat(d?.repeats)
+  let days = d?.days === 'daily' ? 'daily' : String(d?.days ?? '').split(',').filter(Boolean).map(Number).filter((n) => n >= 0 && n <= 6).sort().join(',')
+  let onDate: string | null = null
+  let nth: number | null = null
+  if (repeats === 'once') {
+    onDate = String(d?.onDate ?? '')
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(onDate) || !Number.isFinite(Date.parse(onDate))) throw new Error('Choose the date.')
+    days = ''
+  } else if (repeats === 'monthly') {
+    days = days.split(',')[0] ?? ''
+    if (!days || days === 'daily') throw new Error('Choose the day of the week.')
+    nth = [1, 2, 3, 4, -1].includes(Number(d?.nth)) ? Number(d.nth) : 1
+  } else if (!days) throw new Error('Choose at least one day.')
+  return { repeats, days, onDate, nth }
+}
+
 async function canManageSchedules(groupId: string, user: { id: string; role: string }) {
   if (user.role === 'admin') return true
   return (await groupRole(groupId, user)).leads
 }
 
 export const saveSchedule = createServerFn({ method: 'POST' })
-  .validator((d: { groupId: string; title: string; days: string; time: string; timezone?: string; durationMin?: number }) => {
+  .validator((d: { groupId: string; title: string; days: string; time: string; timezone?: string; durationMin?: number; repeats?: string; onDate?: string; nth?: number }) => {
     const title = String(d?.title ?? '').trim().slice(0, 60) || 'Group prayer'
-    const days = d?.days === 'daily' ? 'daily' : String(d?.days ?? '').split(',').map(Number).filter((n) => n >= 0 && n <= 6).sort().join(',')
-    if (!days) throw new Error('Choose at least one day.')
+    const { repeats, days, onDate, nth } = cleanWhen(d)
     if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(String(d.time))) throw new Error('Choose a time.')
     let tz = String(d.timezone || 'Africa/Lagos').slice(0, 60)
     try {
@@ -533,7 +571,7 @@ export const saveSchedule = createServerFn({ method: 'POST' })
       tz = 'Africa/Lagos'
     }
     const durationMin = Math.max(10, Math.min(240, Math.round(Number(d.durationMin) || 30)))
-    return { groupId: String(d.groupId), title, days, time: d.time, timezone: tz, durationMin }
+    return { groupId: String(d.groupId), title, days, time: d.time, timezone: tz, durationMin, repeats, onDate, nth }
   })
   .handler(async ({ data }) => {
     const user = await requireUser()
@@ -541,8 +579,8 @@ export const saveSchedule = createServerFn({ method: 'POST' })
     const n = await db().prepare('SELECT COUNT(*) AS n FROM prayer_schedules WHERE group_id = ?').bind(data.groupId).first<{ n: number }>()
     if ((n?.n ?? 0) >= 10) throw new Error('A group can have up to 10 prayer times.')
     await db()
-      .prepare('INSERT INTO prayer_schedules (id, group_id, title, days, time, timezone, duration_min, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
-      .bind(newId(), data.groupId, data.title, data.days, data.time, data.timezone, data.durationMin, user.id)
+      .prepare('INSERT INTO prayer_schedules (id, group_id, title, days, time, timezone, duration_min, repeats, on_date, nth, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
+      .bind(newId(), data.groupId, data.title, data.days, data.time, data.timezone, data.durationMin, data.repeats, data.onDate, data.nth, user.id)
       .run()
     return { ok: true }
   })

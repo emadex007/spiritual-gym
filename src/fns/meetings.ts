@@ -7,9 +7,20 @@ import { newId } from '~/lib/util'
 import { CAPTION_LANGS, MEETING_KINDS } from '~/lib/content'
 import { askCoach } from '~/lib/coach'
 import { asSize, sfuStatus } from '~/lib/sfu'
+import { describeRepeat } from '~/lib/schedule'
 
-type MeetingRow = { id: string; church_id: string; title: string; kind: string; description: string | null; starts_at: string; duration_min: number; status: string; live_count: number; started_at: string | null; size: string }
-const COLS = 'id, church_id, title, kind, description, starts_at, duration_min, status, live_count, started_at, size'
+const validZone = (v: unknown) => {
+  const tz = String(v || 'Africa/Lagos').slice(0, 60)
+  try {
+    new Intl.DateTimeFormat('en', { timeZone: tz })
+    return tz
+  } catch {
+    return 'Africa/Lagos'
+  }
+}
+
+type MeetingRow = { id: string; church_id: string; title: string; kind: string; description: string | null; starts_at: string; duration_min: number; status: string; live_count: number; started_at: string | null; size: string; repeats: string; timezone: string }
+const COLS = 'id, church_id, title, kind, description, starts_at, duration_min, status, live_count, started_at, size, repeats, timezone'
 
 /** A church's meetings: live now, coming up, and the last few */
 export const listMeetings = createServerFn({ method: 'GET' })
@@ -50,7 +61,7 @@ export const getMeeting = createServerFn({ method: 'GET' })
 
 /** Schedule or edit a meeting (church admins) */
 export const saveMeeting = createServerFn({ method: 'POST' })
-  .validator((d: { id?: string; churchId: string; title: string; kind: string; description?: string; startsAt: string; durationMin: number; size?: string }) => {
+  .validator((d: { id?: string; churchId: string; title: string; kind: string; description?: string; startsAt: string; durationMin: number; size?: string; repeats?: string; timezone?: string }) => {
     const title = cleanText(d?.title, 100)
     if (title.length < 3) throw new Error('Give the meeting a title.')
     const t = Date.parse(String(d?.startsAt ?? ''))
@@ -64,23 +75,27 @@ export const saveMeeting = createServerFn({ method: 'POST' })
       startsAt: new Date(t).toISOString(),
       durationMin: Math.max(15, Math.min(240, Math.round(Number(d?.durationMin) || 60))),
       size: asSize(d?.size),
+      // Just once, every week, or once a month (the same weekday of the month, e.g. the first Friday)
+      repeats: d?.repeats === 'weekly' || d?.repeats === 'monthly' ? d.repeats : 'once',
+      timezone: validZone(d?.timezone),
     }
   })
   .handler(async ({ data }) => {
     const user = await requireChurchAdmin(data.churchId)
     if (data.id) {
       await db()
-        .prepare(`UPDATE church_meetings SET title = ?, kind = ?, description = ?, starts_at = ?, duration_min = ?, size = ?, reminded = CASE WHEN starts_at = ? THEN reminded ELSE 0 END WHERE id = ? AND church_id = ?`)
-        .bind(data.title, data.kind, data.description, data.startsAt, data.durationMin, data.size, data.startsAt, data.id, data.churchId)
+        .prepare(`UPDATE church_meetings SET title = ?, kind = ?, description = ?, starts_at = ?, duration_min = ?, size = ?, repeats = ?, timezone = ?, reminded = CASE WHEN starts_at = ? THEN reminded ELSE 0 END WHERE id = ? AND church_id = ?`)
+        .bind(data.title, data.kind, data.description, data.startsAt, data.durationMin, data.size, data.repeats, data.timezone, data.startsAt, data.id, data.churchId)
         .run()
       return { id: data.id }
     }
     const id = newId()
     await db()
-      .prepare('INSERT INTO church_meetings (id, church_id, title, kind, description, starts_at, duration_min, size, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)')
-      .bind(id, data.churchId, data.title, data.kind, data.description, data.startsAt, data.durationMin, data.size, user.id)
+      .prepare('INSERT INTO church_meetings (id, church_id, title, kind, description, starts_at, duration_min, size, repeats, timezone, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
+      .bind(id, data.churchId, data.title, data.kind, data.description, data.startsAt, data.durationMin, data.size, data.repeats, data.timezone, user.id)
       .run()
-    await notify({ churchId: data.churchId, exceptUserId: user.id }, { kind: 'church', title: `🗓️ ${data.title}`, body: `New meeting: ${new Date(data.startsAt).toLocaleString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit', timeZone: 'Africa/Lagos' })}. Tap for details.`, url: `/app/meet/${id}` })
+    const when = describeRepeat(Date.parse(data.startsAt), data.repeats, data.timezone) || new Date(data.startsAt).toLocaleString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit', timeZone: data.timezone })
+    await notify({ churchId: data.churchId, exceptUserId: user.id }, { kind: 'church', title: `🗓️ ${data.title}`, body: `New meeting: ${when}. Tap for details.`, url: `/app/meet/${id}` })
     return { id }
   })
 

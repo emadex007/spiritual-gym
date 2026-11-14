@@ -555,10 +555,10 @@ export const getEngagementAdmin = createServerFn({ method: 'GET' }).handler(asyn
     q<{ n: number }>(`SELECT COUNT(*) AS n FROM notifications WHERE created_at > datetime('now', '-7 days')`),
     db()
       .prepare(
-        `SELECT s.id, s.title, s.days, s.time, s.timezone, s.duration_min, g.id AS group_id, g.name AS group_name
+        `SELECT s.id, s.title, s.days, s.time, s.timezone, s.duration_min, s.repeats, s.on_date, s.nth, g.id AS group_id, g.name AS group_name
          FROM prayer_schedules s JOIN prayer_groups g ON g.id = s.group_id WHERE g.is_hidden = 0`,
       )
-      .all<{ id: string; title: string; days: string; time: string; timezone: string; duration_min: number; group_id: string; group_name: string }>(),
+      .all<{ id: string; title: string; days: string; time: string; timezone: string; duration_min: number; repeats: string; on_date: string | null; nth: number | null; group_id: string; group_name: string }>(),
     db().prepare('SELECT id, name FROM prayer_groups WHERE is_hidden = 0 ORDER BY name').all<{ id: string; name: string }>(),
   ])
   return {
