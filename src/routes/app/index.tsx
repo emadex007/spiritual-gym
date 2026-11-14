@@ -168,7 +168,7 @@ function Home() {
             <ShareButton
               className="inline-flex items-center gap-1.5 rounded-full bg-white px-4 py-2 text-sm font-semibold text-[#5a2a04]"
               card={{ kind: 'word', heading: 'Today’s word', text: word.text, reference: word.reference, declaration: word.declaration ?? undefined }}
-              text={`TODAY’S WORD · ${word.reference}\n“${word.text}”${word.reflection ? `\n\n${word.reflection.trim()}` : ''}${word.declaration ? `\n\nI declare: ${word.declaration}` : ''}${word.prayer ? `\n\nPrayer: ${word.prayer}` : ''}\n\nTheRenewGym · therenewgym.org`}
+              text={`TODAY’S WORD · ${word.reference}\n“${word.text}”${word.reflection ? `\n\n${word.reflection.trim()}` : ''}${word.declaration ? `\n\nI declare: ${word.declaration}` : ''}${word.prayer ? `\n\nPrayer: ${word.prayer}` : ''}\n\nShared from TheRenewGym`}
             />
             <button type="button" onClick={() => setUnderstand(true)} className="inline-flex items-center gap-1.5 rounded-full bg-white/20 px-4 py-2 text-sm font-semibold text-white backdrop-blur">
               <LineIcon name="lightbulb" className="h-4 w-4" /> Understand this verse

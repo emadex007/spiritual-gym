@@ -6,10 +6,21 @@ import { drawCard, type CardInput } from '~/lib/shareCard'
 export function ShareButton({ card, text, label = 'Share', className = '', url }: { card: CardInput; text: string; label?: string; className?: string; url?: string }) {
   const [sheet, setSheet] = useState<{ url: string; file: File } | null>(null)
   const [busy, setBusy] = useState(false)
+  const [copied, setCopied] = useState(false)
   const site = url ?? (typeof location !== 'undefined' ? location.origin : '')
   const fullText = `${text}\n\n${site}`
 
+  // Many apps (WhatsApp, Instagram, some phones) keep the picture but drop the text that comes with it,
+  // so the whole message is also copied, ready to paste as the caption.
+  function copyMessage() {
+    try {
+      const p = navigator.clipboard?.writeText(fullText)
+      p?.then(() => { setCopied(true); setTimeout(() => setCopied(false), 6000) }).catch(() => {})
+    } catch {}
+  }
+
   async function share() {
+    copyMessage() // started inside the tap, before anything slow, so the phone allows it
     setBusy(true)
     try {
       const blob = await drawCard(card)
@@ -50,7 +61,8 @@ export function ShareButton({ card, text, label = 'Share', className = '', url }
           <div className="card fade-in w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
             <img src={sheet.url} alt="Share picture" className="w-full rounded-2xl" />
             <a href={sheet.url} download="therenewgym.png" className="btn-primary mt-4 w-full">Save picture</a>
-            <p className="mt-3 text-center text-xs text-muted">Save the picture to post it on Instagram or WhatsApp Status, or share the text:</p>
+            <button type="button" className="btn-ghost mt-2 w-full" onClick={copyMessage}>{copied ? '✓ Message copied' : 'Copy the message'}</button>
+            <p className="mt-3 text-center text-xs text-muted">Post the picture and paste the message as the caption, or share the text:</p>
             <div className="mt-3 grid grid-cols-4 gap-2 text-center text-xs font-semibold">
               {links.map(([n, href]) => (
                 <a key={n} href={href} target="_blank" rel="noreferrer" className="rounded-xl bg-surface-2 py-2.5 hover:bg-accent-soft">{n}</a>
@@ -58,6 +70,11 @@ export function ShareButton({ card, text, label = 'Share', className = '', url }
             </div>
             <button type="button" className="btn-ghost mt-3 w-full" onClick={() => setSheet(null)}>Close</button>
           </div>
+        </div></Portal>
+      )}
+      {copied && !sheet && (
+        <Portal><div role="status" className="fade-in fixed inset-x-4 bottom-24 z-50 mx-auto max-w-sm rounded-2xl bg-navy px-4 py-3 text-center text-sm font-semibold text-white shadow-lg">
+          Message copied. If it didn’t come with the picture, paste it as the caption.
         </div></Portal>
       )}
     </>
