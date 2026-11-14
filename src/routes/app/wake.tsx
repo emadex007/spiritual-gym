@@ -47,7 +47,7 @@ function Wake() {
   const bellsRef = useRef<{ stop: () => void } | null>(null)
   const lockRef = useRef<WakeLock | null>(null)
 
-  const word = devotion ?? (verse ? { reference: verse.reference, text: verse.text, declaration: 'I am a child of God, and His mercies are new over me this morning.', prayer: null as string | null } : null)
+  const word = devotion ?? (verse ? { reference: verse.reference, text: verse.text, declaration: 'I am a child of God, and His mercies are new over me this morning.', reflection: null as string | null, prayer: null as string | null } : null)
   const lines = [
     `Wake up, ${first}. Wake up.`,
     'Arise, shine; for thy light is come, and the glory of the Lord is risen upon thee.',
@@ -212,7 +212,7 @@ function Wake() {
                 <div className="mt-3">
                   <ShareButton
                     card={{ kind: 'word', heading: 'Today’s word', text: word.text, reference: word.reference, declaration: word.declaration }}
-                    text={`“${word.text}” (${word.reference})\n\nI declare: ${word.declaration}`}
+                    text={`TODAY’S WORD · ${word.reference}\n“${word.text}”${word.reflection ? `\n\n${word.reflection.trim()}` : ''}\n\nI declare: ${word.declaration}${word.prayer ? `\n\nPrayer: ${word.prayer}` : ''}\n\nShared from TheRenewGym`}
                     className="rounded-full bg-white/15 px-4 py-2 text-sm font-semibold"
                   />
                 </div>
