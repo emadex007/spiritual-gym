@@ -1,5 +1,11 @@
 import { createServerFn } from '@tanstack/react-start'
 import { asSize } from '~/lib/sfu'
+
+/** A group meeting's length in minutes: one of the offered lengths, or 0 for no set time */
+const liveMinutes = (v: unknown) => {
+  const n = Math.round(Number(v) || 0)
+  return [30, 45, 60, 90, 120, 180, 240].includes(n) ? n : 0
+}
 import { db } from '~/lib/env'
 import { requireCommunityUser as requireUser } from '~/lib/auth'
 import { GROUP_KINDS, PRAYER_PURPOSES, POST_KINDS, REPORT_REASONS } from '~/lib/content'
@@ -97,7 +103,7 @@ export const listGroups = createServerFn({ method: 'GET' }).handler(async () => 
 })
 
 export const createGroup = createServerFn({ method: 'POST' })
-  .validator((d: { name: string; kind?: string; purpose: string; description?: string; isPrivate: boolean }) => {
+  .validator((d: { name: string; kind?: string; purpose: string; description?: string; isPrivate: boolean; size?: string; minutes?: number }) => {
     const name = String(d?.name ?? '').trim()
     if (name.length < 3) throw new Error('Give your group a name (at least 3 letters).')
     return {
@@ -106,6 +112,8 @@ export const createGroup = createServerFn({ method: 'POST' })
       purpose: PURPOSE_KEYS.includes(d.purpose) ? d.purpose : 'general',
       description: String(d.description ?? '').trim().slice(0, 300) || null,
       isPrivate: d.isPrivate ? 1 : 0,
+      size: asSize(d.size),
+      minutes: liveMinutes(d.minutes),
     }
   })
   .handler(async ({ data }) => {
@@ -115,8 +123,8 @@ export const createGroup = createServerFn({ method: 'POST' })
     const id = newId()
     await db().batch([
       db()
-        .prepare('INSERT INTO prayer_groups (id, name, kind, purpose, description, is_private, invite_code, created_by, member_count) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)')
-        .bind(id, data.name, data.kind, data.purpose, data.description, data.isPrivate, inviteCode(), user.id),
+        .prepare('INSERT INTO prayer_groups (id, name, kind, purpose, description, is_private, invite_code, created_by, member_count, live_size, live_minutes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)')
+        .bind(id, data.name, data.kind, data.purpose, data.description, data.isPrivate, inviteCode(), user.id, data.size, data.minutes),
       db().prepare(`INSERT INTO prayer_group_members (group_id, user_id, role) VALUES (?, ?, 'owner')`).bind(id, user.id),
     ])
     return { id }
@@ -128,7 +136,7 @@ export const getGroup = createServerFn({ method: 'GET' })
     const user = await requireUser()
     const g = await db()
       .prepare(
-        `SELECT g.id, g.name, g.purpose, g.kind, g.description, g.is_private, g.is_featured, g.invite_code, g.created_by, g.member_count, g.live_count, g.is_hidden, g.approve_joins, g.live_size,
+        `SELECT g.id, g.name, g.purpose, g.kind, g.description, g.is_private, g.is_featured, g.invite_code, g.created_by, g.member_count, g.live_count, g.is_hidden, g.approve_joins, g.live_size, g.live_minutes,
                 m.role AS my_role, m.notify AS my_notify
          FROM prayer_groups g LEFT JOIN prayer_group_members m ON m.group_id = g.id AND m.user_id = ?
          WHERE g.id = ?`,
@@ -136,7 +144,7 @@ export const getGroup = createServerFn({ method: 'GET' })
       .bind(user.id, id)
       .first<{
         id: string; name: string; purpose: string; kind: string; description: string | null; is_private: number; is_featured: number; invite_code: string
-        created_by: string | null; member_count: number; live_count: number; is_hidden: number; approve_joins: number; live_size: string | null; my_role: string | null; my_notify: number | null
+        created_by: string | null; member_count: number; live_count: number; is_hidden: number; approve_joins: number; live_size: string | null; live_minutes: number | null; my_role: string | null; my_notify: number | null
       }>()
     const [pending, invited] = await Promise.all([
       db().prepare('SELECT 1 AS x FROM prayer_group_requests WHERE group_id = ? AND user_id = ?').bind(id, user.id).first(),
@@ -341,7 +349,7 @@ export const inviteToGroup = createServerFn({ method: 'POST' })
       await notify({ userIds: [them.id] }, { kind: 'group', title: `${from} invited you to ${g.name}`, body: 'Tap to see the group and join.', url: `/app/community/${data.groupId}`, tag: `inv-${data.groupId}` })
       return { sent: 'notified' as const }
     }
-    const signup = `${env().APP_URL || ''}/signup?next=${encodeURIComponent(`/app/community/${data.groupId}`)}`
+    const signup = `${env().APP_URL || ''}/signup?next=${encodeURIComponent(`/app/community/join/${g.invite_code}`)}`
     const esc = (t: string) => t.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!)
     const ok = await sendEmail(
       data.email,
@@ -559,10 +567,29 @@ export const setGroupNotify = createServerFn({ method: 'POST' })
 
 /** Leaders: how big the group's live meeting is (normal, large or a big event). Takes effect the next time it starts. */
 export const setGroupLiveSize = createServerFn({ method: 'POST' })
-  .validator((d: { groupId: string; size: string }) => ({ groupId: String(d?.groupId ?? ''), size: asSize(d?.size) }))
+  .validator((d: { groupId: string; size?: string; minutes?: number }) => ({
+    groupId: String(d?.groupId ?? ''),
+    size: d?.size === undefined ? null : asSize(d.size),
+    minutes: d?.minutes === undefined ? null : liveMinutes(d.minutes),
+  }))
   .handler(async ({ data }) => {
     const user = await requireUser()
     await requireLeader(data.groupId, user)
-    await db().prepare('UPDATE prayer_groups SET live_size = ? WHERE id = ?').bind(data.size, data.groupId).run()
-    return { ok: true, size: data.size }
+    if (data.size) await db().prepare('UPDATE prayer_groups SET live_size = ? WHERE id = ?').bind(data.size, data.groupId).run()
+    if (data.minutes !== null) await db().prepare('UPDATE prayer_groups SET live_minutes = ? WHERE id = ?').bind(data.minutes, data.groupId).run()
+    return { ok: true }
+  })
+
+/** A group invite link (/app/community/join/<code>): what the group is, before joining */
+export const getGroupInvite = createServerFn({ method: 'GET' })
+  .validator((code: string) => String(code ?? '').trim().toUpperCase().slice(0, 16))
+  .handler(async ({ data: code }) => {
+    const user = await requireUser()
+    const g = await db()
+      .prepare('SELECT id, name, kind, purpose, description, member_count, live_count, is_private FROM prayer_groups WHERE invite_code = ? AND is_hidden = 0')
+      .bind(code)
+      .first<{ id: string; name: string; kind: string; purpose: string; description: string | null; member_count: number; live_count: number; is_private: number }>()
+    if (!g) return null
+    const member = await db().prepare('SELECT 1 FROM prayer_group_members WHERE group_id = ? AND user_id = ?').bind(g.id, user.id).first()
+    return { ...g, isMember: !!member }
   })

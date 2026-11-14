@@ -8,7 +8,7 @@ import { MeetingShell, shareInvite } from '~/components/MeetingRoom'
 import { SunriseScene } from '~/components/Art'
 import { nextStart, relativeStart } from '~/lib/schedule'
 import { Glyph, LineIcon } from '~/components/LineIcon'
-import { SizePicker, type MeetingSize } from '~/components/SizePicker'
+import { MEETING_LENGTHS, SizePicker, lengthLabel, type MeetingSize } from '~/components/SizePicker'
 import { setGroupLiveSize } from '~/fns/community'
 
 export const Route = createFileRoute('/app/community/$groupId/live')({
@@ -26,6 +26,7 @@ function GroupLive() {
   const meet = useMeeting(`/api/rooms/${g.id}/ws`)
   const [camera, setCamera] = useState(false)
   const [size, setSize] = useState<MeetingSize>(g.live_size === 'large' || g.live_size === 'event' ? g.live_size : 'small')
+  const [minutes, setMinutes] = useState(g.live_minutes ?? 0)
   const big = size !== 'small'
   const posts = d.posts.filter((x) => (isPrayer ? x.kind === 'request' : ['note', 'announcement', 'question'].includes(x.kind))).slice(0, 10)
   const next = d.schedules.map((s) => ({ s, t: nextStart(s) })).filter((x) => x.t != null).sort((a, b) => a.t! - b.t!)[0]
@@ -53,7 +54,7 @@ function GroupLive() {
       emoji={look.emoji}
       me={{ name: d.meName, avatar: d.meAvatar }}
       back={<BackLink to="/app/community/$groupId" params={{ groupId: g.id }} className="flex h-9 items-center rounded-full bg-white/10 px-3 text-sm font-semibold hover:bg-white/15">← Back</BackLink>}
-      invite={() => shareInvite(g.name, `Join “${g.name}” live on TheRenewGym${g.invite_code ? ` (invite code ${g.invite_code})` : ''}:`, `${location.origin}/app/community/${g.id}/live`)}
+      invite={() => shareInvite(g.name, `Join “${g.name}” live on TheRenewGym${g.invite_code ? ` (invite code ${g.invite_code})` : ''}:`, g.invite_code ? `${location.origin}/app/community/join/${g.invite_code}?live=1` : `${location.origin}/app/community/${g.id}/live`)}
       roomExtra={notes}
       lobby={
         <main className="fade-in relative isolate mx-auto flex w-full max-w-md flex-1 flex-col justify-center px-5 py-8 text-center">
@@ -91,7 +92,21 @@ function GroupLive() {
                 Turn my camera on when I join
               </label>
               {d.leads && g.live_count === 0 && (
-                <div className="mt-5">
+                <div className="mt-5 space-y-4">
+                  <label className="block text-left">
+                    <span className="text-sm font-semibold">How long</span>
+                    <select
+                      className="mt-1 w-full rounded-2xl border border-white/15 bg-white/5 px-4 py-3 text-white [&>option]:text-ink"
+                      value={minutes}
+                      onChange={(e) => {
+                        const n = Number(e.target.value)
+                        setMinutes(n)
+                        setGroupLiveSize({ data: { groupId: g.id, minutes: n } }).catch(() => {})
+                      }}
+                    >
+                      {[...MEETING_LENGTHS, 0].map((n) => <option key={n} value={n}>{lengthLabel(n)}</option>)}
+                    </select>
+                  </label>
                   <SizePicker
                     dark
                     value={size}

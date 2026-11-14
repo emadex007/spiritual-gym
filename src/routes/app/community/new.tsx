@@ -6,6 +6,7 @@ import { GROUP_KINDS, PRAYER_PURPOSES, groupKind, groupLook } from '~/lib/conten
 import { FormError, errorText } from '~/components/AuthShell'
 import { JourneyCover } from '~/components/Art'
 import { Glyph, LineIcon } from '~/components/LineIcon'
+import { MEETING_LENGTHS, SizePicker, lengthLabel, type MeetingSize } from '~/components/SizePicker'
 
 export const Route = createFileRoute('/app/community/new')({
   validateSearch: (s: Record<string, unknown>): { kind?: string } => ({ kind: GROUP_KINDS.some((k) => k.key === s.kind) ? String(s.kind) : undefined }),
@@ -15,7 +16,7 @@ export const Route = createFileRoute('/app/community/new')({
 function NewGroup() {
   const router = useRouter()
   const search = Route.useSearch()
-  const [f, setF] = useState({ name: '', kind: search.kind ?? 'prayer', purpose: 'general', description: '', isPrivate: false })
+  const [f, setF] = useState({ name: '', kind: search.kind ?? 'prayer', purpose: 'general', description: '', isPrivate: false, minutes: 60, size: 'small' as MeetingSize })
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const look = groupLook(f)
@@ -55,6 +56,14 @@ function NewGroup() {
           <span className="label">Group name</span>
           <input className="input" placeholder={f.kind === 'prayer' ? 'e.g. Mothers in Prayer, UNILAG Night Watch' : f.kind === 'bible_study' ? 'e.g. Romans Bible Study, Tuesday Word Class' : 'e.g. Lekki House Fellowship, Grace Choir'} value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} maxLength={60} />
         </label>
+        <label className="block">
+          <span className="label">How long are your live meetings?</span>
+          <select className="input" value={f.minutes} onChange={(e) => setF({ ...f, minutes: Number(e.target.value) })}>
+            {[...MEETING_LENGTHS, 0].map((n) => <option key={n} value={n}>{lengthLabel(n)}</option>)}
+          </select>
+          <span className="mt-1 block text-xs text-muted">Everyone gets a 5-minute warning, and a leader can add more time. You can change this before any meeting.</span>
+        </label>
+        <SizePicker value={f.size} onChange={(v) => setF({ ...f, size: v })} />
         {f.kind === 'prayer' && (
           <div>
             <span className="label">What will you pray for?</span>
