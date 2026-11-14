@@ -31,6 +31,8 @@ function NewGroup() {
   const [error, setError] = useState<string | null>(null)
   const look = groupLook(f)
   const kind = groupKind(f.kind)
+  // Say exactly what's being made: a prayer group, a Bible study, a class, a worship team, a group…
+  const what = f.kind === 'prayer' ? 'a prayer group' : f.kind === 'bible_study' ? 'a Bible study' : f.kind === 'discipleship' ? 'a class' : f.kind === 'worship' ? 'a worship team' : 'a group'
 
   async function save() {
     setBusy(true)
@@ -47,7 +49,7 @@ function NewGroup() {
   return (
     <main className="fade-in mx-auto max-w-xl px-5 pt-6 pb-10 md:pt-10">
       <BackLink to="/app/community" className="text-sm font-semibold text-muted hover:text-ink">← Community</BackLink>
-      <h1 className="mt-2 font-display text-3xl font-semibold tracking-tight">{isEvent ? 'Create an event' : 'Start a group'}</h1>
+      <h1 className="mt-2 font-display text-3xl font-semibold tracking-tight">{isEvent ? 'Create an event' : `Start ${what}`}</h1>
       <p className="mt-1 text-muted">{isEvent ? 'One gathering on one date: a launch, a crusade night, a special program. People join with a link, get reminders, and meet live in the app.' : `${kind.hint} Every group gets a wall, set meeting times, and can meet live by voice and video.`}</p>
 
       <div className="mt-5 grid grid-cols-2 gap-2" role="radiogroup" aria-label="Group or event">
@@ -119,7 +121,7 @@ function NewGroup() {
         </div>
         <FormError message={error} />
         <button type="button" className="btn-primary w-full" disabled={busy || f.name.trim().length < 3 || !whenReady(when)} onClick={save}>
-          {busy ? 'Creating…' : isEvent ? 'Create event' : 'Create group'}
+          {busy ? 'Creating…' : isEvent ? 'Create event' : `Create ${what.replace(/^an? /, '')}`}
         </button>
       </div>
     </main>

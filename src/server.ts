@@ -257,6 +257,34 @@ async function routeRequest(request: Request, env: AppEnv): Promise<Response> {
     return json({ key, url: `/media/${key}` })
   }
 
+  // A meeting recording saved to a group's or event's page  POST /api/group-recording (multipart "file", "groupId",
+  // "seconds", "title"). The group's leaders (or an admin). Up to 95 MB (about 6 hours of voice, or a short video).
+  if (url.pathname === '/api/group-recording' && request.method === 'POST') {
+    const user = await userFromCookie(request, env)
+    if (!user) return json({ error: 'Please sign in.' }, 401)
+    const form = await request.formData()
+    const file = form.get('file')
+    const groupId = String(form.get('groupId') ?? '')
+    if (!(file instanceof File)) return json({ error: 'No file received.' }, 400)
+    const m = await env.DB.prepare('SELECT role FROM prayer_group_members WHERE group_id = ? AND user_id = ?').bind(groupId, user.id).first<{ role: string }>()
+    if (!(m && (m.role === 'owner' || m.role === 'leader')) && user.role !== 'admin') return json({ error: 'Only the leaders can save recordings here.' }, 403)
+    const type = file.type.split(';')[0]
+    const ext = ({ 'audio/mp4': 'm4a', 'audio/webm': 'webm', 'audio/ogg': 'ogg', 'audio/mpeg': 'mp3', 'video/mp4': 'mp4', 'video/webm': 'webm' } as Record<string, string>)[type]
+    if (!ext) return json({ error: 'That isn’t a recording we can keep.' }, 400)
+    if (file.size > 95 * 1024 * 1024) return json({ error: 'This recording is bigger than 95 MB, too big to keep here. Download it instead.' }, 400)
+    const n = await env.DB.prepare('SELECT COUNT(*) AS n FROM group_recordings WHERE group_id = ?').bind(groupId).first<{ n: number }>()
+    if ((n?.n ?? 0) >= 20) return json({ error: 'This page already has 20 recordings. Delete an old one first.' }, 400)
+    const id = crypto.randomUUID()
+    const key = `groups/${groupId}/rec-${id}.${ext}`
+    await env.MEDIA.put(key, file.stream(), { httpMetadata: { contentType: type } })
+    const seconds = Math.max(0, Math.min(86_400, Math.round(Number(form.get('seconds')) || 0)))
+    const title = String(form.get('title') ?? '').trim().slice(0, 120) || 'Recording'
+    await env.DB.prepare('INSERT INTO group_recordings (id, group_id, media_key, type, seconds, size, title, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
+      .bind(id, groupId, key, type, seconds, file.size, title, user.id)
+      .run()
+    return json({ id, url: `/media/${key}` })
+  }
+
   // A topic plan's featured picture  POST /api/topic-cover (multipart "file", "id"). The plan's writer (or an admin) only.
   if (url.pathname === '/api/topic-cover' && request.method === 'POST') {
     const user = await userFromCookie(request, env)
@@ -466,12 +494,14 @@ async function routeRequest(request: Request, env: AppEnv): Promise<Response> {
     if (!user.birth_year || new Date().getFullYear() - user.birth_year < 18) return new Response('Community meetings are for adults (18+).', { status: 403 })
     const groupId = room[1]
     const member = await env.DB.prepare(
-      `SELECT m.role, g.live_size, g.live_minutes FROM prayer_group_members m JOIN prayer_groups g ON g.id = m.group_id
+      `SELECT m.role, g.live_size, g.live_minutes, g.is_event FROM prayer_group_members m JOIN prayer_groups g ON g.id = m.group_id
        WHERE m.group_id = ? AND m.user_id = ? AND g.is_hidden = 0`,
     )
       .bind(groupId, user.id)
-      .first<{ role: string; live_size: string | null; live_minutes: number | null }>()
+      .first<{ role: string; live_size: string | null; live_minutes: number | null; is_event: number }>()
     if (!member) return new Response('Join the group first.', { status: 403 })
+    // Events count who really came (shown as "attended" on the event page)
+    if (member.is_event) await env.DB.prepare('INSERT OR IGNORE INTO group_attendance (group_id, user_id) VALUES (?, ?)').bind(groupId, user.id).run().catch(() => {})
     const headers = new Headers(request.headers)
     headers.set('x-user-id', user.id)
     headers.set('x-user-name', encodeURIComponent(user.name.split(' ')[0].slice(0, 30)))

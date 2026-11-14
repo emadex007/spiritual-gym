@@ -2,7 +2,7 @@ import { useState, type FormEvent } from 'react'
 import { Link, createFileRoute, useRouter } from '@tanstack/react-router'
 import { BackLink } from '~/components/BackLink'
 import { answerJoinRequest, blockUser, cancelJoinRequest, createPost, deleteGroup, deletePost, getGroup, inviteToGroup, joinGroup, leaveGroup, removeMember, replyToPost, setApproveJoins, setGroupRole, togglePrayed } from '~/fns/community'
-import { POST_KINDS, groupKind, groupLook } from '~/lib/content'
+import { POST_KINDS, groupKind, groupLook, spaceOf } from '~/lib/content'
 import { JourneyCover } from '~/components/Art'
 import { FormError, errorText } from '~/components/AuthShell'
 import { ReportDialog } from '~/components/ReportDialog'
@@ -11,6 +11,7 @@ import { PrayerTimes } from '~/components/PrayerTimes'
 import { Glyph, LineIcon } from '~/components/LineIcon'
 import { Portal } from '~/components/Portal'
 import { EditGroup } from '~/components/EditGroup'
+import { EventRecap } from '~/components/EventRecap'
 import { inviteLink } from '~/lib/invite'
 import { describeSchedule, nextStart, relativeStart } from '~/lib/schedule'
 
@@ -33,6 +34,7 @@ function GroupPage() {
   // An event: its one date, shown at the top and in what's shared. Events aren't prayer groups.
   const event = !!g.is_event
   const isPrayer = gk.key === 'prayer' && !event
+  const sp = spaceOf(g.kind, event)
   const eventSched = event ? (d.schedules.find((x) => x.repeats === 'once') ?? null) : null
   const eventWhen = eventSched ? describeSchedule(eventSched) : null
   const eventStart = eventSched ? nextStart(eventSched) : null
@@ -95,7 +97,7 @@ function GroupPage() {
     const link = g.invite_code ? inviteLink(g.name, g.invite_code) : location.href
     const text = event
       ? `You’re invited: ${g.name}${eventWhen ? `\n🗓️ ${eventWhen}` : ''}\nLive on TheRenewGym. Tap to join: ${link}${g.invite_code ? `\nEvent code: ${g.invite_code}` : ''}`
-      : `Join “${g.name}” on TheRenewGym${isPrayer ? ' to pray together' : ''}.\nTap to join: ${link}${g.invite_code ? `\nInvite code: ${g.invite_code}` : ''}`
+      : `Join “${g.name}” on TheRenewGym to ${sp.inviteVerb}.\nTap to join: ${link}${g.invite_code ? `\nInvite code: ${g.invite_code}` : ''}`
     try {
       if (navigator.share) await navigator.share({ title: g.name, text })
       else {
@@ -162,39 +164,50 @@ function GroupPage() {
           <p className="mt-2 text-xs text-muted">Invite code: <span className="font-mono font-semibold tracking-wider text-ink">{g.invite_code}</span></p>
         )}
 
+        <EventRecap
+          g={g}
+          when={eventWhen}
+          attended={d.attended}
+          going={g.member_count}
+          recordings={d.recordings}
+          leads={d.leads}
+          isEvent={event}
+          past={!!eventSched && (eventStart == null || eventStart <= Date.now())}
+        />
+
         {/* Meet live (voice, video, chat) */}
         <section className="relative mt-5 overflow-hidden rounded-[1.5rem] p-5 text-white" style={{ background: 'linear-gradient(135deg,var(--brand-navy-2),#3a2f86 60%,#6f5ce6)' }}>
           <div className="flex items-center justify-between gap-4">
             <div>
               <p className="flex items-center gap-2 text-xs font-semibold tracking-[0.14em] text-gold uppercase">
                 {g.live_count > 0 && <span className="h-2 w-2 animate-pulse rounded-full bg-red-400" />}
-                {gk.live}
+                {event ? 'Live event' : gk.live}
               </p>
-              <p className="mt-1 font-display text-xl font-semibold">{g.live_count > 0 ? `${g.live_count} ${g.live_count === 1 ? 'person is' : 'people are'} ${gk.doing} now` : d.leads ? (isPrayer ? 'Start praying together' : 'Start a live meeting') : isPrayer ? 'Pray together live' : 'Meet live'}</p>
-              <p className="mt-1 text-sm text-white/75">{isPrayer ? 'Hear each other pray in real time. Cameras are optional.' : 'Talk, see each other, chat and share notes in real time.'}</p>
+              <p className="mt-1 font-display text-xl font-semibold">{g.live_count > 0 ? `${g.live_count} ${g.live_count === 1 ? 'person is' : 'people are'} ${gk.doing} now` : d.leads ? sp.start : event ? 'The live event' : gk.live}</p>
+              <p className="mt-1 text-sm text-white/75">{sp.liveHint}</p>
             </div>
-            <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-white/10 text-gold" aria-hidden><LineIcon name={isPrayer ? 'mic' : 'video'} className="h-7 w-7" /></span>
+            <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-white/10 text-gold" aria-hidden><LineIcon name={sp.icon} className="h-7 w-7" /></span>
           </div>
           {d.isMember && (g.live_count > 0 || d.leads) ? (
             <Link to="/app/community/$groupId/live" params={{ groupId: g.id }} className="btn-gold mt-4">
-              {g.live_count > 0 ? (isPrayer ? 'Join live prayer' : 'Join the live meeting') : isPrayer ? 'Start live prayer' : 'Start a live meeting'}
+              {g.live_count > 0 ? sp.join : sp.start}
             </Link>
           ) : d.isMember ? (
             <p className="mt-4 flex gap-2 rounded-2xl bg-white/10 px-4 py-3 text-sm text-white/85">
               <LineIcon name="bell" className="mt-0.5 h-4 w-4 shrink-0 text-gold" />
-              <span>A leader of this group starts {isPrayer ? 'live prayer' : 'the live meeting'}. You’ll get a notification the moment it begins.</span>
+              <span>{event ? 'The host starts the live event' : `A leader of this group starts ${sp.start.replace(/^Start /, '').replace(/^a /, 'the ')}`}. You’ll get a notification the moment it begins.</span>
             </p>
           ) : (
-            <p className="mt-4 text-sm text-white/80">Join the group to meet live.</p>
+            <p className="mt-4 text-sm text-white/80">{event ? 'Join the event to take part live.' : 'Join the group to meet live.'}</p>
           )}
         </section>
 
-        {!event && <PrayerTimes groupId={g.id} schedules={d.schedules} canSchedule={d.canSchedule} isMember={d.isMember} notifyOn={d.notifyOn} prayer={isPrayer} liveCount={g.live_count} />}
+        {!event && <PrayerTimes groupId={g.id} schedules={d.schedules} canSchedule={d.canSchedule} isMember={d.isMember} notifyOn={d.notifyOn} prayer={isPrayer} heading={sp.times ?? 'Meeting times'} word={sp.timeWord || 'meeting time'} liveCount={g.live_count} />}
 
         <div className="mt-6 grid grid-cols-2 gap-1 rounded-full bg-surface-2 p-1">
           {(['wall', 'members'] as const).map((t) => (
             <button key={t} type="button" onClick={() => setTab(t)} className={`rounded-full py-2 text-sm font-medium ${tab === t ? 'bg-surface text-ink shadow-sm' : 'text-muted'}`}>
-              <LineIcon name={t === 'wall' ? (isPrayer ? 'prayer' : 'chat') : 'users'} className="mr-1.5 inline h-4 w-4 -translate-y-px" />{t === 'wall' ? gk.wall : `Members (${d.members.length})`}
+              <LineIcon name={t === 'wall' ? (isPrayer ? 'prayer' : 'chat') : 'users'} className="mr-1.5 inline h-4 w-4 -translate-y-px" />{t === 'wall' ? (event ? 'Event wall' : gk.wall) : event ? `Going (${d.members.length})` : `Members (${d.members.length})`}
               {t === 'members' && d.requests.length > 0 && <span className="ml-1.5 rounded-full bg-red-500 px-1.5 py-0.5 text-[11px] font-bold text-white">{d.requests.length}</span>}
             </button>
           ))}
@@ -202,9 +215,9 @@ function GroupPage() {
 
         {tab === 'wall' ? (
           <>
-            {d.isMember && <Composer groupId={g.id} prayer={isPrayer && !event} event={event} leader={d.leads} />}
+            {d.isMember && <Composer groupId={g.id} kinds={sp.wall} leader={d.leads} />}
             <div className="mt-4 space-y-3">
-              {d.posts.length === 0 && <p className="py-8 text-center text-muted">{event ? 'Nothing posted yet. Ask a question or share what you’re looking forward to.' : isPrayer ? 'No prayer requests yet. Be the first to share.' : 'Nothing posted yet. Share a thought, a question or your notes.'}</p>}
+              {d.posts.length === 0 && <p className="py-8 text-center text-muted">{sp.empty}</p>}
               {d.posts.map((post) => (
                 <PostCard key={post.id} post={post} me={d.me} canModerate={d.leads} isMember={d.isMember} onReport={(type, id) => setReport({ type, id })} />
               ))}
@@ -355,12 +368,10 @@ const PLACEHOLDER: Record<string, string> = {
   announcement: 'Tell the group what’s coming up, e.g. the next meeting or outreach.',
 }
 
-function Composer({ groupId, prayer, leader, event = false }: { groupId: string; prayer: boolean; leader: boolean; event?: boolean }) {
+function Composer({ groupId, kinds: allowed, leader }: { groupId: string; kinds: readonly string[]; leader: boolean }) {
   const router = useRouter()
-  // An event's wall: announcements, questions, encouragement and notes (not prayer requests)
-  const kinds = event
-    ? (leader ? ['announcement'] : []).concat(['question', 'encouragement', 'note'])
-    : (prayer ? ['request', 'testimony', 'encouragement', 'question'] : ['note', 'question', 'encouragement', 'request', 'testimony']).concat(leader ? ['announcement'] : [])
+  // What can be posted depends on the space (prayer group, Bible study, event…); announcements are for leaders
+  const kinds = allowed.filter((k) => k !== 'announcement' || leader).concat(leader && !allowed.includes('announcement') ? ['announcement'] : [])
   const [kind, setKind] = useState<string>(kinds[0])
   const [body, setBody] = useState('')
   const [busy, setBusy] = useState(false)
