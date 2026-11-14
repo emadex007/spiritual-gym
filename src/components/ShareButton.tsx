@@ -7,6 +7,8 @@ export function ShareButton({ card, text, label = 'Share', className = '', url }
   const [sheet, setSheet] = useState<{ url: string; file: File } | null>(null)
   const [busy, setBusy] = useState(false)
   const [copied, setCopied] = useState(false)
+  // After the picture is shared, step two: send the message, so it lands below the picture
+  const [next, setNext] = useState(false)
   const site = url ?? (typeof location !== 'undefined' ? location.origin : '')
   const fullText = `${text}\n\n${site}`
 
@@ -28,7 +30,9 @@ export function ShareButton({ card, text, label = 'Share', className = '', url }
       const nav = navigator as Navigator & { canShare?: (d: ShareData) => boolean }
       if (nav.share && nav.canShare?.({ files: [file] })) {
         try {
-          await nav.share({ files: [file], text: fullText })
+          // Picture on its own first: when a picture and text go together, many phones put the text first
+          await nav.share({ files: [file] })
+          setNext(true)
           return
         } catch (e) {
           if ((e as Error).name === 'AbortError') return
@@ -37,6 +41,17 @@ export function ShareButton({ card, text, label = 'Share', className = '', url }
       setSheet({ url: URL.createObjectURL(blob), file })
     } finally {
       setBusy(false)
+    }
+  }
+
+  async function shareMessage() {
+    const nav = navigator as Navigator
+    try {
+      if (nav.share) await nav.share({ text: fullText })
+      else copyMessage()
+      setNext(false)
+    } catch (e) {
+      if ((e as Error).name !== 'AbortError') copyMessage()
     }
   }
 
@@ -72,9 +87,24 @@ export function ShareButton({ card, text, label = 'Share', className = '', url }
           </div>
         </div></Portal>
       )}
-      {copied && !sheet && (
+      {next && (
+        <Portal><div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-4 sm:items-center" role="dialog" aria-modal="true" aria-label="Send the message" onClick={() => setNext(false)}>
+          <div className="card fade-in w-full max-w-sm text-center" onClick={(e) => e.stopPropagation()}>
+            <p className="font-display text-lg font-semibold">Picture sent ✓</p>
+            <p className="mt-1 text-sm text-muted">Now send the message, so it shows below the picture.</p>
+            <p className="mt-3 max-h-32 overflow-y-auto whitespace-pre-line rounded-2xl bg-surface-2 p-3 text-left text-xs text-muted">{fullText}</p>
+            <button type="button" className="btn-primary mt-4 w-full" onClick={shareMessage}>Send the message</button>
+            <div className="mt-2 grid grid-cols-2 gap-2">
+              <a href={`https://wa.me/?text=${encodeURIComponent(fullText)}`} target="_blank" rel="noreferrer" className="btn-ghost" onClick={() => setNext(false)}>WhatsApp</a>
+              <button type="button" className="btn-ghost" onClick={copyMessage}>{copied ? '✓ Copied' : 'Copy'}</button>
+            </div>
+            <button type="button" className="mt-3 text-sm font-semibold text-muted" onClick={() => setNext(false)}>Done</button>
+          </div>
+        </div></Portal>
+      )}
+      {copied && !sheet && !next && (
         <Portal><div role="status" className="fade-in fixed inset-x-4 bottom-24 z-50 mx-auto max-w-sm rounded-2xl bg-navy px-4 py-3 text-center text-sm font-semibold text-white shadow-lg">
-          Message copied. If it didn’t come with the picture, paste it as the caption.
+          Message copied. You can paste it as the caption below the picture.
         </div></Portal>
       )}
     </>
