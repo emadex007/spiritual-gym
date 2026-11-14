@@ -49,7 +49,7 @@ export function Icon({ name, className = 'h-5 w-5' }: { name: keyof typeof PATHS
 }
 
 /** The full page: header, lobby (before joining) or the room, the control bar and pop-ups */
-export function MeetingShell({ meet, title, emoji, me, back, invite, lobby, onEndForAll, roomExtra }: {
+export function MeetingShell({ meet, title, emoji, me, back, invite, lobby, onEndForAll, roomExtra, saveRecording }: {
   meet: Meet
   title: string
   emoji: string
@@ -60,6 +60,8 @@ export function MeetingShell({ meet, title, emoji, me, back, invite, lobby, onEn
   onEndForAll?: () => void
   /** A side panel in the room, e.g. the group's prayer requests or study notes */
   roomExtra?: { label: string; content: ReactNode } | null
+  /** Keep the recording on the group's or event's page (leaders): where it goes, and how to upload it */
+  saveRecording?: { label: string; save: (r: Recording) => Promise<void> } | null
 }) {
   const inRoom = meet.status === 'live' || meet.status === 'connecting' || meet.status === 'reconnecting'
   const [sizeNoteSeen, setSizeNoteSeen] = useState(false)
@@ -210,7 +212,7 @@ export function MeetingShell({ meet, title, emoji, me, back, invite, lobby, onEn
           {roomExtra.content}
         </SidePanel>
       )}
-      {recorded && <RecordingSheet r={recorded} title={title} onClose={() => setRecorded(null)} />}
+      {recorded && <RecordingSheet r={recorded} title={title} saveTo={saveRecording ?? null} onClose={() => setRecorded(null)} />}
     </div>
   )
 }
@@ -984,11 +986,25 @@ function PeoplePanel({ meet, me, onClose }: { meet: Meet; me: Me; onClose: () =>
   )
 }
 
-function RecordingSheet({ r, title, onClose }: { r: Recording; title: string; onClose: () => void }) {
+function RecordingSheet({ r, title, saveTo, onClose }: { r: Recording; title: string; saveTo: { label: string; save: (r: Recording) => Promise<void> } | null; onClose: () => void }) {
   const [msg, setMsg] = useState<string | null>(null)
+  const [saved, setSaved] = useState<'no' | 'saving' | 'yes'>('no')
+  async function keep() {
+    if (!saveTo) return
+    setSaved('saving')
+    setMsg(null)
+    try {
+      await saveTo.save(r)
+      setSaved('yes')
+      setMsg(`Saved. Everyone in it can play, download and share it from the page.`)
+    } catch (e) {
+      setSaved('no')
+      setMsg(e instanceof Error ? e.message : 'Couldn’t save it. Download it instead.')
+    }
+  }
   const video = r.type.startsWith('video')
   const close = () => {
-    if (!confirm('Close? If you haven’t shared or downloaded the recording, it will be lost.')) return
+    if (saved !== 'yes' && !confirm('Close? If you haven’t saved, shared or downloaded the recording, it will be lost.')) return
     URL.revokeObjectURL(r.url)
     onClose()
   }
@@ -996,9 +1012,15 @@ function RecordingSheet({ r, title, onClose }: { r: Recording; title: string; on
     <Sheet title="Your recording" onClose={close}>
       <p className="text-sm text-muted">{title} · {clock(r.seconds)} · {r.size}</p>
       {video ? <video src={r.url} controls playsInline className="mt-3 w-full rounded-2xl bg-black" /> : <audio src={r.url} controls className="mt-3 w-full" />}
+      {saveTo && (
+        <button type="button" className="btn-gold mt-4 w-full py-3.5" disabled={saved !== 'no'} onClick={keep}>
+          <LineIcon name="bookmark" className="mr-2 inline h-4 w-4 -translate-y-px" />
+          {saved === 'saving' ? 'Saving… (keep this open)' : saved === 'yes' ? '✓ Saved to the page' : saveTo.label}
+        </button>
+      )}
       <button
         type="button"
-        className="btn-gold mt-4 w-full py-3.5"
+        className={`${saveTo ? 'btn-ghost mt-2' : 'btn-gold mt-4'} w-full py-3.5`}
         onClick={async () => {
           const res = await shareRecording(r, `${title} — recorded on TheRenewGym`)
           setMsg(res === 'downloaded' ? 'Saved to your downloads. Open WhatsApp, tap 📎 and choose the file (as a Document for long videos).' : res === 'shared' ? 'Shared. 🙌' : null)
@@ -1017,7 +1039,7 @@ function RecordingSheet({ r, title, onClose }: { r: Recording; title: string; on
         <LineIcon name="upload" className="mr-2 inline h-4 w-4 -translate-y-px rotate-180" />Download
       </button>
       {msg && <p className="mt-3 rounded-2xl bg-surface-2 p-3 text-sm">{msg}</p>}
-      <p className="mt-3 text-xs text-muted">The recording is only on this device. Share or download it before closing this.</p>
+      <p className="mt-3 text-xs text-muted">{saved === 'yes' ? 'It’s on the page now, and still on this device until you close this.' : saveTo ? 'Until you save it, the recording is only on this device.' : 'The recording is only on this device. Share or download it before closing this.'}</p>
     </Sheet>
   )
 }

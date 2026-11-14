@@ -169,7 +169,7 @@ export const getGroup = createServerFn({ method: 'GET' })
     const user = await requireUser()
     const g = await db()
       .prepare(
-        `SELECT g.id, g.name, g.purpose, g.kind, g.description, g.is_private, g.is_featured, g.invite_code, g.created_by, g.member_count, g.live_count, g.is_hidden, g.approve_joins, g.live_size, g.live_minutes, g.is_event,
+        `SELECT g.id, g.name, g.purpose, g.kind, g.description, g.is_private, g.is_featured, g.invite_code, g.created_by, g.member_count, g.live_count, g.is_hidden, g.approve_joins, g.live_size, g.live_minutes, g.is_event, g.overview, g.overview_at,
                 m.role AS my_role, m.notify AS my_notify
          FROM prayer_groups g LEFT JOIN prayer_group_members m ON m.group_id = g.id AND m.user_id = ?
          WHERE g.id = ?`,
@@ -177,7 +177,7 @@ export const getGroup = createServerFn({ method: 'GET' })
       .bind(user.id, id)
       .first<{
         id: string; name: string; purpose: string; kind: string; description: string | null; is_private: number; is_featured: number; invite_code: string
-        created_by: string | null; member_count: number; live_count: number; is_hidden: number; approve_joins: number; live_size: string | null; live_minutes: number | null; is_event: number; my_role: string | null; my_notify: number | null
+        created_by: string | null; member_count: number; live_count: number; is_hidden: number; approve_joins: number; live_size: string | null; live_minutes: number | null; is_event: number; overview: string | null; overview_at: string | null; my_role: string | null; my_notify: number | null
       }>()
     const [pending, invited] = await Promise.all([
       db().prepare('SELECT 1 AS x FROM prayer_group_requests WHERE group_id = ? AND user_id = ?').bind(id, user.id).first(),
@@ -220,6 +220,16 @@ export const getGroup = createServerFn({ method: 'GET' })
         .bind(id)
         .all<{ id: string; title: string; days: string; time: string; timezone: string; duration_min: number; repeats: string; on_date: string | null; nth: number | null }>(),
     ])
+    // What the group or event kept: recordings saved by its leaders, and (events) who attended
+    const [recordings, attended] = await Promise.all([
+      db()
+        .prepare('SELECT id, media_key, type, seconds, size, title, created_at FROM group_recordings WHERE group_id = ? ORDER BY created_at DESC LIMIT 20')
+        .bind(id)
+        .all<{ id: string; media_key: string; type: string; seconds: number; size: number; title: string; created_at: string }>()
+        .then((r) => r.results)
+        .catch(() => []),
+      g.is_event ? db().prepare('SELECT COUNT(*) AS n FROM group_attendance WHERE group_id = ?').bind(id).first<{ n: number }>().then((r) => r?.n ?? 0).catch(() => 0) : Promise.resolve(0),
+    ])
     const isOwner = g.my_role === 'owner'
     const isAdmin = user.role === 'admin'
     const leads = LEADER_ROLES.includes(g.my_role ?? '') || isAdmin
@@ -248,6 +258,8 @@ export const getGroup = createServerFn({ method: 'GET' })
       canSchedule: leads,
       notifyOn: g.my_notify !== 0,
       schedules: schedules.results,
+      recordings: isMember || leads ? recordings.map((r) => ({ ...r, url: `/media/${r.media_key}` })) : [],
+      attended,
       posts: posts.results.map((p) => ({ ...p, replies: replies.results.filter((r) => r.post_id === p.id) })),
       members: members.results.map((m) => ({ id: m.id, name: m.name.split(' ')[0], avatar: m.avatar_key, role: m.role })),
     }
@@ -677,6 +689,29 @@ export const updateGroup = createServerFn({ method: 'POST' })
           .bind(newId(), data.id, data.name, data.time, data.timezone, duration, data.onDate, user.id)
           .run()
     }
+    return { ok: true }
+  })
+
+/** Leaders: the event's overview (what happened, key points), shown on its page to share, print or download */
+export const saveOverview = createServerFn({ method: 'POST' })
+  .validator((d: { groupId: string; text: string }) => ({ groupId: String(d?.groupId ?? ''), text: String(d?.text ?? '').trim().slice(0, 8000) }))
+  .handler(async ({ data }) => {
+    const user = await requireUser()
+    await requireLeader(data.groupId, user)
+    await db().prepare(`UPDATE prayer_groups SET overview = ?, overview_at = CASE WHEN ? = '' THEN NULL ELSE datetime('now') END WHERE id = ?`).bind(data.text || null, data.text, data.groupId).run()
+    return { ok: true }
+  })
+
+/** Leaders: remove a saved recording (the file too) */
+export const deleteRecording = createServerFn({ method: 'POST' })
+  .validator((id: string) => String(id ?? ''))
+  .handler(async ({ data }) => {
+    const user = await requireUser()
+    const r = await db().prepare('SELECT group_id, media_key FROM group_recordings WHERE id = ?').bind(data).first<{ group_id: string; media_key: string }>()
+    if (!r) return { ok: true }
+    await requireLeader(r.group_id, user)
+    await env().MEDIA.delete(r.media_key).catch(() => {})
+    await db().prepare('DELETE FROM group_recordings WHERE id = ?').bind(data).run()
     return { ok: true }
   })
 

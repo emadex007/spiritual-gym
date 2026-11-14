@@ -156,6 +156,24 @@ export const GROUP_KINDS = [
   { key: 'celebration', label: 'Celebration / thanksgiving', emoji: '🎁', focus: 'gratitude', live: 'Live event', doing: 'at the event', wall: 'Event wall', hint: 'An anniversary, a thanksgiving or a celebration.', event: true },
   { key: 'event_other', label: 'Other event', emoji: '📅', focus: 'consistency', live: 'Live event', doing: 'at the event', wall: 'Event wall', hint: 'Any other one-time gathering.', event: true },
 ] as const
+/** Each kind of group or event keeps its own words, so prayer is prayer, a Bible study is a Bible study and an event is
+ *  an event: what its meeting times are called, its live button, and what can be posted on its wall. */
+export function spaceOf(kind: string | null | undefined, isEvent = false) {
+  const k = groupKind(kind)
+  if (isEvent || 'event' in k)
+    return { key: 'event' as const, times: null, timeWord: '', start: 'Start the live event', join: 'Join the live event', inviteVerb: 'join the event', liveHint: 'Talk, see each other, share your screen and chat, live.', wall: ['announcement', 'question', 'encouragement', 'note'], empty: 'Nothing posted yet. Ask a question or share what you’re looking forward to.', notes: 'Notes and questions', icon: 'video' as const }
+  if (k.key === 'prayer')
+    return { key: 'prayer' as const, times: 'Prayer times', timeWord: 'prayer time', start: 'Start live prayer', join: 'Join live prayer', inviteVerb: 'pray together', liveHint: 'Hear each other pray in real time. Cameras are optional.', wall: ['request', 'testimony', 'encouragement', 'question'], empty: 'No prayer requests yet. Be the first to share.', notes: 'What we’re praying for', icon: 'mic' as const }
+  if (k.key === 'bible_study' || k.key === 'discipleship') {
+    const what = k.key === 'bible_study' ? 'Bible study' : 'class'
+    return { key: 'study' as const, times: k.key === 'bible_study' ? 'Study times' : 'Class times', timeWord: k.key === 'bible_study' ? 'study time' : 'class time', start: `Start the live ${what}`, join: `Join the live ${what}`, inviteVerb: 'study the Word together', liveHint: 'Read together, share your screen or slides, ask questions and take notes, live.', wall: ['note', 'question', 'encouragement'], empty: 'Nothing posted yet. Share your notes from the study, or ask a question.', notes: 'Study notes and questions', icon: 'video' as const }
+  }
+  if (k.key === 'worship')
+    return { key: 'worship' as const, times: 'Rehearsal and worship times', timeWord: 'worship time', start: 'Start live worship', join: 'Join live worship', inviteVerb: 'worship together', liveHint: 'Sing, rehearse and worship together in real time.', wall: ['note', 'encouragement', 'testimony', 'question'], empty: 'Nothing posted yet. Share a song list, a note or an encouragement.', notes: 'Notes', icon: 'video' as const }
+  // Fellowship, youth, women, men, marriage… : talk together, then pray together
+  return { key: 'group' as const, times: 'Meeting times', timeWord: 'meeting time', start: 'Start a live meeting', join: 'Join the live meeting', inviteVerb: 'meet together', liveHint: 'Talk, see each other, chat and share notes in real time.', wall: ['note', 'question', 'encouragement', 'request', 'testimony'], empty: 'Nothing posted yet. Share a thought, a question or your notes.', notes: 'Notes and questions', icon: 'video' as const }
+}
+
 /** Group kinds (meet regularly) and event kinds (one date) */
 export const isEventKind = (key?: string | null) => GROUP_KINDS.some((k) => k.key === key && 'event' in k)
 export const groupKind = (key?: string | null) => GROUP_KINDS.find((k) => k.key === key) ?? GROUP_KINDS[0]

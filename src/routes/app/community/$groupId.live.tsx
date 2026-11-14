@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Link, createFileRoute } from '@tanstack/react-router'
 import { BackLink } from '~/components/BackLink'
 import { getGroup } from '~/fns/community'
-import { CAMERA_LIMIT, LIVE_ROOM_LIMIT, groupKind, groupLook } from '~/lib/content'
+import { CAMERA_LIMIT, LIVE_ROOM_LIMIT, groupKind, groupLook, spaceOf } from '~/lib/content'
 import { useMeeting } from '~/hooks/useMeeting'
 import { MeetingShell, shareInvite } from '~/components/MeetingRoom'
 import { SunriseScene } from '~/components/Art'
@@ -33,7 +33,7 @@ function GroupLive() {
   const next = d.schedules.map((s) => ({ s, t: nextStart(s) })).filter((x) => x.t != null).sort((a, b) => a.t! - b.t!)[0]
 
   const notes = {
-    label: isPrayer ? 'What we’re praying for' : 'Notes and questions',
+    label: spaceOf(g.kind, !!g.is_event).notes,
     content: posts.length ? (
       <ul className="space-y-2">
         {posts.map((r) => (
@@ -57,11 +57,27 @@ function GroupLive() {
       back={<BackLink to="/app/community/$groupId" params={{ groupId: g.id }} className="flex h-9 items-center rounded-full bg-white/10 px-3 text-sm font-semibold hover:bg-white/15">← Back</BackLink>}
       invite={() => shareInvite(g.name, `Join “${g.name}” live on TheRenewGym${g.invite_code ? ` (invite code ${g.invite_code})` : ''}:`, g.invite_code ? `${inviteLink(g.name, g.invite_code)}?live=1` : `${location.origin}/app/community/${g.id}/live`)}
       roomExtra={notes}
+      saveRecording={
+        d.leads
+          ? {
+              label: g.is_event ? 'Save to the event page' : 'Save to the group page',
+              save: async (r) => {
+                const form = new FormData()
+                form.append('groupId', g.id)
+                form.append('seconds', String(Math.round(r.seconds)))
+                form.append('title', `${g.name} · ${new Date().toLocaleDateString([], { day: 'numeric', month: 'short', year: 'numeric' })}`)
+                form.append('file', r.blob, r.name)
+                const res = await fetch('/api/group-recording', { method: 'POST', body: form })
+                if (!res.ok) throw new Error(((await res.json().catch(() => ({}))) as { error?: string }).error ?? 'Couldn’t save it. Check your internet, or download it instead.')
+              },
+            }
+          : null
+      }
       lobby={
         <main className="fade-in relative isolate mx-auto flex w-full max-w-md flex-1 flex-col justify-center px-5 py-8 text-center">
           <SunriseScene className="pointer-events-none fixed inset-x-0 bottom-0 -z-10 h-[40%] w-full opacity-50" />
           <span className="mx-auto flex h-20 w-20 items-center justify-center rounded-3xl bg-white/10 text-gold" aria-hidden><Glyph e={look.emoji} className="h-9 w-9" /></span>
-          <p className="mt-5 text-xs font-semibold tracking-[0.14em] text-gold uppercase">{gk.live}</p>
+          <p className="mt-5 text-xs font-semibold tracking-[0.14em] text-gold uppercase">{g.is_event ? 'Live event' : gk.live}</p>
           <h1 className="mt-1 font-display text-4xl font-semibold leading-tight">{g.name}</h1>
           <p className="mx-auto mt-3 max-w-sm text-white/75">
             {ended

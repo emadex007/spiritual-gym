@@ -7,8 +7,8 @@ import { LineIcon } from '~/components/LineIcon'
 import { WhenPicker, defaultWhen, whenData, whenReady, type When } from '~/components/WhenPicker'
 
 
-export function PrayerTimes({ groupId, schedules, canSchedule, isMember, notifyOn, prayer = true, liveCount = 0 }: { groupId: string; schedules: Schedule[]; canSchedule: boolean; isMember: boolean; notifyOn: boolean; prayer?: boolean; liveCount?: number }) {
-  const word = prayer ? 'prayer time' : 'meeting time'
+export function PrayerTimes({ groupId, schedules, canSchedule, isMember, notifyOn, prayer = true, heading, word: wordIn, liveCount = 0 }: { groupId: string; schedules: Schedule[]; canSchedule: boolean; isMember: boolean; notifyOn: boolean; prayer?: boolean; heading?: string; word?: string; liveCount?: number }) {
+  const word = wordIn ?? (prayer ? 'prayer time' : 'meeting time')
   const router = useRouter()
   const [now, setNow] = useState(() => Date.now())
   const [adding, setAdding] = useState(false)
@@ -39,7 +39,7 @@ export function PrayerTimes({ groupId, schedules, canSchedule, isMember, notifyO
   return (
     <section className="card mt-5">
       <div className="flex items-center justify-between gap-3">
-        <p className="eyebrow"><LineIcon name="alarm" className="mr-1 inline h-3.5 w-3.5 -translate-y-px" />{prayer ? 'Prayer times' : 'Meeting times'}</p>
+        <p className="eyebrow"><LineIcon name="alarm" className="mr-1 inline h-3.5 w-3.5 -translate-y-px" />{heading ?? (prayer ? 'Prayer times' : 'Meeting times')}</p>
         {isMember && schedules.length > 0 && (
           <button type="button" onClick={toggleNotify} className={`inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-xs font-semibold ${on ? 'bg-sage-soft text-sage' : 'bg-surface-2 text-muted'}`}>
             <LineIcon name="bell" className="h-3.5 w-3.5" />
@@ -69,14 +69,14 @@ export function PrayerTimes({ groupId, schedules, canSchedule, isMember, notifyO
           )
         })}
       </ul>
-      {canSchedule && (adding ? <AddTime groupId={groupId} prayer={prayer} onDone={() => setAdding(false)} /> : (
+      {canSchedule && (adding ? <AddTime groupId={groupId} prayer={prayer} word={word} onDone={() => setAdding(false)} /> : (
         <button type="button" className="mt-3 text-sm font-semibold text-accent" onClick={() => setAdding(true)}>+ Add a {word}</button>
       ))}
     </section>
   )
 }
 
-function AddTime({ groupId, prayer, onDone }: { groupId: string; prayer: boolean; onDone: () => void }) {
+function AddTime({ groupId, prayer, word, onDone }: { groupId: string; prayer: boolean; word: string; onDone: () => void }) {
   const router = useRouter()
   const [title, setTitle] = useState('')
   const [when, setWhen] = useState<When>(defaultWhen)
@@ -113,7 +113,7 @@ function AddTime({ groupId, prayer, onDone }: { groupId: string; prayer: boolean
       <FormError message={error} />
       <div className="flex gap-2">
         <button type="button" className="btn-ghost !py-2" onClick={onDone}>Cancel</button>
-        <button type="button" className="btn-primary !py-2" disabled={busy || !whenReady(when)} onClick={save}>{busy ? 'Saving…' : prayer ? 'Save prayer time' : 'Save meeting time'}</button>
+        <button type="button" className="btn-primary !py-2" disabled={busy || !whenReady(when)} onClick={save}>{busy ? 'Saving…' : `Save ${word}`}</button>
       </div>
     </div>
   )
