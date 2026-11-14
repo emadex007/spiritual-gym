@@ -202,7 +202,8 @@ function BookPage() {
         </section>
       )}
       {d.mine && d.ready && <BookSharing b={b} shares={d.shares} />}
-      {d.mine && (
+      {d.canEdit && !d.mine && <p className="mt-6 rounded-2xl bg-accent-soft px-4 py-3 text-sm">You’re editing as an admin{b.owner_id ? '' : ' (a library book)'}. Changes show for everyone.</p>}
+      {d.canEdit && (
         <section className="card mt-6">
           <CoverPicker
             kind="bookCover"
@@ -221,7 +222,7 @@ function BookPage() {
           />
         </section>
       )}
-      {d.mine && <OwnerTools b={b} />}
+      {d.canEdit && <OwnerTools b={b} />}
     </main>
   )
 }

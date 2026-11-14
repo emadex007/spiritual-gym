@@ -30,6 +30,8 @@ Free Christian spiritual-growth web app (installable PWA) at therenewgym.org. Ow
 - Notifications: `src/lib/notify.ts`, `public/sw.js` (focus mode), `src/lib/push-client.ts` (`syncPush` self-repair).
 
 ## Change log (newest first)
+- 2026-11-14 · Books: `getBook` returns `canEdit` (owner or admin), so admins can edit any book's details and cover, including
+  older library books with no owner saved. Admin → Books has an Edit link per book.
 - 2026-11-14 · Back keeps the right order: `useGoBack` / `UpLink` in `src/components/BackLink.tsx` (history back, else the
   fallback with replace) for the book reader (← and "Back to the book"), workout close, "Back to the church"; reader day
   links replace; pages reached after a form (new group, new book, join links) replace the form. Use `BackLink`/`UpLink`
