@@ -182,6 +182,8 @@ function AlertSettings({ d }: { d: Awaited<ReturnType<typeof getAdminAlerts>> })
         </p>
       </section>
 
+      <PushHealthCard h={d.push} />
+
       <section className="card !p-0">
         <div className="grid grid-cols-[1fr_auto_auto] items-center gap-x-5 gap-y-0 px-5 pt-4 pb-2 text-xs font-semibold tracking-wider text-muted uppercase">
           <span>What happened</span>
@@ -228,5 +230,40 @@ function AlertSettings({ d }: { d: Awaited<ReturnType<typeof getAdminAlerts>> })
         <Toast text={msg} />
       </div>
     </div>
+  )
+}
+
+/** Are phone notifications getting through? (for everyone, not just admins) */
+function PushHealthCard({ h }: { h: Awaited<ReturnType<typeof getAdminAlerts>>['push'] }) {
+  return (
+    <section className="card">
+      <p className="font-semibold">Phone notifications for everyone</p>
+      <p className={`mt-2 rounded-xl px-3 py-2 text-sm ${h.server.ok ? 'bg-sage-soft text-sage' : 'bg-red-500/10 text-red-700 dark:text-red-300'}`}>
+        {h.server.ok ? '✓ ' : '✗ '}
+        {h.server.text}
+      </p>
+      <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
+        {([
+          ['Devices', h.devices, `${h.people} people`],
+          ['Delivered today', h.okDay, 'devices that got one'],
+          ['Failing', h.failing, 'last one was rejected'],
+          ['Waiting to send', h.queued, 'in the queue now'],
+        ] as const).map(([label, n, hint]) => (
+          <div key={label} className="rounded-2xl bg-surface-2 p-3">
+            <p className="text-xs font-semibold text-muted">{label}</p>
+            <p className="font-display text-2xl font-semibold">{n.toLocaleString('en-NG')}</p>
+            <p className="text-[11px] text-muted">{hint}</p>
+          </div>
+        ))}
+      </div>
+      {h.problems.length > 0 && (
+        <ul className="mt-3 space-y-1 text-sm">
+          {h.problems.map((p) => (
+            <li key={p.status} className="rounded-xl bg-red-500/10 px-3 py-2 text-red-700 dark:text-red-300"><b>{p.n} device{p.n === 1 ? '' : 's'} ({p.status}):</b> {p.text}</li>
+          ))}
+        </ul>
+      )}
+      <p className="mt-3 text-xs text-muted">Anyone can check their own phone in Profile → Notifications → “Test on this phone”.</p>
+    </section>
   )
 }

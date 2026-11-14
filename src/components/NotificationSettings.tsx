@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { getNotifySettings, getPushConfig, removePushSubscription, savePushSubscription, setNewsEmail, setNotifyNew, setWeeklyEmail, updateNotifySettings } from '~/fns/notifications'
 import { disablePush, enablePush, pushState, type PushState } from '~/lib/push-client'
 import { LineIcon } from '~/components/LineIcon'
+import { PushTest } from '~/components/PushTest'
 
 const TIMES = Array.from({ length: 36 }, (_, i) => {
   const mins = 5 * 60 + i * 30 // 05:00 … 22:30
@@ -89,6 +90,7 @@ export function NotificationSettings() {
         )}
       </div>
       {error && <p className="text-sm text-red-600">{error}</p>}
+      {config?.enabled && state === 'on' && <PushTest />}
 
       <label className="block">
         <span className="label"><LineIcon name="sunrise" className="mr-1.5 inline h-4 w-4 -translate-y-px" />Daily word &amp; declaration</span>

@@ -112,3 +112,30 @@ export async function sendPush(sub: PushSubscriptionKeys, payload: unknown, vapi
     return 0
   }
 }
+
+/** Do the public and private keys belong together? (If not, every phone rejects every notification.) */
+export async function vapidPairOk(vapid: VapidKeys): Promise<boolean> {
+  try {
+    const pub = b64urlToBytes(vapid.publicKey)
+    const x = bytesToB64url(pub.slice(1, 33)), y = bytesToB64url(pub.slice(33, 65))
+    const priv = await crypto.subtle.importKey('jwk', { kty: 'EC', crv: 'P-256', d: vapid.privateKey, x, y, ext: true }, { name: 'ECDSA', namedCurve: 'P-256' }, false, ['sign'])
+    const pubKey = await crypto.subtle.importKey('raw', pub, { name: 'ECDSA', namedCurve: 'P-256' }, false, ['verify'])
+    const data = enc.encode('therenewgym-key-check')
+    const sig = await crypto.subtle.sign({ name: 'ECDSA', hash: 'SHA-256' }, priv, data)
+    return await crypto.subtle.verify({ name: 'ECDSA', hash: 'SHA-256' }, pubKey, sig, data)
+  } catch {
+    return false
+  }
+}
+
+/** What a push service's answer means, in plain words */
+export function pushMeaning(status: number): { ok: boolean; text: string } {
+  if (status >= 200 && status < 300) return { ok: true, text: 'Accepted. It should appear on the phone within a few seconds.' }
+  if (status === 404 || status === 410) return { ok: false, text: 'This phone’s registration has expired. Turn notifications off and on again on that phone.' }
+  if (status === 400 || status === 401 || status === 403)
+    return { ok: false, text: 'Rejected because the app’s notification keys don’t match. An admin needs to set the VAPID_PRIVATE_KEY secret to match the public key.' }
+  if (status === 413) return { ok: false, text: 'The message was too big.' }
+  if (status === 429) return { ok: false, text: 'Too many notifications at once. It will try again later.' }
+  if (status === 0) return { ok: false, text: 'Couldn’t reach the phone’s notification service (network). Try again.' }
+  return { ok: false, text: `The phone’s notification service answered ${status}.` }
+}
