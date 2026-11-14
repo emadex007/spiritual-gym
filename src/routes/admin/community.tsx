@@ -122,6 +122,11 @@ function GroupRow({ g }: { g: G }) {
     if (!posts) setPosts(await adminGroupPosts({ data: g.id }))
     if (!recs && g.recordings) setRecs(await adminGroupRecordings({ data: g.id }))
   }
+  async function removeFlyer() {
+    if (!confirm(`Remove the flyer from “${g.name}”?`)) return
+    await fetch(`/api/group-flyer?group=${encodeURIComponent(g.id)}`, { method: 'DELETE' })
+    await router.invalidate()
+  }
   async function removeRec(r: R) {
     if (!confirm(`Delete the recording “${r.title}” for everyone?`)) return
     await adminDeleteRecording({ data: r.id })
@@ -136,7 +141,7 @@ function GroupRow({ g }: { g: G }) {
   return (
     <div className={`card !p-0 ${g.is_hidden ? 'opacity-60' : ''}`}>
       <div className="flex flex-wrap items-center gap-3 p-4">
-        <GlyphBadge e={p.emoji} />
+        {g.flyer_key ? <a href={`/media/${g.flyer_key}`} target="_blank" rel="noreferrer" title="Open the flyer"><img src={`/media/${g.flyer_key}`} alt="" className="h-14 w-11 rounded-lg bg-surface-2 object-cover" loading="lazy" /></a> : <GlyphBadge e={p.emoji} />}
         <div className="min-w-0 flex-1">
           <p className="font-semibold">
             <span className={`mr-2 rounded px-1.5 py-0.5 text-[10px] font-bold tracking-wider uppercase ${g.is_event ? 'bg-accent-soft text-accent' : 'bg-surface-2 text-muted'}`}>{g.is_event ? 'Event' : 'Group'}</span>
@@ -155,11 +160,13 @@ function GroupRow({ g }: { g: G }) {
             {g.is_event && g.attended > 0 ? ` · ${g.attended} attended` : ''}
             {g.recordings > 0 ? ` · ${g.recordings} recording${g.recordings === 1 ? '' : 's'} (${mb(g.recording_bytes)})` : ''}
             {g.is_event && g.overview ? ' · overview written' : ''}
+            {g.flyer_key ? ' · has a flyer' : ''}
           </p>
         </div>
         <div className="flex flex-wrap gap-2 text-xs font-semibold">
           <a href={`/app/community/${g.id}`} target="_blank" rel="noreferrer" className="rounded-full bg-surface-2 px-3 py-1.5">Open page ↗</a>
           <button type="button" className="rounded-full bg-surface-2 px-3 py-1.5" onClick={toggleOpen}>{open ? 'Close' : g.recordings ? 'Posts & recordings' : 'View posts'}</button>
+          {g.flyer_key && <button type="button" className="rounded-full bg-surface-2 px-3 py-1.5" onClick={removeFlyer}>Remove flyer</button>}
           <button type="button" className="rounded-full bg-surface-2 px-3 py-1.5" onClick={() => update({ is_featured: !g.is_featured })}>{g.is_featured ? 'Unfeature' : 'Feature'}</button>
           <button type="button" className="rounded-full bg-surface-2 px-3 py-1.5" onClick={() => update({ is_hidden: !g.is_hidden })}>{g.is_hidden ? 'Unhide' : 'Hide'}</button>
           <button type="button" className="rounded-full bg-red-50 px-3 py-1.5 text-red-700 dark:bg-red-950/40 dark:text-red-300" onClick={remove}>Delete</button>

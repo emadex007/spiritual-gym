@@ -7,6 +7,9 @@ import { BackLink } from '~/components/BackLink'
 import { TopicCover } from '~/components/TopicCover'
 import { FormError, errorText } from '~/components/AuthShell'
 import { LineIcon } from '~/components/LineIcon'
+import { fitImage } from '~/lib/fit-image'
+import { IMAGE_SIZES } from '~/lib/image-sizes'
+import { PictureHint } from '~/components/PictureHint'
 
 export const Route = createFileRoute('/app/topics/write/$id')({
   loader: ({ params }) => getTopicDraft({ data: params.id }),
@@ -43,12 +46,15 @@ function Editor() {
 
   useAutosave(info, (v) => saveTopicPlan({ data: { id: plan.id, ...v } }), setState)
 
+  const [coverNotes, setCoverNotes] = useState<string[]>([])
   async function cover(file: File) {
     setUploading(true)
     setErr(null)
     try {
+      const fit = await fitImage(file, IMAGE_SIZES.topicCover)
+      setCoverNotes(fit.notes)
       const fd = new FormData()
-      fd.append('file', file)
+      fd.append('file', fit.file)
       fd.append('id', plan.id)
       const r = await fetch('/api/topic-cover', { method: 'POST', body: fd })
       const j = (await r.json()) as { error?: string }
@@ -102,8 +108,9 @@ function Editor() {
         <span className="absolute right-3 bottom-3 inline-flex items-center gap-1.5 rounded-full bg-black/55 px-3.5 py-2 text-sm font-semibold text-white backdrop-blur">
           <LineIcon name="image" className="h-4 w-4" />{uploading ? 'Uploading…' : plan.cover_key ? 'Change picture' : 'Add a featured picture'}
         </span>
-        <input type="file" accept="image/jpeg,image/png,image/webp" className="sr-only" onChange={(e) => e.target.files?.[0] && cover(e.target.files[0])} />
+        <input type="file" accept="image/jpeg,image/png,image/webp,image/*" className="sr-only" onChange={(e) => e.target.files?.[0] && cover(e.target.files[0])} />
       </label>
+      <PictureHint kind="topicCover" notes={coverNotes} className="mt-1.5 px-1" />
 
       <section className="card mt-4 space-y-3">
         <label className="block text-sm font-semibold">Title

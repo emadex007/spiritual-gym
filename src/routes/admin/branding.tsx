@@ -4,6 +4,9 @@ import { adminGetBrand, adminSaveBrand } from '~/fns/admin'
 import { PageHead, Toast } from '~/components/AdminUI'
 import { FormError, errorText } from '~/components/AuthShell'
 import { LineIcon } from '~/components/LineIcon'
+import { fitImage } from '~/lib/fit-image'
+import { IMAGE_SIZES } from '~/lib/image-sizes'
+import { PictureHint } from '~/components/PictureHint'
 import { BRAND_DEFAULTS, DEFAULT_TAGLINE, brandCss, cleanBrand, contrast, isHex, palette, type Brand } from '~/lib/brand'
 
 export const Route = createFileRoute('/admin/branding')({
@@ -136,6 +139,7 @@ function ColorField({ label, hint, value, fallback, onChange }: { label: string;
 
 function MarkField({ label, value, builtIn, dark = false, onChange }: { label: string; value: string; builtIn: string; dark?: boolean; onChange: (v: string) => void }) {
   const file = useRef<HTMLInputElement>(null)
+  const [notes, setNotes] = useState<string[]>([])
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   async function upload() {
@@ -145,8 +149,10 @@ function MarkField({ label, value, builtIn, dark = false, onChange }: { label: s
     setError(null)
     try {
       if (!['image/png', 'image/webp'].includes(f.type)) throw new Error('Please use a PNG or WEBP with a transparent background.')
+      const fit = await fitImage(f, IMAGE_SIZES.brandMark)
+      setNotes(fit.notes)
       const body = new FormData()
-      body.append('file', f)
+      body.append('file', fit.file)
       const res = await fetch('/api/upload', { method: 'POST', body })
       const j = (await res.json()) as { key?: string; error?: string }
       if (!res.ok || !j.key) throw new Error(j.error || 'Upload failed.')
@@ -173,6 +179,7 @@ function MarkField({ label, value, builtIn, dark = false, onChange }: { label: s
           </label>
           {value && <button type="button" className="btn-ghost !px-4 !py-2 text-xs" onClick={() => onChange('')}>Use built-in</button>}
         </div>
+        <PictureHint kind="brandMark" notes={notes} className="mt-1.5" />
         {error && <p className="mt-1 text-xs text-red-600">{error}</p>}
       </div>
     </div>

@@ -2,27 +2,9 @@ import { useRef, useState } from 'react'
 import { useRouter } from '@tanstack/react-router'
 import { Avatar } from '~/components/Avatar'
 import { LineIcon } from '~/components/LineIcon'
-
-/** Crop to a square and shrink to 400×400 JPEG in the browser, so uploads are small (~40 KB) even on mobile data */
-export async function squareJpeg(file: File, size = 400): Promise<Blob> {
-  const url = URL.createObjectURL(file)
-  try {
-    const img = await new Promise<HTMLImageElement>((resolve, reject) => {
-      const i = new Image()
-      i.onload = () => resolve(i)
-      i.onerror = () => reject(new Error('That file isn’t a photo we can read.'))
-      i.src = url
-    })
-    const side = Math.min(img.naturalWidth, img.naturalHeight)
-    const canvas = document.createElement('canvas')
-    canvas.width = canvas.height = size
-    const ctx = canvas.getContext('2d')!
-    ctx.drawImage(img, (img.naturalWidth - side) / 2, (img.naturalHeight - side) / 2, side, side, 0, 0, size, size)
-    return await new Promise<Blob>((resolve, reject) => canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('Couldn’t process the photo.'))), 'image/jpeg', 0.85))
-  } finally {
-    URL.revokeObjectURL(url)
-  }
-}
+import { fitImage } from '~/lib/fit-image'
+import { IMAGE_SIZES } from '~/lib/image-sizes'
+import { PictureHint } from '~/components/PictureHint'
 
 export function AvatarUpload({ name, current }: { name: string; current: string | null }) {
   const router = useRouter()
@@ -30,14 +12,16 @@ export function AvatarUpload({ name, current }: { name: string; current: string 
   const [key, setKey] = useState(current)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [notes, setNotes] = useState<string[]>([])
 
   async function choose(file: File) {
     setBusy(true)
     setError(null)
     try {
-      const blob = await squareJpeg(file)
+      const fit = await fitImage(file, IMAGE_SIZES.avatar)
+      setNotes(fit.notes)
       const body = new FormData()
-      body.append('file', new File([blob], 'avatar.jpg', { type: 'image/jpeg' }))
+      body.append('file', fit.file)
       const res = await fetch('/api/avatar', { method: 'POST', body })
       const json = (await res.json()) as { key?: string; error?: string }
       if (!res.ok || !json.key) throw new Error(json.error || 'Upload failed. Please try again.')
@@ -82,6 +66,7 @@ export function AvatarUpload({ name, current }: { name: string; current: string 
           )}
         </div>
         <p className="mt-1 text-xs text-muted">Shown to people in your groups and meetings.</p>
+        <PictureHint kind="avatar" notes={notes} className="mt-0.5" />
         {error && <p className="mt-1 text-xs text-red-600">{error}</p>}
       </div>
       <input ref={input} type="file" accept="image/*" className="hidden" onChange={(e) => e.target.files?.[0] && choose(e.target.files[0])} />

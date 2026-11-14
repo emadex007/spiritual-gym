@@ -29,6 +29,7 @@ const liveMinutes = (v: unknown) => {
 
 export type GroupCard = {
   id: string
+  flyer_key?: string | null
   name: string
   purpose: string
   kind: string
@@ -98,7 +99,7 @@ export const listGroups = createServerFn({ method: 'GET' }).handler(async () => 
   const user = await requireUser()
   const { results } = await db()
     .prepare(
-      `SELECT g.id, g.name, g.purpose, g.kind, g.description, g.is_private, g.is_featured, g.member_count, g.live_count, g.last_activity_at, g.is_event,
+      `SELECT g.id, g.name, g.purpose, g.kind, g.description, g.is_private, g.is_featured, g.member_count, g.live_count, g.last_activity_at, g.is_event, g.flyer_key,
               CASE WHEN m.user_id IS NULL THEN 0 ELSE 1 END AS is_member
        FROM prayer_groups g LEFT JOIN prayer_group_members m ON m.group_id = g.id AND m.user_id = ?
        WHERE g.is_hidden = 0 AND (g.is_private = 0 OR m.user_id IS NOT NULL)
@@ -170,7 +171,7 @@ export const getGroup = createServerFn({ method: 'GET' })
     const user = await requireUser()
     const g = await db()
       .prepare(
-        `SELECT g.id, g.name, g.purpose, g.kind, g.description, g.is_private, g.is_featured, g.invite_code, g.created_by, g.member_count, g.live_count, g.is_hidden, g.approve_joins, g.live_size, g.live_minutes, g.is_event, g.overview, g.overview_at,
+        `SELECT g.id, g.name, g.purpose, g.kind, g.description, g.is_private, g.is_featured, g.invite_code, g.created_by, g.member_count, g.live_count, g.is_hidden, g.approve_joins, g.live_size, g.live_minutes, g.is_event, g.overview, g.overview_at, g.flyer_key,
                 m.role AS my_role, m.notify AS my_notify
          FROM prayer_groups g LEFT JOIN prayer_group_members m ON m.group_id = g.id AND m.user_id = ?
          WHERE g.id = ?`,
@@ -178,7 +179,7 @@ export const getGroup = createServerFn({ method: 'GET' })
       .bind(user.id, id)
       .first<{
         id: string; name: string; purpose: string; kind: string; description: string | null; is_private: number; is_featured: number; invite_code: string
-        created_by: string | null; member_count: number; live_count: number; is_hidden: number; approve_joins: number; live_size: string | null; live_minutes: number | null; is_event: number; overview: string | null; overview_at: string | null; my_role: string | null; my_notify: number | null
+        created_by: string | null; member_count: number; live_count: number; is_hidden: number; approve_joins: number; live_size: string | null; live_minutes: number | null; is_event: number; overview: string | null; overview_at: string | null; flyer_key: string | null; my_role: string | null; my_notify: number | null
       }>()
     const [pending, invited] = await Promise.all([
       db().prepare('SELECT 1 AS x FROM prayer_group_requests WHERE group_id = ? AND user_id = ?').bind(id, user.id).first(),
@@ -419,6 +420,7 @@ export const deleteGroup = createServerFn({ method: 'POST' })
     const user = await requireUser()
     const m = await db().prepare('SELECT role FROM prayer_group_members WHERE group_id = ? AND user_id = ?').bind(data.id, user.id).first<{ role: string }>()
     if (m?.role !== 'owner' && user.role !== 'admin') throw new Error('Only the group’s leader can delete it.')
+    const flyer = await db().prepare('SELECT flyer_key FROM prayer_groups WHERE id = ?').bind(data.id).first<{ flyer_key: string | null }>()
     await db().batch([
       db().prepare('DELETE FROM prayer_replies WHERE post_id IN (SELECT id FROM prayer_posts WHERE group_id = ?)').bind(data.id),
       db().prepare('DELETE FROM prayer_post_prayed WHERE post_id IN (SELECT id FROM prayer_posts WHERE group_id = ?)').bind(data.id),
@@ -427,6 +429,7 @@ export const deleteGroup = createServerFn({ method: 'POST' })
       db().prepare('DELETE FROM prayer_group_members WHERE group_id = ?').bind(data.id),
       db().prepare('DELETE FROM prayer_groups WHERE id = ?').bind(data.id),
     ])
+    if (flyer?.flyer_key) await env().MEDIA.delete(flyer.flyer_key).catch(() => {})
     return { ok: true }
   })
 
@@ -724,9 +727,9 @@ export const getGroupInvite = createServerFn({ method: 'GET' })
   .handler(async ({ data: code }) => {
     const user = await requireUser()
     const g = await db()
-      .prepare('SELECT id, name, kind, purpose, description, member_count, live_count, is_private, is_event FROM prayer_groups WHERE invite_code = ? AND is_hidden = 0')
+      .prepare('SELECT id, name, kind, purpose, description, member_count, live_count, is_private, is_event, flyer_key FROM prayer_groups WHERE invite_code = ? AND is_hidden = 0')
       .bind(code)
-      .first<{ id: string; name: string; kind: string; purpose: string; description: string | null; member_count: number; live_count: number; is_private: number; is_event: number }>()
+      .first<{ id: string; name: string; kind: string; purpose: string; description: string | null; member_count: number; live_count: number; is_private: number; is_event: number; flyer_key: string | null }>()
     if (!g) return null
     const [member, date] = await Promise.all([
       db().prepare('SELECT 1 FROM prayer_group_members WHERE group_id = ? AND user_id = ?').bind(g.id, user.id).first(),

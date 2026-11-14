@@ -324,6 +324,35 @@ async function routeRequest(request: Request, env: AppEnv): Promise<Response> {
     return json({ id, url: `/media/${key}` })
   }
 
+  // A group's or event's flyer  POST /api/group-flyer (multipart "file", "groupId"; already resized in the browser)  ·
+  // DELETE /api/group-flyer?group=<id>. The group's leaders (or an admin).
+  if (url.pathname === '/api/group-flyer' && (request.method === 'POST' || request.method === 'DELETE')) {
+    const user = await userFromCookie(request, env)
+    if (!user) return json({ error: 'Please sign in.' }, 401)
+    const form = request.method === 'POST' ? await request.formData() : null
+    const groupId = String(form?.get('groupId') ?? url.searchParams.get('group') ?? '')
+    const g = await env.DB.prepare('SELECT g.flyer_key, m.role FROM prayer_groups g LEFT JOIN prayer_group_members m ON m.group_id = g.id AND m.user_id = ? WHERE g.id = ?')
+      .bind(user.id, groupId)
+      .first<{ flyer_key: string | null; role: string | null }>()
+    if (!g) return json({ error: 'Group not found.' }, 404)
+    if (!(g.role === 'owner' || g.role === 'leader') && user.role !== 'admin') return json({ error: 'Only the leaders can change the flyer.' }, 403)
+    if (request.method === 'DELETE') {
+      await env.DB.prepare('UPDATE prayer_groups SET flyer_key = NULL WHERE id = ?').bind(groupId).run()
+      if (g.flyer_key) await env.MEDIA.delete(g.flyer_key)
+      return json({ ok: true })
+    }
+    const file = form?.get('file')
+    if (!(file instanceof File)) return json({ error: 'No picture received.' }, 400)
+    const ext = IMAGE_TYPES[file.type]
+    if (!ext || ext === 'gif') return json({ error: 'Please choose a JPG, PNG or WEBP picture.' }, 400)
+    if (file.size > MAX_UPLOAD) return json({ error: 'The flyer must be 5 MB or smaller.' }, 400)
+    const key = `groups/${groupId}/flyer-${crypto.randomUUID().slice(0, 8)}.${ext}`
+    await env.MEDIA.put(key, file.stream(), { httpMetadata: { contentType: file.type } })
+    await env.DB.prepare('UPDATE prayer_groups SET flyer_key = ? WHERE id = ?').bind(key, groupId).run()
+    if (g.flyer_key) await env.MEDIA.delete(g.flyer_key)
+    return json({ key, url: `/media/${key}` })
+  }
+
   // A topic plan's featured picture  POST /api/topic-cover (multipart "file", "id"). The plan's writer (or an admin) only.
   if (url.pathname === '/api/topic-cover' && request.method === 'POST') {
     const user = await userFromCookie(request, env)

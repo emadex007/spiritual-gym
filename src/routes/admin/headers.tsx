@@ -5,6 +5,9 @@ import { PageHead } from '~/components/AdminUI'
 import { FormError, errorText } from '~/components/AuthShell'
 import { WeeklyScene, sceneFor } from '~/components/WeeklyScene'
 import { mediaUrl } from '~/lib/util'
+import { fitImage } from '~/lib/fit-image'
+import { IMAGE_SIZES } from '~/lib/image-sizes'
+import { PictureHint } from '~/components/PictureHint'
 
 export const Route = createFileRoute('/admin/headers')({
   loader: () => adminListHeaders(),
@@ -21,6 +24,7 @@ function Headers() {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [all, setAll] = useState(false)
+  const [notes, setNotes] = useState<string[]>([])
 
   async function upload() {
     const f = file.current?.files?.[0]
@@ -28,8 +32,10 @@ function Headers() {
     setBusy(true)
     setError(null)
     try {
+      const fit = await fitImage(f, IMAGE_SIZES.homeHeader)
+      setNotes(fit.notes)
       const body = new FormData()
-      body.append('file', f)
+      body.append('file', fit.file)
       const res = await fetch('/api/upload', { method: 'POST', body })
       const j = (await res.json()) as { key?: string; error?: string }
       if (!res.ok || !j.key) throw new Error(j.error || 'Upload failed.')
@@ -62,7 +68,8 @@ function Headers() {
         <p className="font-semibold">Add a photo</p>
         <input ref={file} type="file" accept="image/jpeg,image/png,image/webp" className="block w-full text-sm" />
         <input className="input" placeholder="Caption for yourself (optional)" value={caption} onChange={(e) => setCaption(e.target.value)} />
-        <p className="text-xs text-muted">Wide landscape photos work best (at least 1600 px wide, under 5 MB). Only use photos you own or that are free to use. Text is placed over the top, so calm, softer pictures read best.</p>
+        <PictureHint kind="homeHeader" notes={notes} />
+        <p className="text-xs text-muted">Only use photos you own or that are free to use. Text is placed over the top, so calm, softer pictures read best.</p>
         <FormError message={error} />
         <button className="btn-primary" disabled={busy} onClick={upload}>{busy ? 'Uploading…' : 'Upload photo'}</button>
       </section>

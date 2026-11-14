@@ -21,9 +21,17 @@ Free Christian spiritual-growth web app (installable PWA) at therenewgym.org. Ow
   `repeats` = weekly | monthly (nth weekday) | once (`on_date`); maths in `src/lib/schedule.ts`.
 - Church meetings: `church_meetings` (`repeats` once | weekly | monthly; the cron adds the next date).
 - Daily word: `devotions` table (reflection = multi-paragraph devotion ending "Today: …").
+- Picture uploads: best sizes in `src/lib/image-sizes.ts`; resize with `fitImage` (`src/lib/fit-image.ts`) and show
+  `<PictureHint kind=… />`. Add any new upload to both.
 - Notifications: `src/lib/notify.ts`, `public/sw.js` (focus mode), `src/lib/push-client.ts` (`syncPush` self-repair).
 
 ## Change log (newest first)
+- 2026-11-14 · Flyers for events and groups (`prayer_groups.flyer_key`, migration 0051, `/api/group-flyer` POST/DELETE for
+  leaders/admins, `src/components/Flyer.tsx`): add at creation or in Edit; shown whole on the page, invite page, Home slider,
+  Upcoming events and Admin → Community (Remove flyer). Picture sizes: `src/lib/image-sizes.ts` (one list of best sizes),
+  `src/lib/fit-image.ts` (every upload resized/cropped in the browser, warns if small or trimmed), `PictureHint` under each
+  upload, public page `/picture-sizes`. Applied to profile photo, church logo, topic picture, Home headers, welcome picture,
+  app mark.
 - 2026-11-14 · Home "Coming up" slider (`src/components/ComingUp.tsx`, `comingUp()` in `src/fns/home.ts`): live first, then
   soonest; events up to 31 days ahead, group meetings up to 3 days; public to everyone, private only to members; max 8.
 - 2026-11-14 · Live meetings: Q&A (ask, upvote, answered/dismiss) and polls (one at a time, live results, quick-vote pop-up),
