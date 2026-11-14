@@ -4,6 +4,7 @@ import { getTopicDay, getTopicPlan, joinCircle, markTopicDay, startTopicPlan, st
 import { findReferences } from '~/lib/bible'
 import { plural } from '~/lib/topics'
 import { BackLink } from '~/components/BackLink'
+import { PlanReaders } from '~/components/PlanReaders'
 import { TopicCover } from '~/components/TopicCover'
 import { ReadTogether } from '~/components/ReadTogether'
 import { Discussion } from '~/components/Discussion'
@@ -78,6 +79,8 @@ function TopicPlan() {
             This is a preview: only you can see it until it’s approved. <Link to="/app/topics/write/$id" params={{ id: p.id }} className="font-semibold text-accent">Edit plan →</Link>
           </p>
         )}
+
+        {p.isAuthor && p.status === 'approved' && <PlanReaders planId={p.id} compact />}
 
         <p className="text-sm text-muted">By <span className="font-semibold text-ink">{p.author}</span>{p.readers > 0 ? ` · ${plural(p.readers, 'reader')}` : ''}</p>
         {!mine && <p className="leading-relaxed">{p.summary}</p>}

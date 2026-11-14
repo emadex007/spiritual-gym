@@ -144,6 +144,7 @@ export const startTopicPlan = createServerFn({ method: 'POST' })
       db().prepare('INSERT INTO user_topic_plans (id, user_id, plan_id, start_date, circle_id) VALUES (?, ?, ?, ?, ?)').bind(id, user.id, data.id, dayString(), circleId),
       db().prepare('UPDATE topic_plans SET readers = readers + 1 WHERE id = ?').bind(data.id),
     ])
+    if (user.id !== p.author_id) await readerMilestone(p, user.id)
     return { id }
   })
 
@@ -284,12 +285,14 @@ export const myTopicPlans = createServerFn({ method: 'GET' }).handler(async () =
   const user = await requireUser()
   const { results } = await db()
     .prepare(
-      `SELECT ${COLS}, (SELECT COUNT(*) FROM topic_plan_days d WHERE d.plan_id = p.id AND d.day <= p.days AND LENGTH(TRIM(d.body)) > 0) AS written
+      `SELECT ${COLS}, (SELECT COUNT(*) FROM topic_plan_days d WHERE d.plan_id = p.id AND d.day <= p.days AND LENGTH(TRIM(d.body)) > 0) AS written,
+              (SELECT COUNT(DISTINCT u.user_id) FROM user_topic_plans u WHERE u.plan_id = p.id AND u.user_id != p.author_id) AS started,
+              (SELECT COUNT(DISTINCT u.user_id) FROM user_topic_plans u WHERE u.plan_id = p.id AND u.user_id != p.author_id AND u.created_at > datetime('now', '-7 days')) AS started_week
        FROM topic_plans p WHERE p.author_id = ? ORDER BY p.updated_at DESC`,
     )
     .bind(user.id)
-    .all<Plan & { written: number }>()
-  return results.map((p) => ({ ...publicPlan(p), status: p.status, note: p.review_note, written: p.written }))
+    .all<Plan & { written: number; started: number; started_week: number }>()
+  return results.map((p) => ({ ...publicPlan(p), status: p.status, note: p.review_note, written: p.written, started: p.started, startedWeek: p.started_week }))
 })
 
 export const createTopicPlan = createServerFn({ method: 'POST' }).handler(async () => {
@@ -429,4 +432,68 @@ export const reviewTopicPlan = createServerFn({ method: 'POST' })
         : { kind: 'plan', title: `“${p.title}” needs a few changes`, body: data.note ?? '', url: `/app/topics/write/${p.id}` },
     )
     return { ok: true }
+  })
+
+// ---------------- The writer's view: who's reading my plan (numbers only, never names) ----------------
+
+const MILESTONES = [1, 5, 10, 25, 50, 100, 250, 500, 1000, 2500, 5000, 10000]
+const startedCount = async (planId: string, authorId: string) =>
+  (await db().prepare('SELECT COUNT(DISTINCT user_id) AS n FROM user_topic_plans WHERE plan_id = ? AND user_id != ?').bind(planId, authorId).first<{ n: number }>())?.n ?? 0
+
+/** Tell the writer when their plan reaches 1, 5, 10, 25… readers (only when a new person starts, so once each) */
+async function readerMilestone(p: Plan, starterId: string) {
+  try {
+    const before = await db().prepare('SELECT COUNT(*) AS n FROM user_topic_plans WHERE plan_id = ? AND user_id = ?').bind(p.id, starterId).first<{ n: number }>()
+    if ((before?.n ?? 0) > 1) return // they had started it before: not a new reader
+    const n = await startedCount(p.id, p.author_id)
+    if (!MILESTONES.includes(n)) return
+    await notify(
+      { userIds: [p.author_id] },
+      {
+        kind: 'plan',
+        title: n === 1 ? `🎉 Someone started your plan “${p.title}”` : `🎉 ${n.toLocaleString('en-NG')} people have started “${p.title}”`,
+        body: n === 1 ? 'Your first reader. Pray for them as they read.' : 'See how far they’ve got, day by day.',
+        url: `/app/topics/write/${p.id}`,
+        tag: `plan-readers-${p.id}`,
+      },
+    )
+  } catch {}
+}
+
+/** The writer (or an admin): how many people started, are reading, finished; and how many finished each day */
+export const myPlanReaders = createServerFn({ method: 'GET' })
+  .validator((id: string) => clip(id, 40))
+  .handler(async ({ data }) => {
+    const user = await requireUser()
+    const p = await myPlan(data, user)
+    const t = await db()
+      .prepare(
+        `SELECT COUNT(DISTINCT user_id) AS started,
+                COUNT(DISTINCT CASE WHEN status = 'active' THEN user_id END) AS reading,
+                COUNT(DISTINCT CASE WHEN status = 'completed' THEN user_id END) AS finished,
+                COUNT(DISTINCT CASE WHEN created_at > datetime('now', '-7 days') THEN user_id END) AS week,
+                COUNT(DISTINCT CASE WHEN circle_id IS NOT NULL THEN user_id END) AS together
+         FROM user_topic_plans WHERE plan_id = ? AND user_id != ?`,
+      )
+      .bind(p.id, p.author_id)
+      .first<{ started: number; reading: number; finished: number; week: number; together: number }>()
+    const { results } = await db()
+      .prepare(
+        `SELECT d.day, COUNT(DISTINCT u.user_id) AS n FROM topic_days_done d JOIN user_topic_plans u ON u.id = d.user_plan_id
+         WHERE u.plan_id = ? AND u.user_id != ? AND d.day <= ? GROUP BY d.day ORDER BY d.day`,
+      )
+      .bind(p.id, p.author_id, p.days)
+      .all<{ day: number; n: number }>()
+    const perDay = Array.from({ length: p.days }, (_, i) => results.find((r) => r.day === i + 1)?.n ?? 0)
+    // Starts per week, the last 8 weeks (oldest first)
+    const { results: weeks } = await db()
+      .prepare(
+        `SELECT CAST((julianday('now') - julianday(first)) / 7 AS INTEGER) AS ago, COUNT(*) AS n
+         FROM (SELECT user_id, MIN(created_at) AS first FROM user_topic_plans WHERE plan_id = ? AND user_id != ? GROUP BY user_id)
+         WHERE first > datetime('now', '-56 days') GROUP BY ago`,
+      )
+      .bind(p.id, p.author_id)
+      .all<{ ago: number; n: number }>()
+    const byWeek = Array.from({ length: 8 }, (_, i) => weeks.find((w) => w.ago === 7 - i)?.n ?? 0)
+    return { started: t?.started ?? 0, reading: t?.reading ?? 0, finished: t?.finished ?? 0, week: t?.week ?? 0, together: t?.together ?? 0, perDay, byWeek, days: p.days, live: p.status === 'approved' }
   })
