@@ -10,6 +10,9 @@ import { receiveMail } from '~/lib/mail'
 import { googleCallback, googleStart } from '~/lib/google'
 import { logError } from '~/lib/errors'
 import { closeTracks, effectiveSize, asSize, newSession, renegotiate, tracksNew } from '~/lib/sfu'
+import { icsFile, meetingRule, scheduleEvent, type CalEvent } from '~/lib/calendar'
+import { invitePath, slugify } from '~/lib/invite'
+import type { Schedule } from '~/lib/schedule'
 import { BRAND_KEYS, brandCss, cleanBrand } from '~/lib/brand'
 
 const COOKIE = 'sg_session'
@@ -132,6 +135,42 @@ async function routeRequest(request: Request, env: AppEnv): Promise<Response> {
       await logError({ source: 'app', message: String(b.message ?? ''), stack: b.stack, url: b.url, build: b.build, userAgent: request.headers.get('user-agent') ?? '', userId: user?.id ?? null })
     } catch {}
     return new Response(null, { status: 204 })
+  }
+
+  // "Add to calendar" files (Apple Calendar, Outlook):
+  //   /api/ics/<invite code>.ics   a group's meeting times or an event's date (the code is in its invite link)
+  //   /api/ics/meet/<id>.ics       a church meeting (members of the church)
+  const icsGroup = url.pathname.match(/^\/api\/ics\/([A-Z0-9]{6,16})\.ics$/)
+  const icsMeet = url.pathname.match(/^\/api\/ics\/meet\/([\w-]{1,64})\.ics$/)
+  if ((icsGroup || icsMeet) && request.method === 'GET') {
+    const site = url.origin
+    let events: CalEvent[] = []
+    let name = 'TheRenewGym'
+    if (icsGroup) {
+      const g = await env.DB.prepare('SELECT id, name, invite_code, is_event FROM prayer_groups WHERE invite_code = ? AND is_hidden = 0').bind(icsGroup[1]).first<{ id: string; name: string; invite_code: string; is_event: number }>()
+      if (!g) return new Response('Not found', { status: 404 })
+      name = g.name
+      const { results } = await env.DB.prepare('SELECT id, title, days, time, timezone, duration_min, repeats, on_date, nth FROM prayer_schedules WHERE group_id = ?').bind(g.id).all<Schedule>()
+      const page = `${site}${invitePath(g.name, g.invite_code)}`
+      events = results.map((s) => scheduleEvent(s, g.is_event ? g.name : `${s.title} · ${g.name}`, page)).filter((e): e is CalEvent => !!e)
+    } else if (icsMeet) {
+      const user = await userFromCookie(request, env)
+      if (!user) return new Response('Please sign in.', { status: 401 })
+      const m = await env.DB.prepare(
+        `SELECT mt.id, mt.title, mt.starts_at, mt.duration_min, mt.repeats, mt.timezone, c.name AS church FROM church_meetings mt JOIN churches c ON c.id = mt.church_id
+         LEFT JOIN church_members cm ON cm.church_id = mt.church_id AND cm.user_id = ? WHERE mt.id = ? AND (cm.user_id IS NOT NULL OR ? = 'admin')`,
+      )
+        .bind(user.id, icsMeet[1], user.role)
+        .first<{ id: string; title: string; starts_at: string; duration_min: number; repeats: string; timezone: string; church: string }>()
+      if (!m) return new Response('Not found', { status: 404 })
+      name = m.title
+      const start = Date.parse(m.starts_at)
+      events = [{ uid: `meet-${m.id}@therenewgym.org`, title: `${m.title} · ${m.church}`, start, minutes: m.duration_min, url: `${site}/app/meet/${m.id}`, details: `Live on TheRenewGym: ${site}/app/meet/${m.id}`, rrule: meetingRule(start, m.repeats, m.timezone) }]
+    }
+    if (!events.length) return new Response('Nothing coming up.', { status: 404 })
+    return new Response(icsFile(events), {
+      headers: { 'content-type': 'text/calendar; charset=utf-8', 'content-disposition': `attachment; filename="${slugify(name) || 'therenewgym'}.ics"`, 'cache-control': 'no-store' },
+    })
   }
 
   // Public media from R2:  /media/<key>  (supports Range requests so audio streams and loops smoothly)

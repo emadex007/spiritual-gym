@@ -7,6 +7,8 @@ import { MeetingShell, shareInvite, type Meet } from '~/components/MeetingRoom'
 import { errorText } from '~/components/AuthShell'
 import { MEETING_LIMIT, CAMERA_LIMIT, meetingKind, meetingTime } from '~/lib/content'
 import { describeRepeat } from '~/lib/schedule'
+import { meetingRule } from '~/lib/calendar'
+import { AddToCalendar } from '~/components/AddToCalendar'
 import { Glyph, LineIcon } from '~/components/LineIcon'
 
 export const Route = createFileRoute('/app/meet/$id')({
@@ -60,6 +62,11 @@ function Lobby({ d, meet, camera, setCamera }: { d: ReturnType<typeof Route.useL
           <><LineIcon name="calendar" className="mr-1.5 inline h-4 w-4 -translate-y-px" />{meetingTime(m.starts_at)} · {m.duration_min} min</>
         )}
       </p>
+      {!ended && m.status !== 'live' && (
+        <div className="mt-3">
+          <AddToCalendar dark name={m.title} events={[{ uid: `meet-${m.id}@therenewgym.org`, title: `${m.title} · ${d.meeting.church_name}`, start: Date.parse(m.starts_at), minutes: m.duration_min, url: typeof location !== 'undefined' ? `${location.origin}/app/meet/${m.id}` : '', details: 'Live on TheRenewGym', rrule: meetingRule(Date.parse(m.starts_at), m.repeats, m.timezone) }]} />
+        </div>
+      )}
       {(m.repeats === 'weekly' || m.repeats === 'monthly') && (
         <p className="mt-2 text-sm font-semibold text-gold"><LineIcon name="history" className="mr-1.5 inline h-4 w-4 -translate-y-px" />{describeRepeat(Date.parse(m.starts_at), m.repeats, m.timezone)}</p>
       )}
@@ -68,6 +75,7 @@ function Lobby({ d, meet, camera, setCamera }: { d: ReturnType<typeof Route.useL
       {meet.status === 'ended' && meet.endReason === 'time' && <p className="mt-5 rounded-2xl bg-white/10 px-4 py-3 text-sm">The meeting has ended: its time is up.</p>}
       {meet.status === 'removed' && <p className="mt-5 rounded-2xl bg-white/10 px-4 py-3 text-sm">The host removed you from this meeting.</p>}
       {meet.status === 'full' && <p className="mt-5 rounded-2xl bg-white/10 px-4 py-3 text-sm">The meeting is full ({meet.fullLimit} people). Please try again a little later.</p>}
+      {meet.status === 'locked' && <p className="mt-5 rounded-2xl bg-white/10 px-4 py-3 text-sm"><b>The host has locked this meeting.</b> Nobody new can join right now. Ask the host to unlock it, then try again.</p>}
       {meet.error && <p className="mt-5 rounded-2xl bg-red-500/20 px-4 py-3 text-sm">{meet.error}</p>}
 
       {!ended && meet.status !== 'removed' && (

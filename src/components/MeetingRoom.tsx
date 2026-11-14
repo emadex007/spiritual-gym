@@ -12,7 +12,7 @@ import { Glyph, LineIcon } from '~/components/LineIcon'
 
 export type Meet = ReturnType<typeof useMeeting>
 export type Me = { name: string; avatar: string | null }
-type Panel = 'chat' | 'people' | 'notes' | null
+type Panel = 'chat' | 'people' | 'notes' | 'qa' | null
 /** Most people a meeting of each size can hold */
 const SIZE_MAX = { small: MEETING_LIMIT, large: 50, event: 300 } as const
 
@@ -96,6 +96,7 @@ export function MeetingShell({ meet, title, emoji, me, back, invite, lobby, onEn
   const openPanel = (p: Panel) => {
     setPanel(p)
     meet.setChatOpen(p === 'chat')
+    if (p === 'qa') meet.seenQa()
   }
 
   return (
@@ -120,6 +121,7 @@ export function MeetingShell({ meet, title, emoji, me, back, invite, lobby, onEn
                 <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-emerald-400" /> Live</span>
               )}
               <span>· {meet.peers.length + 1} here</span>
+              {meet.locked && <span className="flex items-center gap-1 font-semibold text-amber-300"><LineIcon name="lock" className="h-3 w-3" />Locked</span>}
               {meet.endsAt && <span>· ends {new Date(meet.endsAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</span>}
             </p>
           )}
@@ -128,6 +130,12 @@ export function MeetingShell({ meet, title, emoji, me, back, invite, lobby, onEn
           // Hosts: mute everyone in one tap (for background noise), always in the top bar
           <button type="button" onClick={meet.muteAll} className="flex h-9 shrink-0 items-center gap-1.5 rounded-full bg-white/10 px-3 text-sm font-semibold hover:bg-red-600" aria-label="Mute everyone">
             <Icon name="micOff" className="h-4 w-4" /> <span className="hidden min-[360px]:inline">Mute all</span>
+          </button>
+        )}
+        {inRoom && (
+          <button type="button" onClick={() => openPanel(panel === 'qa' ? null : 'qa')} className={`relative flex h-9 items-center gap-1.5 rounded-full px-3 text-sm font-semibold ${panel === 'qa' ? 'bg-white text-[#08131f]' : 'bg-white/10 hover:bg-white/15'}`} aria-label="Questions and polls">
+            <LineIcon name="help" className="h-4 w-4" /> <span className="hidden min-[400px]:inline">Q&amp;A</span>
+            {meet.qaNew && panel !== 'qa' && <span className="absolute -top-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-gold" />}
           </button>
         )}
         {inRoom && (
@@ -207,6 +215,8 @@ export function MeetingShell({ meet, title, emoji, me, back, invite, lobby, onEn
       )}
       {inRoom && panel === 'chat' && <ChatPanel meet={meet} onClose={() => openPanel(null)} />}
       {inRoom && panel === 'people' && <PeoplePanel meet={meet} me={me} onClose={() => openPanel(null)} />}
+      {inRoom && panel === 'qa' && <QaPanel meet={meet} onClose={() => openPanel(null)} />}
+      {inRoom && panel !== 'qa' && <PollPopup meet={meet} openQa={() => openPanel('qa')} />}
       {inRoom && panel === 'notes' && roomExtra && (
         <SidePanel title={roomExtra.label} onClose={() => openPanel(null)}>
           {roomExtra.content}
@@ -721,6 +731,9 @@ function Controls({ meet, panel, openPanel, view, setView, rec, hasExtra, extraL
                 <span className="flex items-center gap-2"><Icon name="notes" /> {extraLabel}</span>
               </button>
             )}
+            <button type="button" className="option !py-3 text-left" onClick={() => { setSheet(null); openPanel('qa') }}>
+              <span className="flex items-center gap-2"><LineIcon name="help" className="h-5 w-5" /> Questions and polls</span>
+            </button>
             <button type="button" className="option !py-3 text-left" onClick={() => { setSheet(null); invite() }}>
               <span className="flex items-center gap-2"><Icon name="invite" /> Invite people</span>
             </button>
@@ -736,6 +749,10 @@ function Controls({ meet, panel, openPanel, view, setView, rec, hasExtra, extraL
                 <button type="button" className="option !py-3 text-left" onClick={() => { setSheet(null); meet.muteAll() }}>
                   <span><Icon name="micOff" className="mr-2 inline h-[18px] w-[18px] -translate-y-px text-accent" />Mute everyone</span>
                 </button>
+                <label className="option !py-3 text-left">
+                  <span className="flex-1"><LineIcon name="lock" className="mr-2 inline h-[18px] w-[18px] -translate-y-px text-accent" />Lock the meeting <span className="block text-xs font-normal text-muted">Nobody new can join. People already in can rejoin if they drop.</span></span>
+                  <input type="checkbox" className="h-5 w-5" checked={meet.locked} onChange={(e) => meet.hostLock(e.target.checked)} />
+                </label>
                 <label className="option !py-3 text-left">
                   <span className="flex-1"><LineIcon name="door" className="mr-2 inline h-[18px] w-[18px] -translate-y-px text-accent" />Waiting room <span className="block text-xs font-normal text-muted">People wait until you let them in</span></span>
                   <input type="checkbox" className="h-5 w-5" checked={meet.waitingRoom} onChange={(e) => meet.setWaitingRoom(e.target.checked)} />
@@ -829,6 +846,137 @@ function Sheet({ title, onClose, children }: { title: string; onClose: () => voi
         </div>
       </div>
     </Portal>
+  )
+}
+
+/** Questions and polls: anyone asks and upvotes; hosts answer or dismiss, and run one poll at a time */
+function QaPanel({ meet, onClose }: { meet: Meet; onClose: () => void }) {
+  const [text, setText] = useState('')
+  const [making, setMaking] = useState(false)
+  const [q, setQ] = useState('')
+  const [opts, setOpts] = useState(['', ''])
+  const p = meet.poll
+  const open = meet.qa.filter((x) => !x.answered)
+  const done = meet.qa.filter((x) => x.answered)
+  const ask = () => {
+    if (text.trim().length < 3) return
+    meet.ask(text.trim())
+    setText('')
+  }
+  const start = () => {
+    const options = opts.map((o) => o.trim()).filter(Boolean)
+    if (q.trim().length < 3 || options.length < 2) return
+    meet.startPoll(q.trim(), options)
+    setMaking(false)
+    setQ('')
+    setOpts(['', ''])
+  }
+  return (
+    <SidePanel
+      title="Questions and polls"
+      onClose={onClose}
+      footer={
+        <div className="shrink-0 border-t border-line p-3">
+          <form onSubmit={(e) => { e.preventDefault(); ask() }} className="flex gap-2">
+            <input className="input min-w-0 flex-1 !py-2.5" value={text} maxLength={300} onChange={(e) => setText(e.target.value)} placeholder="Ask a question…" aria-label="Your question" />
+            <button className="btn-primary shrink-0 !px-4 !py-2.5" disabled={text.trim().length < 3}>Ask</button>
+          </form>
+        </div>
+      }
+    >
+      {/* The poll */}
+      {p ? (
+        <div className="rounded-2xl border border-line p-4">
+          <p className="text-xs font-semibold tracking-wider text-muted uppercase">{p.open ? 'Poll' : 'Poll · closed'}</p>
+          <p className="mt-1 font-semibold">{p.question}</p>
+          <div className="mt-3 space-y-2">
+            {p.options.map((o, i) => {
+              const pct = p.total ? Math.round((p.counts[i] / p.total) * 100) : 0
+              const showResults = p.mine !== null || !p.open || meet.host
+              return (
+                <button key={i} type="button" disabled={!p.open} onClick={() => meet.vote(i)} className={`relative block w-full overflow-hidden rounded-xl border px-3 py-2.5 text-left text-sm ${p.mine === i ? 'border-accent font-semibold' : 'border-line'} ${p.open ? 'hover:border-accent' : ''}`}>
+                  {showResults && <span className="absolute inset-y-0 left-0 bg-accent-soft/70" style={{ width: `${pct}%` }} aria-hidden />}
+                  <span className="relative flex justify-between gap-2"><span>{p.mine === i ? '✓ ' : ''}{o}</span>{showResults && <span className="text-muted">{pct}% · {p.counts[i]}</span>}</span>
+                </button>
+              )
+            })}
+          </div>
+          <p className="mt-2 text-xs text-muted">{p.total} vote{p.total === 1 ? '' : 's'}{p.open && p.mine === null ? ' · tap an answer to vote' : p.open ? ' · tap another answer to change your vote' : ''}</p>
+          {meet.host && (
+            <div className="mt-3 flex gap-2">
+              {p.open ? <button type="button" className="btn-ghost !px-3 !py-1.5 text-sm" onClick={meet.closePoll}>Close the poll</button> : <button type="button" className="btn-ghost !px-3 !py-1.5 text-sm" onClick={meet.clearPoll}>Remove</button>}
+              <button type="button" className="text-sm font-semibold text-accent" onClick={() => setMaking(true)}>New poll</button>
+            </div>
+          )}
+        </div>
+      ) : meet.host && !making ? (
+        <button type="button" className="option !py-3 text-left" onClick={() => setMaking(true)}>
+          <span><LineIcon name="chart" className="mr-2 inline h-[18px] w-[18px] -translate-y-px text-accent" />Start a poll</span>
+        </button>
+      ) : null}
+      {meet.host && making && (
+        <div className="mt-3 space-y-2 rounded-2xl border border-line p-4">
+          <p className="text-sm font-semibold">New poll</p>
+          <input className="input" value={q} maxLength={200} onChange={(e) => setQ(e.target.value)} placeholder="Question, e.g. Where are you joining from?" />
+          {opts.map((o, i) => (
+            <input key={i} className="input" value={o} maxLength={80} onChange={(e) => setOpts(opts.map((x, j) => (j === i ? e.target.value : x)))} placeholder={`Answer ${i + 1}`} />
+          ))}
+          <div className="flex flex-wrap gap-2">
+            {opts.length < 6 && <button type="button" className="text-sm font-semibold text-accent" onClick={() => setOpts([...opts, ''])}>+ Add an answer</button>}
+            <span className="flex-1" />
+            <button type="button" className="btn-ghost !px-3 !py-1.5 text-sm" onClick={() => setMaking(false)}>Cancel</button>
+            <button type="button" className="btn-primary !px-3 !py-1.5 text-sm" disabled={q.trim().length < 3 || opts.filter((x) => x.trim()).length < 2} onClick={start}>Start poll</button>
+          </div>
+          {p && <p className="text-xs text-muted">Starting a new poll replaces the current one.</p>}
+        </div>
+      )}
+
+      {/* Questions */}
+      <p className="mt-5 text-xs font-semibold tracking-wider text-muted uppercase">Questions{open.length ? ` (${open.length})` : ''}</p>
+      {meet.qa.length === 0 && <p className="mt-2 text-sm text-muted">No questions yet. Ask below; others can tap ▲ on the ones they want answered too.</p>}
+      <ul className="mt-2 space-y-2">
+        {[...open, ...done].map((x) => (
+          <li key={x.id} className={`flex gap-3 rounded-2xl bg-surface-2 p-3 ${x.answered ? 'opacity-60' : ''}`}>
+            <button type="button" disabled={x.mine || x.answered} onClick={() => meet.upvote(x.id)} className={`flex w-10 shrink-0 flex-col items-center rounded-xl py-1 text-xs font-bold ${x.upped ? 'bg-accent text-white' : 'bg-surface text-muted'} ${x.mine || x.answered ? '' : 'hover:text-accent'}`} aria-label={x.upped ? 'Remove your vote' : 'Vote for this question'}>
+              ▲<span>{x.ups}</span>
+            </button>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm">{x.text}</p>
+              <p className="mt-0.5 text-xs text-muted">{x.mine ? 'You' : x.name}{x.answered ? ' · ✓ answered' : ''}</p>
+              <div className="mt-1.5 flex flex-wrap gap-3 text-xs font-semibold">
+                {meet.host && !x.answered && <button type="button" className="text-accent" onClick={() => meet.answerQuestion(x.id)}>Mark answered</button>}
+                {meet.host && x.answered && <button type="button" className="text-muted" onClick={() => meet.answerQuestion(x.id, false)}>Not answered</button>}
+                {meet.host && <button type="button" className="text-red-600" onClick={() => meet.dismissQuestion(x.id)}>Dismiss</button>}
+                {!meet.host && x.mine && !x.answered && <button type="button" className="text-muted" onClick={() => meet.withdrawQuestion(x.id)}>Withdraw</button>}
+              </div>
+            </div>
+          </li>
+        ))}
+      </ul>
+    </SidePanel>
+  )
+}
+
+/** A new poll pops up for a quick vote (it can be closed; it's always in Q&A) */
+function PollPopup({ meet, openQa }: { meet: Meet; openQa: () => void }) {
+  const [closed, setClosed] = useState<string | null>(null)
+  const p = meet.poll
+  // Hosts run the poll from the panel; everyone else gets the quick vote
+  if (!p || !p.open || p.mine !== null || closed === p.id || meet.host) return null
+  return (
+    <div className="fade-in absolute inset-x-3 bottom-24 z-30 mx-auto max-w-sm rounded-3xl bg-surface p-4 text-ink shadow-2xl">
+      <div className="flex items-start justify-between gap-3">
+        <p className="text-xs font-semibold tracking-wider text-muted uppercase">Poll from {p.by}</p>
+        <button type="button" className="text-sm text-muted" onClick={() => setClosed(p.id)} aria-label="Close">✕</button>
+      </div>
+      <p className="mt-1 font-semibold">{p.question}</p>
+      <div className="mt-3 grid gap-2">
+        {p.options.map((o, i) => (
+          <button key={i} type="button" className="rounded-xl border border-line px-3 py-2.5 text-left text-sm font-medium hover:border-accent" onClick={() => meet.vote(i)}>{o}</button>
+        ))}
+      </div>
+      <button type="button" className="mt-2 text-xs font-semibold text-accent" onClick={openQa}>See questions and results</button>
+    </div>
   )
 }
 
@@ -964,6 +1112,9 @@ function PeoplePanel({ meet, me, onClose }: { meet: Meet; me: Me; onClose: () =>
                 ) : (
                   <button type="button" className={chip} onClick={() => meet.hostSpotlight(p.id)}><Icon name="star" className="mr-1 inline h-3.5 w-3.5 -translate-y-px" />Spotlight</button>
                 )}
+                <button type="button" className={chip} onClick={() => meet.hostCohost(p.id, !p.host)}>
+                  <Icon name="star" className="mr-1 inline h-3.5 w-3.5 -translate-y-px" />{p.host ? 'Remove co-host' : 'Make co-host'}
+                </button>
                 {!p.host && (
                   <>
                     {p.muted ? <button type="button" className={chip} onClick={() => meet.askToUnmute(p.id)}><Icon name="mic" className="mr-1 inline h-3.5 w-3.5 -translate-y-px" />Ask to unmute</button> : <button type="button" className={chip} onClick={() => meet.hostMute(p.id)}><Icon name="micOff" className="mr-1 inline h-3.5 w-3.5 -translate-y-px" />Mute</button>}

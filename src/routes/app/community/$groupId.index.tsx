@@ -12,6 +12,8 @@ import { Glyph, LineIcon } from '~/components/LineIcon'
 import { Portal } from '~/components/Portal'
 import { EditGroup } from '~/components/EditGroup'
 import { EventRecap } from '~/components/EventRecap'
+import { AddToCalendar } from '~/components/AddToCalendar'
+import { scheduleEvent, type CalEvent } from '~/lib/calendar'
 import { inviteLink } from '~/lib/invite'
 import { describeSchedule, nextStart, relativeStart } from '~/lib/schedule'
 
@@ -123,10 +125,11 @@ function GroupPage() {
         {event && eventWhen && (
           <div className="mt-4 flex items-center gap-3 rounded-2xl bg-accent-soft/60 px-4 py-3">
             <LineIcon name="calendar" className="h-6 w-6 shrink-0 text-accent" />
-            <div className="min-w-0">
+            <div className="min-w-0 flex-1">
               <p className="font-semibold">{eventWhen}</p>
               <p className="text-xs text-muted">{eventStart == null ? 'This event has passed' : relativeStart(eventStart, eventSched!.duration_min)} · live in the app</p>
             </div>
+            {eventStart != null && d.isMember && <AddToCalendar compact align="right" name={g.name} events={[scheduleEvent(eventSched!, g.name, g.invite_code ? inviteLink(g.name, g.invite_code) : location.href)].filter((x): x is CalEvent => x != null)} />}
           </div>
         )}
         {g.description && <p className="mt-4 text-muted">{g.description}</p>}
@@ -154,10 +157,11 @@ function GroupPage() {
             </>
           ) : (
             <button type="button" className="btn-primary" disabled={busy} onClick={join}>
-              {busy ? 'Sending…' : d.invited ? 'Accept invite' : d.approveJoins ? 'Ask to join' : event ? 'Join event' : 'Join group'}
+              {busy ? 'Sending…' : d.invited ? 'Accept invite' : d.approveJoins ? 'Ask to join' : event ? 'Register' : 'Join group'}
             </button>
           )}
         </div>
+        {event && d.isMember && <p className="mt-2 text-sm font-semibold text-sage">✓ You’re registered. We’ll remind you the day before and just before it starts.</p>}
         {d.pending && <p className="mt-2 text-sm text-muted">A leader of this group will look at your request. We’ll let you know when you’re in.</p>}
         <FormError message={err} />
         {d.isMember && g.invite_code && (

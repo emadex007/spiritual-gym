@@ -52,7 +52,14 @@ type Peer = {
   sfu?: SfuInfo
 }
 type SfuInfo = { session: string; tracks: { a?: string; v?: string; s?: string } }
-type Msg = { t?: string; to?: string; data?: unknown; muted?: boolean; on?: boolean; text?: string; id?: string; final?: boolean; minutes?: number; session?: string; tracks?: Record<string, unknown> }
+type Msg = { t?: string; to?: string; data?: unknown; muted?: boolean; on?: boolean; text?: string; id?: string; final?: boolean; minutes?: number; session?: string; tracks?: Record<string, unknown>; question?: string; options?: unknown[]; choice?: number }
+/** A poll: one at a time. Votes are kept by person (so reconnecting doesn't vote twice); everyone sees the counts. */
+type Poll = { id: string; question: string; options: string[]; votes: Record<string, number>; open: boolean; by: string }
+/** A question from the audience: others upvote it; hosts mark it answered or dismiss it */
+type Question = { id: string; uid: string; name: string; text: string; at: number; up: string[]; answered: boolean }
+const QA_KEEP = 150
+/** Who someone is for votes and upvotes (their account, or their connection for guests) */
+const voter = (p: Peer) => p.userId || p.id
 
 export class PrayerRoom extends DurableObject<AppEnv> {
   constructor(ctx: DurableObjectState, env: AppEnv) {
@@ -75,7 +82,8 @@ export class PrayerRoom extends DurableObject<AppEnv> {
     const groupId = request.headers.get('x-group-id') ?? ''
     const avatar = safeDecode(request.headers.get('x-user-avatar')).slice(0, 200)
     const meetingId = request.headers.get('x-meeting-id') ?? ''
-    const host = request.headers.get('x-host') === '1'
+    // Hosts: the group's leaders / church admins, plus anyone a host made co-host in this meeting
+    const host = request.headers.get('x-host') === '1' || (!!userId && !!(await this.ctx.storage.get<boolean>(`cohost:${userId}`)))
     const adult = request.headers.get('x-adult') === '1'
 
     // Room settings, kept while the room exists
@@ -104,6 +112,14 @@ export class PrayerRoom extends DurableObject<AppEnv> {
           s.send(JSON.stringify({ t: 'replaced' }))
         } catch {}
         await this.leave(s)
+      }
+    }
+    if (!host && (await this.ctx.storage.get<boolean>('locked'))) {
+      const wasIn = userId ? Date.now() - ((await this.ctx.storage.get<number>(`in:${userId}`)) ?? 0) < ADMITTED_FOR : false
+      if (!wasIn) {
+        server.send(JSON.stringify({ t: 'locked' }))
+        server.close(4002, 'Locked')
+        return new Response(null, { status: 101, webSocket: client })
       }
     }
     if (this.peers().length >= limit) {
@@ -156,6 +172,9 @@ export class PrayerRoom extends DurableObject<AppEnv> {
         waitingRoom: !!(await this.ctx.storage.get<boolean>('waitingRoom')),
         waiting: me.host ? this.waitingPeers().map(publicPeer) : [],
         endsAt: (await this.ctx.storage.get<number>('endsAt')) ?? null,
+        locked: !!(await this.ctx.storage.get<boolean>('locked')),
+        poll: pollView(await this.ctx.storage.get<Poll>('poll'), voter(me)),
+        qa: qaView((await this.ctx.storage.get<Question[]>('qa')) ?? [], voter(me)),
         // Earlier messages (marked "mine" by person, since ids change when someone reconnects)
         chat: ((await this.ctx.storage.get<ChatItem[]>('chat')) ?? [])
           .filter((c) => c.at > Date.now() - CHAT_FOR)
@@ -242,6 +261,39 @@ export class PrayerRoom extends DurableObject<AppEnv> {
           this.broadcast({ t: 'caption', id: me.id, name: me.name, text: msg.text.trim().slice(0, 400), final: !!msg.final }, me.id)
         return
     }
+    // ---------- Everyone: vote in the poll, ask and upvote questions ----------
+    if (msg.t === 'poll-vote') {
+      const poll = await this.ctx.storage.get<Poll>('poll')
+      const choice = Number(msg.choice)
+      if (!poll?.open || !Number.isInteger(choice) || choice < 0 || choice >= poll.options.length) return
+      poll.votes[voter(me)] = choice
+      await this.ctx.storage.put('poll', poll)
+      return this.sendPoll(poll)
+    }
+    if (msg.t === 'qa-ask') {
+      const text = String(msg.text ?? '').trim().slice(0, 300)
+      if (text.length < 3) return
+      const list = (await this.ctx.storage.get<Question[]>('qa')) ?? []
+      if (list.filter((q) => q.uid === voter(me) && !q.answered).length >= 5) return ws.send(JSON.stringify({ t: 'notice', text: 'You have 5 questions waiting. Wait for an answer before asking more.' }))
+      list.push({ id: crypto.randomUUID().slice(0, 12), uid: voter(me), name: me.name, text, at: Date.now(), up: [], answered: false })
+      await this.ctx.storage.put('qa', list.slice(-QA_KEEP))
+      this.toHosts({ t: 'qa-new', name: me.name })
+      return this.sendQa(list)
+    }
+    if (msg.t === 'qa-up') {
+      const list = (await this.ctx.storage.get<Question[]>('qa')) ?? []
+      const q = list.find((x) => x.id === msg.id)
+      if (!q || q.uid === voter(me)) return
+      q.up = q.up.includes(voter(me)) ? q.up.filter((u) => u !== voter(me)) : [...q.up, voter(me)]
+      await this.ctx.storage.put('qa', list)
+      return this.sendQa(list)
+    }
+    if (msg.t === 'qa-withdraw') {
+      const list = ((await this.ctx.storage.get<Question[]>('qa')) ?? []).filter((x) => !(x.id === msg.id && x.uid === voter(me)))
+      await this.ctx.storage.put('qa', list)
+      return this.sendQa(list)
+    }
+
     if (!me.host) return
 
     // ---------- Host only ----------
@@ -358,8 +410,78 @@ export class PrayerRoom extends DurableObject<AppEnv> {
         if (meetingId) await this.env.DB.prepare('UPDATE church_meetings SET duration_min = duration_min + ? WHERE id = ?').bind(mins, meetingId).run().catch(() => {})
         return this.broadcast({ t: 'ends-at', endsAt: await this.ctx.storage.get<number>('endsAt'), by: me.name, minutes: mins })
       }
+      case 'poll-start': {
+        const question = String(msg.question ?? '').trim().slice(0, 200)
+        const options = (Array.isArray(msg.options) ? msg.options : []).map((o) => String(o ?? '').trim().slice(0, 80)).filter(Boolean).slice(0, 6)
+        if (question.length < 3 || options.length < 2) return ws.send(JSON.stringify({ t: 'notice', text: 'A poll needs a question and at least 2 answers.' }))
+        const poll: Poll = { id: crypto.randomUUID().slice(0, 12), question, options, votes: {}, open: true, by: me.name }
+        await this.ctx.storage.put('poll', poll)
+        return this.sendPoll(poll)
+      }
+      case 'poll-close': {
+        const poll = await this.ctx.storage.get<Poll>('poll')
+        if (!poll) return
+        poll.open = false
+        await this.ctx.storage.put('poll', poll)
+        return this.sendPoll(poll)
+      }
+      case 'poll-clear':
+        await this.ctx.storage.delete('poll')
+        return this.broadcast({ t: 'poll', poll: null })
+      case 'qa-answer':
+      case 'qa-dismiss': {
+        let list = (await this.ctx.storage.get<Question[]>('qa')) ?? []
+        if (msg.t === 'qa-dismiss') list = list.filter((q) => q.id !== msg.id)
+        else list = list.map((q) => (q.id === msg.id ? { ...q, answered: msg.on !== false } : q))
+        await this.ctx.storage.put('qa', list)
+        return this.sendQa(list)
+      }
+      case 'cohost': {
+        // Make someone a co-host (all host tools) or take it back. The group's own leaders stay hosts.
+        const s = target(msg.id)
+        const p = s?.deserializeAttachment() as Peer | null
+        if (!s || !p || p.waiting || p.id === me.id || !p.userId) return
+        if (msg.on) await this.ctx.storage.put(`cohost:${p.userId}`, true)
+        else {
+          if (!(await this.ctx.storage.get<boolean>(`cohost:${p.userId}`))) return ws.send(JSON.stringify({ t: 'notice', text: `${p.name} is a leader here, so stays a host.` }))
+          await this.ctx.storage.delete(`cohost:${p.userId}`)
+        }
+        p.host = !!msg.on
+        if (p.host && !p.stage) {
+          p.stage = true
+          await this.ctx.storage.put(`stage:${p.userId}`, true)
+        }
+        s.serializeAttachment(p)
+        try {
+          s.send(JSON.stringify({ t: 'you-host', on: p.host, by: me.name, waiting: p.host ? this.waitingPeers().map(publicPeer) : [] }))
+        } catch {}
+        return this.broadcast({ t: 'peer-host', id: p.id, on: p.host, stage: p.stage }, p.id)
+      }
+      case 'lock':
+        await this.ctx.storage.put('locked', !!msg.on)
+        return this.broadcast({ t: 'locked-state', on: !!msg.on, by: me.name })
       case 'end':
         return this.endAll('ended')
+    }
+  }
+
+  private sendPoll(poll: Poll) {
+    for (const s of this.ctx.getWebSockets()) {
+      const p = s.deserializeAttachment() as Peer | null
+      if (!p || p.waiting) continue
+      try {
+        s.send(JSON.stringify({ t: 'poll', poll: pollView(poll, voter(p)) }))
+      } catch {}
+    }
+  }
+
+  private sendQa(list: Question[]) {
+    for (const s of this.ctx.getWebSockets()) {
+      const p = s.deserializeAttachment() as Peer | null
+      if (!p || p.waiting) continue
+      try {
+        s.send(JSON.stringify({ t: 'qa', qa: qaView(list, voter(p)) }))
+      } catch {}
     }
   }
 
@@ -422,6 +544,9 @@ export class PrayerRoom extends DurableObject<AppEnv> {
       await this.ctx.storage.delete('size')
       await this.ctx.storage.delete('spotlight')
       await this.ctx.storage.delete('captions')
+      await this.ctx.storage.delete(['poll', 'qa', 'locked'])
+      const cohosts = await this.ctx.storage.list({ prefix: 'cohost:' })
+      if (cohosts.size) await this.ctx.storage.delete([...cohosts.keys()])
       // The next meeting here starts with its full length (church meetings get theirs again from the schedule)
       await this.ctx.storage.delete('endsAt')
       await this.ctx.storage.deleteAlarm()
@@ -522,6 +647,21 @@ export class PrayerRoom extends DurableObject<AppEnv> {
       await this.env.DB.batch(stmts)
     } catch {}
   }
+}
+
+/** What one person sees of the poll: the counts, and their own vote */
+function pollView(poll: Poll | undefined, me: string) {
+  if (!poll) return null
+  const counts = poll.options.map(() => 0)
+  for (const v of Object.values(poll.votes)) if (counts[v] !== undefined) counts[v]++
+  return { id: poll.id, question: poll.question, options: poll.options, counts, total: Object.keys(poll.votes).length, open: poll.open, mine: poll.votes[me] ?? null, by: poll.by }
+}
+
+/** What one person sees of the questions: most upvoted first, answered ones at the end */
+function qaView(list: Question[], me: string) {
+  return list
+    .map((q) => ({ id: q.id, name: q.name, text: q.text, at: q.at, ups: q.up.length, upped: q.up.includes(me), mine: q.uid === me, answered: q.answered }))
+    .sort((a, b) => Number(a.answered) - Number(b.answered) || b.ups - a.ups || a.at - b.at)
 }
 
 const publicPeer = (p: Peer) => ({ id: p.id, name: p.name, avatar: p.avatar ?? '', muted: p.muted, host: !!p.host, video: !!p.video, hand: !!p.hand, screen: !!p.screen, stage: p.stage !== false, sfu: p.sfu ?? null })

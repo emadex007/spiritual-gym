@@ -7,6 +7,7 @@ import { dayOfYear, daysBetween, newId } from '~/lib/util'
 import { fastKind, fastState, type FastRow } from '~/lib/fasting'
 import { nextOccurrence, nextStart, type Schedule } from '~/lib/schedule'
 import { retreatByKey } from '~/lib/retreats'
+import { eventReminders } from '~/lib/event-mail'
 import { env } from '~/lib/env'
 import { buildWeekly, newToken, sendBatch } from '~/lib/weekly'
 import { usageAlerts } from '~/lib/usage'
@@ -23,7 +24,7 @@ const REMINDERS = [
 // Each job marks people as reminded BEFORE queueing their notification, and the dispatcher is woken once at the end,
 // so a run that stops early (free-plan limits) never sends the same reminder twice.
 export async function runCron(now = Date.now()) {
-  const jobs: [string, () => Promise<void>][] = [['schedules', () => scheduleReminders(now)], ['meetings', () => meetingReminders(now)]]
+  const jobs: [string, () => Promise<void>][] = [['schedules', () => scheduleReminders(now)], ['meetings', () => meetingReminders(now)], ['events', () => eventReminders(now)]]
   if (pushConfigured()) jobs.push(['daily', () => dailyReminders(now)], ['word', () => dailyWord(now)], ['plans', () => planReminders(now)], ['fasts', () => fastReminders(now)], ['walk', () => walkPrayerReminders(now)])
   if (env().RESEND_API_KEY) jobs.push(['weekly', () => weeklyEmails(now)], ['mail-queue', () => runMailQueue()], ['admin-summary', () => adminDailySummary(now)])
   const d = new Date(now)

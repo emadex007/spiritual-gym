@@ -79,11 +79,11 @@ function JoinGroup() {
         </p>
       ) : g.isMember ? (
         <button type="button" className="btn-primary mt-6 w-full" onClick={() => go(g.id)}>
-          {live && g.live_count > 0 ? 'Join the meeting' : g.is_event ? 'Open the event' : 'Open the group'}
+          {live && g.live_count > 0 ? 'Join the meeting' : g.is_event ? '✓ You’re registered · open the event' : 'Open the group'}
         </button>
       ) : (
         <button type="button" className="btn-primary mt-6 w-full" disabled={busy} onClick={join}>
-          {busy ? 'Joining…' : live && g.live_count > 0 ? `Join the ${g.is_event ? 'event' : 'group'} and the meeting` : g.is_event ? 'Join this event' : 'Join this group'}
+          {busy ? 'Joining…' : live && g.live_count > 0 ? (g.is_event ? 'Register and join the event' : 'Join the group and the meeting') : g.is_event ? 'Register for this event' : 'Join this group'}
         </button>
       )}
     </main>

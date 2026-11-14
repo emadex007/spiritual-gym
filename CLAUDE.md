@@ -24,6 +24,12 @@ Free Christian spiritual-growth web app (installable PWA) at therenewgym.org. Ow
 - Notifications: `src/lib/notify.ts`, `public/sw.js` (focus mode), `src/lib/push-client.ts` (`syncPush` self-repair).
 
 ## Change log (newest first)
+- 2026-11-14 · Live meetings: Q&A (ask, upvote, answered/dismiss) and polls (one at a time, live results, quick-vote pop-up),
+  co-hosts (`cohost:<userId>` in room storage, survives reconnect), lock (`locked`; people already in can rejoin). All in
+  `src/lib/prayer-room.ts`, cleared when the room empties. Calendar: `src/lib/calendar.ts` (Google link, .ics with RRULE),
+  `/api/ics/<code>.ics` and `/api/ics/meet/<id>.ics`, `AddToCalendar` component. Events: "Register", confirmation email,
+  day-before push + email (within the daily allowance, people without push first), 1-hour push (`src/lib/event-mail.ts`,
+  migration 0050).
 - 2026-11-14 · Admin → Community: groups/events tabs, event date, size, attendance, recordings (play/download/delete), storage.
 - 2026-11-14 · Every kind in its own space (prayer / Bible study / class / worship / group / event wording, times, walls).
   Events: attendance (`group_attendance`), overview (share, print, Word), recordings saved to the page (`group_recordings`,
