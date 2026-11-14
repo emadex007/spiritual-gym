@@ -79,12 +79,14 @@ export const getBook = createServerFn({ method: 'GET' })
     const lengths = await pageLengths(id, book.pages)
     const highlights = await db().prepare('SELECT COUNT(*) AS n FROM book_highlights WHERE user_id = ? AND book_id = ?').bind(user.id, id).first<{ n: number }>()
     const mine = book.owner_id === user.id
+    // Its owner can edit it; so can an admin (any book, including older library books with no owner saved)
+    const canEdit = mine || user.role === 'admin'
     const circleId = plan ? (await db().prepare('SELECT circle_id FROM user_books WHERE id = ?').bind(plan.id).first<{ circle_id: string | null }>())?.circle_id : null
     const [circle, shares] = await Promise.all([
       circleId ? circleInfo(circleId, user.id) : Promise.resolve(null),
       mine ? db().prepare('SELECT email, created_at FROM book_shares WHERE book_id = ? ORDER BY created_at DESC').bind(id).all<{ email: string; created_at: string }>().then((r) => r.results) : Promise.resolve([]),
     ])
-    return { book, plan, days: plan ? splitDays(lengths, plan.days) : [], hasText: lengths.some((n) => n > 40), highlights: highlights?.n ?? 0, today: dayString(), mine, ready: canRead(book), circle, shares, readers: mine ? await bookReaders(id, user.id) : null }
+    return { book, plan, days: plan ? splitDays(lengths, plan.days) : [], hasText: lengths.some((n) => n > 40), highlights: highlights?.n ?? 0, today: dayString(), mine, canEdit, ready: canRead(book), circle, shares, readers: mine ? await bookReaders(id, user.id) : null }
   })
 
 /** Start (or restart) reading a book over a number of days */

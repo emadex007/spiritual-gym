@@ -37,6 +37,7 @@ function Books() {
                 {[b.author, b.owner_name ? `added by ${b.owner_name}` : 'shared', `${b.pages} pages`, mb(b.size), b.share_status === 'approved' ? `in the library · ${b.readers} reading` : b.status === 'ready' || b.status === 'published' ? `${b.readers} reading` : b.status === 'rejected' ? `not added: ${b.check_note ?? 'not Christian'}` : 'upload not finished'].filter(Boolean).join(' · ')}
               </p>
             </div>
+            <a href={`/app/books/${b.id}`} className="shrink-0 rounded-full bg-surface-2 px-3 py-1.5 text-sm font-semibold">Edit</a>
             <button
               type="button"
               className="shrink-0 rounded-full px-3 py-1.5 text-sm font-semibold text-red-600 hover:bg-red-500/10"
