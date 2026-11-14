@@ -87,8 +87,10 @@ export class PrayerRoom extends DurableObject<AppEnv> {
     const limit = SIZE_LIMIT[size]
     // What the host asked for (when big meetings aren't available, the room runs small and the host is told why)
     await this.ctx.storage.put('sizeWanted', asSize(request.headers.get('x-size-wanted')))
+    // The end time: church meetings have it from their schedule (set straight away, so the waiting room shows it);
+    // group meetings start the clock when someone really comes in (below)
     const endsAt = Number(request.headers.get('x-ends-at')) || 0
-    if (endsAt && !(await this.ctx.storage.get<number>('endsAt'))) await this.setEnd(endsAt)
+    if (meetingId && endsAt && !(await this.ctx.storage.get<number>('endsAt'))) await this.setEnd(endsAt)
 
     const pair = new WebSocketPair()
     const [client, server] = Object.values(pair) as [WebSocket, WebSocket]
@@ -129,6 +131,7 @@ export class PrayerRoom extends DurableObject<AppEnv> {
       return new Response(null, { status: 101, webSocket: client })
     }
     server.serializeAttachment(me)
+    if (!meetingId && endsAt && !(await this.ctx.storage.get<number>('endsAt'))) await this.setEnd(endsAt)
     await this.welcome(server, me)
     return new Response(null, { status: 101, webSocket: client })
   }
@@ -419,6 +422,9 @@ export class PrayerRoom extends DurableObject<AppEnv> {
       await this.ctx.storage.delete('size')
       await this.ctx.storage.delete('spotlight')
       await this.ctx.storage.delete('captions')
+      // The next meeting here starts with its full length (church meetings get theirs again from the schedule)
+      await this.ctx.storage.delete('endsAt')
+      await this.ctx.storage.deleteAlarm()
     }
     if (me.host && !this.peers().some((p) => p.host)) for (const w of this.waitingSockets()) w.send(JSON.stringify({ t: 'waiting', hostHere: false }))
     await this.syncCount(me, left)

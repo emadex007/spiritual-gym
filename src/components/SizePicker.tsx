@@ -4,6 +4,9 @@ import { useEffect, useState } from 'react'
 import { meetingSizeStatus } from '~/fns/meetings'
 
 export type MeetingSize = 'small' | 'large' | 'event'
+/** Meeting lengths to choose from (minutes); groups can also choose 0 = no set time */
+export const MEETING_LENGTHS = [30, 45, 60, 90, 120, 180, 240]
+export const lengthLabel = (n: number) => (n === 0 ? 'No set time' : n < 60 ? `${n} min` : `${n / 60} hr${n > 60 ? 's' : ''}`.replace('1.5 hrs', '1½ hrs'))
 const OPTIONS: { key: MeetingSize; label: string; sub: string }[] = [
   { key: 'small', label: 'Normal', sub: 'Up to 12 people. Everyone can talk.' },
   { key: 'large', label: 'Large', sub: 'Up to 50 people. Everyone can talk.' },

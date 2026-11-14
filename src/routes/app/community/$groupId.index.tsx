@@ -82,7 +82,8 @@ function GroupPage() {
     await router.navigate({ to: '/app/community' })
   }
   async function share() {
-    const text = `Join “${g.name}” on TheRenewGym${isPrayer ? ' to pray together' : ''}. Invite code: ${g.invite_code}\n${location.origin}/app/community`
+    // The link carries the code: one tap joins (new people sign up first, then land on the group)
+    const text = `Join “${g.name}” on TheRenewGym${isPrayer ? ' to pray together' : ''}.\nTap to join: ${location.origin}/app/community/join/${g.invite_code}\nInvite code: ${g.invite_code}`
     try {
       if (navigator.share) await navigator.share({ title: g.name, text })
       else {
@@ -303,8 +304,10 @@ function InviteSheet({ groupId, name, code, onShare, copied, onClose }: { groupI
         <div className="mt-2"><FormError message={err} /></div>
         {code && (
           <div className="mt-4 border-t border-line pt-4">
-            <p className="text-sm text-muted">Or share the invite code: <span className="font-mono font-semibold tracking-wider text-ink">{code}</span></p>
-            <button type="button" className="btn-ghost mt-3 w-full" onClick={onShare}>{copied ? 'Copied ✓' : 'Share the code'}</button>
+            <p className="text-sm text-muted">Or share the invite link. It has the code in it, so one tap joins:</p>
+            <p className="mt-2 break-all rounded-2xl bg-surface-2 px-3 py-2 font-mono text-xs">{typeof location !== 'undefined' ? location.origin : ''}/app/community/join/{code}</p>
+            <p className="mt-1 text-xs text-muted">Invite code: <span className="font-mono font-semibold tracking-wider text-ink">{code}</span></p>
+            <button type="button" className="btn-ghost mt-3 w-full" onClick={onShare}>{copied ? 'Copied ✓' : 'Share the invite link'}</button>
           </div>
         )}
       </div>

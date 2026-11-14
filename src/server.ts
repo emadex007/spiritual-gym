@@ -466,11 +466,11 @@ async function routeRequest(request: Request, env: AppEnv): Promise<Response> {
     if (!user.birth_year || new Date().getFullYear() - user.birth_year < 18) return new Response('Community meetings are for adults (18+).', { status: 403 })
     const groupId = room[1]
     const member = await env.DB.prepare(
-      `SELECT m.role, g.live_size FROM prayer_group_members m JOIN prayer_groups g ON g.id = m.group_id
+      `SELECT m.role, g.live_size, g.live_minutes FROM prayer_group_members m JOIN prayer_groups g ON g.id = m.group_id
        WHERE m.group_id = ? AND m.user_id = ? AND g.is_hidden = 0`,
     )
       .bind(groupId, user.id)
-      .first<{ role: string; live_size: string | null }>()
+      .first<{ role: string; live_size: string | null; live_minutes: number | null }>()
     if (!member) return new Response('Join the group first.', { status: 403 })
     const headers = new Headers(request.headers)
     headers.set('x-user-id', user.id)
@@ -483,6 +483,8 @@ async function routeRequest(request: Request, env: AppEnv): Promise<Response> {
     headers.set('x-adult', '1')
     headers.set('x-size', await effectiveSize(asSize(member.live_size)))
     headers.set('x-size-wanted', asSize(member.live_size))
+    // The group's meeting length: the room takes it when the meeting starts (the first person in), not on later joins
+    if (member.live_minutes && member.live_minutes > 0) headers.set('x-ends-at', String(Date.now() + member.live_minutes * 60_000))
     const stub = env.PRAYER_ROOMS.get(env.PRAYER_ROOMS.idFromName(groupId))
     return stub.fetch(new Request(request.url, { headers }))
   }

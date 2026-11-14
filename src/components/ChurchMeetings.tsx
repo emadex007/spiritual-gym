@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { SizePicker, type MeetingSize } from '~/components/SizePicker'
+import { MEETING_LENGTHS, SizePicker, lengthLabel, type MeetingSize } from '~/components/SizePicker'
 import { Link, useRouter } from '@tanstack/react-router'
 import { listMeetings, meetingAction, saveMeeting, startInstantMeeting } from '~/fns/meetings'
 import { MEETING_KINDS, meetingKind, meetingTime } from '~/lib/content'
@@ -192,8 +192,7 @@ function KindPicker({ kind, setKind }: { kind: string; setKind: (k: string) => v
   )
 }
 
-const LENGTHS = [30, 45, 60, 90, 120, 180, 240]
-const lengthLabel = (n: number) => (n < 60 ? `${n} min` : `${n / 60} hr${n > 60 ? 's' : ''}`.replace('1.5 hrs', '1½ hrs'))
+const LENGTHS = MEETING_LENGTHS
 
 function QuickStart({ onClose, onStart, busy }: { onClose: () => void; onStart: (title: string, kind: string, durationMin: number, size: MeetingSize) => void; busy: boolean }) {
   const [kind, setKind] = useState('prayer')
