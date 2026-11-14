@@ -219,7 +219,8 @@ function WorkoutPlayer() {
                 )
               })}
             </ol>
-            <div className="mt-6 space-y-3 rounded-2xl bg-white/8 p-4 backdrop-blur-sm">
+            <FocusTip />
+            <div className="mt-3 space-y-3 rounded-2xl bg-white/8 p-4 backdrop-blur-sm">
               <label className="flex items-center justify-between gap-3 text-sm">
                 <span><LineIcon name="volume" className="mr-1.5 inline h-4 w-4 -translate-y-px" />Voice guide <span className="text-white/50">(announces each next step)</span></span>
                 <input type="checkbox" className="h-5 w-5 accent-gold" checked={voiceOn} disabled={!speechSupported()} onChange={(e) => { setVoiceOn(e.target.checked); savePref('sg-voice', e.target.checked ? '1' : '0') }} />
@@ -521,6 +522,31 @@ function MyPrayers({ prayers }: { prayers: PrayerT[] }) {
         <p className="mt-2 text-sm text-white/70">Pray in your own words. You can also save prayers and people to pray for, and they’ll show here.</p>
       )}
       <Link to="/app/journal/prayer" className="mt-3 inline-block text-sm font-semibold text-gold">{prayers.length ? '+ Add to my prayer list' : '+ Start my prayer list'}</Link>
+    </div>
+  )
+}
+
+/** Before a workout: TheRenewGym keeps its own notifications quiet while you're here; the phone's Do Not Disturb
+ *  silences everything else (an app can't do that for other apps), with the steps for this phone. */
+function FocusTip() {
+  const [open, setOpen] = useState(false)
+  const ios = typeof navigator !== 'undefined' && /iphone|ipad|ipod/i.test(navigator.userAgent)
+  return (
+    <div className="mt-6 rounded-2xl bg-white/8 p-4 text-sm backdrop-blur-sm">
+      <p className="flex gap-2">
+        <LineIcon name="moon" className="mt-0.5 h-4 w-4 shrink-0 text-gold" />
+        <span>
+          <b>Focus time.</b> TheRenewGym stays quiet while you’re here. To silence other apps too, turn on <b>Do Not Disturb</b>.{' '}
+          <button type="button" className="font-semibold text-gold underline-offset-2 hover:underline" onClick={() => setOpen(!open)}>{open ? 'Hide' : 'How?'}</button>
+        </span>
+      </p>
+      {open && (
+        <p className="mt-2 pl-6 text-white/75">
+          {ios
+            ? 'iPhone: swipe down from the top-right corner, tap Focus, then Do Not Disturb. Turn it off the same way when you finish.'
+            : 'Android: swipe down from the top of the screen and tap Do Not Disturb (on some phones: Silent or Focus mode). Turn it off the same way when you finish.'}
+        </p>
+      )}
     </div>
   )
 }
