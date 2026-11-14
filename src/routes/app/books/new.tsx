@@ -1,9 +1,10 @@
 import { useState } from 'react'
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { BackLink } from '~/components/BackLink'
-import { checkMyBook, createMyBook, deleteMyBook, saveMyBookPages } from '~/fns/books'
+import { checkMyBook, createMyBook, deleteMyBook, saveMyBookPages, setBookVisibility, submitBook } from '~/fns/books'
+import { BOOK_CATEGORIES } from '~/lib/books'
 import { FormError, errorText } from '~/components/AuthShell'
-import { IconBadge } from '~/components/LineIcon'
+import { IconBadge, LineIcon } from '~/components/LineIcon'
 import { openPdf, pageText, renderPage } from '~/lib/pdf'
 
 export const Route = createFileRoute('/app/books/new')({
@@ -25,6 +26,12 @@ function AddBook() {
   const navigate = useNavigate()
   const [file, setFile] = useState<File | null>(null)
   const [f, setF] = useState({ title: '', author: '' })
+  const me = (Route.useRouteContext() as { me?: { user?: { role?: string } } }).me?.user
+  const isAdmin = me?.role === 'admin'
+  // Who can read it: only me, people I invite, or everyone (the library; an admin checks it first unless I'm an admin)
+  const [who, setWho] = useState<'private' | 'invited' | 'public'>('private')
+  const [pub, setPub] = useState({ description: '', category: '', authorBio: '', rights: false })
+  const publicReady = who !== 'public' || (f.author.trim().length >= 2 && pub.description.trim().length >= 30 && pub.rights)
   const [step, setStep] = useState<string | null>(null)
   const [pct, setPct] = useState(0)
   const [error, setError] = useState<string | null>(null)
@@ -73,6 +80,15 @@ function AddBook() {
         setStep(null)
         return
       }
+      // Who can read it
+      if (who === 'invited') await setBookVisibility({ data: { id, visibility: 'invited' } })
+      if (who === 'public') {
+        setStep('Sharing it…')
+        await submitBook({ data: { id, author: f.author, description: pub.description, authorBio: pub.authorBio, category: pub.category, rights: pub.rights } }).catch((e) => {
+          // The book is added either way; it stays private and the book page shows what to fix
+          setError(`Your book was added, but not shared yet: ${errorText(e)}`)
+        })
+      }
       await navigate({ to: '/app/books/$id', params: { id } })
     } catch (e) {
       setError(errorText(e))
@@ -86,7 +102,7 @@ function AddBook() {
     <main className="fade-in mx-auto max-w-xl px-5 pt-6 pb-12 md:pt-10">
       <BackLink to="/app/books" className="text-sm font-semibold text-accent">← Books</BackLink>
       <h1 className="mt-2 font-display text-3xl font-semibold tracking-tight">Add a book</h1>
-      <p className="mt-1 text-muted">Choose a PDF of a Christian book. Only you can see it. Then pick how many days you want to read it over.</p>
+      <p className="mt-1 text-muted">Choose a PDF of a Christian book, choose who can read it, then pick how many days to read it over.</p>
 
       <section className="card mt-6 space-y-4">
         <label className={`flex cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed p-6 text-center transition ${file ? 'border-accent bg-accent-soft/40' : 'border-line hover:border-accent'}`}>
@@ -111,9 +127,53 @@ function AddBook() {
           <input className="input" value={f.title} maxLength={160} disabled={busy} onChange={(e) => setF({ ...f, title: e.target.value })} />
         </label>
         <label className="block">
-          <span className="label">Author <span className="font-normal text-muted">(optional)</span></span>
+          <span className="label">Author {who !== 'public' && <span className="font-normal text-muted">(optional)</span>}</span>
           <input className="input" value={f.author} maxLength={120} disabled={busy} onChange={(e) => setF({ ...f, author: e.target.value })} />
         </label>
+        <div>
+          <span className="label">Who can read it?</span>
+          <div className="grid gap-2" role="radiogroup" aria-label="Who can read it">
+            {([
+              ['private', 'Private', 'Only you', 'lock'],
+              ['invited', 'People I invite', 'You choose who, by email', 'users'],
+              ['public', 'Public', isAdmin ? 'Everyone on TheRenewGym can find it, read it and study it with you' : 'Everyone on TheRenewGym can find it and read it with you, once our team has checked it', 'globe'],
+            ] as const).map(([k, t, d, ic]) => (
+              <button key={k} type="button" role="radio" aria-checked={who === k} disabled={busy} onClick={() => setWho(k)} className={`option !justify-start gap-3 !p-3 text-left ${who === k ? 'option-on' : ''}`}>
+                <LineIcon name={ic} className="mt-0.5 h-5 w-5 shrink-0 text-accent" />
+                <span>
+                  <span className="block font-semibold">{t}</span>
+                  <span className="block text-xs font-normal text-muted">{d}</span>
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
+        {who === 'invited' && <p className="rounded-2xl bg-surface-2 px-3 py-2 text-sm text-muted">After it’s added, invite people from the book’s page. They get a notification, or an email if they’re not on TheRenewGym yet.</p>}
+        {who === 'public' && (
+          <div className="space-y-3 rounded-2xl bg-surface-2 p-4">
+            <label className="block">
+              <span className="label">What is the book about?</span>
+              <textarea className="input min-h-24" maxLength={1200} disabled={busy} value={pub.description} onChange={(e) => setPub({ ...pub, description: e.target.value })} placeholder="A few sentences that help readers decide to read it" />
+              <span className="mt-1 block text-xs text-muted">{pub.description.trim().length < 30 ? `At least 30 letters (${pub.description.trim().length} so far)` : '✓'}</span>
+            </label>
+            <label className="block">
+              <span className="label">Category <span className="font-normal text-muted">(optional)</span></span>
+              <select className="input" value={pub.category} disabled={busy} onChange={(e) => setPub({ ...pub, category: e.target.value })}>
+                <option value="">Choose…</option>
+                {BOOK_CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
+              </select>
+            </label>
+            <label className="block">
+              <span className="label">About the author <span className="font-normal text-muted">(optional)</span></span>
+              <textarea className="input min-h-16" maxLength={600} disabled={busy} value={pub.authorBio} onChange={(e) => setPub({ ...pub, authorBio: e.target.value })} />
+            </label>
+            <label className="flex items-start gap-3 text-sm">
+              <input type="checkbox" className="mt-0.5 h-5 w-5 accent-[#d4a64a]" checked={pub.rights} disabled={busy} onChange={(e) => setPub({ ...pub, rights: e.target.checked })} />
+              <span>I wrote this book, or I have the right to share it for free.</span>
+            </label>
+            {f.author.trim().length < 2 && <p className="text-xs text-muted">Add the author’s name above.</p>}
+          </div>
+        )}
 
         {step && (
           <div>
@@ -130,10 +190,10 @@ function AddBook() {
           </div>
         )}
         <FormError message={error} />
-        <button type="button" className="btn-primary w-full py-3.5" disabled={!file || busy || f.title.trim().length < 2} onClick={go}>
-          {busy ? 'Working…' : 'Add book'}
+        <button type="button" className="btn-primary w-full py-3.5" disabled={!file || busy || f.title.trim().length < 2 || !publicReady} onClick={go}>
+          {busy ? 'Working…' : who === 'public' ? (isAdmin ? 'Add and share with everyone' : 'Add and send to be shared') : 'Add book'}
         </button>
-        <p className="text-xs text-muted">Please only add books you’re allowed to keep a copy of. Your book is private to you.</p>
+        <p className="text-xs text-muted">Please only add books you’re allowed to keep a copy of. You can change who can read it any time from the book’s page.</p>
       </section>
     </main>
   )

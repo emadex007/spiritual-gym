@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Link, createFileRoute, useNavigate } from '@tanstack/react-router'
 import { BackLink } from '~/components/BackLink'
 import { listGroups } from '~/fns/community'
-import { GROUP_KINDS, groupKind } from '~/lib/content'
+import { GROUP_KINDS, groupKind, isEventKind } from '~/lib/content'
 import { GroupTile } from '~/components/GroupTile'
 import { Glyph, LineIcon } from '~/components/LineIcon'
 
@@ -42,7 +42,7 @@ function FindGroups() {
       <input className="input mt-5" type="search" placeholder="Search by name" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Search groups" />
       <div className="-mx-1 mt-3 flex gap-2 overflow-x-auto px-1 pb-1">
         <button type="button" onClick={() => setKind()} className={`chip shrink-0 !py-2 text-xs ${!kind ? 'chip-on' : ''}`}><LineIcon name="grid" className="mr-1.5 inline-block h-3.5 w-3.5 -translate-y-px" />All</button>
-        {GROUP_KINDS.map((x) => (
+        {GROUP_KINDS.filter((x) => !isEventKind(x.key)).map((x) => (
           <button key={x.key} type="button" onClick={() => setKind(x.key)} className={`chip shrink-0 !py-2 text-xs ${kind === x.key ? 'chip-on' : ''}`}>
             <Glyph e={x.emoji} className="mr-1.5 inline-block h-3.5 w-3.5 -translate-y-px" />{x.label}
           </button>

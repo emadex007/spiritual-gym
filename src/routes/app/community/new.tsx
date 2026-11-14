@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { createFileRoute, useRouter } from '@tanstack/react-router'
 import { BackLink } from '~/components/BackLink'
 import { createGroup } from '~/fns/community'
-import { GROUP_KINDS, PRAYER_PURPOSES, groupKind, groupLook } from '~/lib/content'
+import { GROUP_KINDS, PRAYER_PURPOSES, groupKind, groupLook, isEventKind } from '~/lib/content'
 import { FormError, errorText } from '~/components/AuthShell'
 import { JourneyCover } from '~/components/Art'
 import { Glyph, LineIcon } from '~/components/LineIcon'
@@ -17,13 +17,15 @@ export const Route = createFileRoute('/app/community/new')({
 function NewGroup() {
   const router = useRouter()
   const search = Route.useSearch()
-  const [f, setF] = useState({ name: '', kind: search.kind ?? 'prayer', purpose: 'general', description: '', isPrivate: false, minutes: search.type === 'event' ? 120 : 60, size: 'small' as MeetingSize })
+  const [f, setF] = useState({ name: '', kind: search.kind ?? (search.type === 'event' ? 'launch' : 'prayer'), purpose: 'general', description: '', isPrivate: false, minutes: search.type === 'event' ? 120 : 60, size: 'small' as MeetingSize })
   const [isEvent, setIsEvent] = useState(search.type === 'event')
   const [when, setWhen] = useState<When>(() => ({ ...defaultWhen(), repeats: search.type === 'event' ? 'once' : 'weekly', time: search.type === 'event' ? '17:00' : '18:00' }))
   const pick = (ev: boolean) => {
     setIsEvent(ev)
     setWhen({ ...when, repeats: ev ? 'once' : 'weekly' })
-    if (ev && f.minutes === 60) setF({ ...f, minutes: 120 })
+    // Events have their own kinds (launch, conference…); groups theirs (prayer, Bible study…)
+    const kind = isEventKind(f.kind) === ev ? f.kind : ev ? 'launch' : 'prayer'
+    setF({ ...f, kind, minutes: ev && f.minutes === 60 ? 120 : f.minutes })
   }
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -65,7 +67,7 @@ function NewGroup() {
         <div>
           <span className="label">{isEvent ? 'What kind of event?' : 'What kind of group?'}</span>
           <div className="flex flex-wrap gap-2">
-            {GROUP_KINDS.map((k) => (
+            {GROUP_KINDS.filter((k) => isEventKind(k.key) === isEvent).map((k) => (
               <button key={k.key} type="button" onClick={() => setF({ ...f, kind: k.key })} className={`chip !py-2 text-xs ${f.kind === k.key ? 'chip-on' : ''}`}>
                 <Glyph e={k.emoji} className="mr-1.5 inline-block h-3.5 w-3.5 -translate-y-px" />{k.label}
               </button>

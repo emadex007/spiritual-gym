@@ -76,7 +76,7 @@ function Library() {
           <p className="mt-3 text-sm text-muted">Books you finish or haven’t started show here.</p>
         ) : (
           <div className="mt-4 grid grid-cols-2 gap-x-4 gap-y-6 sm:grid-cols-3 md:grid-cols-4">
-            {mine.map((b) => <Tile key={b.id} b={b} />)}
+            {mine.map((b) => <Tile key={b.id} b={b} me={me} />)}
           </div>
         )}
       </section>
@@ -93,7 +93,7 @@ function Library() {
             </div>
           )}
           <div className="mt-4 grid grid-cols-2 gap-x-4 gap-y-6 sm:grid-cols-3 md:grid-cols-4">
-            {shown.map((b) => <Tile key={b.id} b={b} />)}
+            {shown.map((b) => <Tile key={b.id} b={b} me={me} />)}
           </div>
         </section>
       )}
@@ -103,7 +103,22 @@ function Library() {
   )
 }
 
-function Tile({ b }: { b: B }) {
+/** On my own books: who can read it */
+function Who({ b }: { b: B }) {
+  const [label, cls, icon] =
+    b.share_status === 'approved' ? ['Public', 'bg-sage-soft text-sage', 'globe']
+    : b.share_status === 'submitted' ? ['Being checked', 'bg-gold/15 text-gold-ink', 'clock']
+    : b.visibility === 'invited' ? ['Invited people', 'bg-accent-soft text-accent', 'users']
+    : ['Private', 'bg-surface-2 text-muted', 'lock']
+  return (
+    <span className={`mt-1 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${cls}`}>
+      <LineIcon name={icon} className="h-3 w-3" />
+      {label}
+    </span>
+  )
+}
+
+function Tile({ b, me }: { b: B; me?: string }) {
   const state = b.status === 'rejected' ? 'Not added' : b.status === 'uploading' ? 'Upload not finished' : b.plan_status === 'finished' ? '✓ Read' : `${b.pages} pages`
   return (
     <Link to="/app/books/$id" params={{ id: b.id }} className="group block">
@@ -111,6 +126,7 @@ function Tile({ b }: { b: B }) {
       <p className="mt-2 line-clamp-2 text-sm leading-snug font-semibold">{b.title}</p>
       {b.author && <p className="truncate text-xs text-muted">{b.author}</p>}
       <p className="text-[11px] text-muted">{state}</p>
+      {b.owner_id === me && b.status === 'ready' && <Who b={b} />}
     </Link>
   )
 }

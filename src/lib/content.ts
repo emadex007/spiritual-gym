@@ -148,7 +148,16 @@ export const GROUP_KINDS = [
   { key: 'evangelism', label: 'Evangelism & outreach', emoji: '📣', focus: 'fasting', live: 'Meet live', doing: 'meeting', wall: 'Wall', hint: 'Plan outreach and share testimonies from the field.' },
   { key: 'workers', label: 'Ministry & workers', emoji: '🛠️', focus: 'consistency', live: 'Meet live', doing: 'meeting', wall: 'Wall', hint: 'Ushers, media, children’s church and other teams.' },
   { key: 'other', label: 'Other', emoji: '✨', focus: 'growth', live: 'Meet live', doing: 'meeting', wall: 'Wall', hint: 'Any other Christian gathering.' },
+  // Events (one date): their own kinds, not prayer groups
+  { key: 'launch', label: 'Launch / program', emoji: '🎉', focus: 'growth', live: 'Live event', doing: 'at the event', wall: 'Event wall', hint: 'A launch, a special program or an announcement night.', event: true },
+  { key: 'conference', label: 'Conference / seminar', emoji: '🎤', focus: 'bible', live: 'Live event', doing: 'at the event', wall: 'Event wall', hint: 'Teaching, talks and workshops.', event: true },
+  { key: 'worship_night', label: 'Worship night / concert', emoji: '🎶', focus: 'worship', live: 'Live event', doing: 'at the event', wall: 'Event wall', hint: 'An evening of praise and worship.', event: true },
+  { key: 'crusade', label: 'Crusade / outreach', emoji: '📣', focus: 'fasting', live: 'Live event', doing: 'at the event', wall: 'Event wall', hint: 'Reaching people with the gospel.', event: true },
+  { key: 'celebration', label: 'Celebration / thanksgiving', emoji: '🎁', focus: 'gratitude', live: 'Live event', doing: 'at the event', wall: 'Event wall', hint: 'An anniversary, a thanksgiving or a celebration.', event: true },
+  { key: 'event_other', label: 'Other event', emoji: '📅', focus: 'consistency', live: 'Live event', doing: 'at the event', wall: 'Event wall', hint: 'Any other one-time gathering.', event: true },
 ] as const
+/** Group kinds (meet regularly) and event kinds (one date) */
+export const isEventKind = (key?: string | null) => GROUP_KINDS.some((k) => k.key === key && 'event' in k)
 export const groupKind = (key?: string | null) => GROUP_KINDS.find((k) => k.key === key) ?? GROUP_KINDS[0]
 /** How a group looks: prayer groups show their prayer topic, other groups their kind */
 export const groupLook = (g: { kind?: string | null; purpose: string }) => {

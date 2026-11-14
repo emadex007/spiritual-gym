@@ -23,7 +23,7 @@ function GroupLive() {
   const g = d.group
   const look = groupLook(g)
   const gk = groupKind(g.kind)
-  const isPrayer = gk.key === 'prayer'
+  const isPrayer = gk.key === 'prayer' && !g.is_event
   const meet = useMeeting(`/api/rooms/${g.id}/ws`)
   const [camera, setCamera] = useState(false)
   const [size, setSize] = useState<MeetingSize>(g.live_size === 'large' || g.live_size === 'event' ? g.live_size : 'small')
