@@ -87,7 +87,7 @@ export function ShareInLibrary({ b, startOpen = false }: { b: Book; startOpen?: 
           </label>
           <label className="flex cursor-pointer items-start gap-3 rounded-2xl bg-surface-2 px-4 py-3 text-sm">
             <input type="checkbox" className="mt-0.5 h-5 w-5 shrink-0 accent-[var(--color-accent)]" checked={f.rights} onChange={(e) => setF({ ...f, rights: e.target.checked })} />
-            <span>I wrote this book, or I have the right to share it, and I’m happy for everyone on TheRenewGym to read it for free.</span>
+            <span>I wrote this book, or I have the author’s or publisher’s permission to share it free, and I’m happy for everyone on TheRenewGym to read it. (Books by other authors that you bought or downloaded must stay Private.)</span>
           </label>
           <FormError message={err} />
           <div className="flex gap-2">

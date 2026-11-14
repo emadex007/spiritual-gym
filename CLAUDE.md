@@ -30,6 +30,10 @@ Free Christian spiritual-growth web app (installable PWA) at therenewgym.org. Ow
 - Notifications: `src/lib/notify.ts`, `public/sw.js` (focus mode), `src/lib/push-client.ts` (`syncPush` self-repair).
 
 ## Change log (newest first)
+- 2026-11-14 · Who can read a book, for admins: `adminSetBookVisibility` (public = library + `announceNew`; private/invited;
+  an owner-less library book made private becomes the admin's own), `AdminBookAccess` on the book page (admins who aren't
+  the owner) and a selector per book in Admin → Books. Copyright rule in the upload choices, the share checkbox and the
+  admin review card: only the author's own books (or with permission) go Public; others stay Private.
 - 2026-11-14 · Books: `getBook` returns `canEdit` (owner or admin), so admins can edit any book's details and cover, including
   older library books with no owner saved. Admin → Books has an Edit link per book.
 - 2026-11-14 · Back keeps the right order: `useGoBack` / `UpLink` in `src/components/BackLink.tsx` (history back, else the

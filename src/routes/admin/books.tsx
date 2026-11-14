@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { AdminBookAccess } from '~/components/AdminBookAccess'
 import { Link, createFileRoute, useRouter } from '@tanstack/react-router'
 import { adminDeleteBook, adminListBooks, reviewBook } from '~/fns/books'
 import { FormError, errorText } from '~/components/AuthShell'
@@ -37,6 +38,7 @@ function Books() {
                 {[b.author, b.owner_name ? `added by ${b.owner_name}` : 'shared', `${b.pages} pages`, mb(b.size), b.share_status === 'approved' ? `in the library · ${b.readers} reading` : b.status === 'ready' || b.status === 'published' ? `${b.readers} reading` : b.status === 'rejected' ? `not added: ${b.check_note ?? 'not Christian'}` : 'upload not finished'].filter(Boolean).join(' · ')}
               </p>
             </div>
+            {(b.status === 'ready' || b.status === 'published') && <AdminBookAccess b={b} compact />}
             <a href={`/app/books/${b.id}`} className="shrink-0 rounded-full bg-surface-2 px-3 py-1.5 text-sm font-semibold">Edit</a>
             <button
               type="button"
@@ -87,6 +89,9 @@ function Review({ books }: { books: { id: string; title: string; author: string 
                 <p className="text-sm text-muted">{[b.author, b.category, `${b.pages} pages`, b.owner_name ? `sent by ${b.owner_name}` : null].filter(Boolean).join(' · ')}</p>
                 {b.description && <p className="mt-2 text-sm whitespace-pre-line">{b.description}</p>}
                 {b.author_bio && <p className="mt-2 text-xs text-muted"><b>About the author:</b> {b.author_bio}</p>}
+                <p className="mt-2 rounded-xl bg-amber-500/10 px-3 py-2 text-xs text-amber-800 dark:text-amber-300">
+                  <b>Before approving:</b> is {b.owner_name ?? 'the sender'} the author, or do they have the author’s or publisher’s permission? Books sold by a publisher (e.g. well-known ministers’ books) should be declined with a note, and stay Private for the sender.
+                </p>
               </div>
             </div>
             {declining === b.id ? (
