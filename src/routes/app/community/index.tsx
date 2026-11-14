@@ -30,11 +30,17 @@ const FEATURED: [string, string][] = [
 /** Community home: your church first, then groups by kind, then your groups and what's coming up.
  *  Browsing groups, starting one and joining a church each have their own page, so this stays short. */
 function Community() {
-  const { groups, schedules, churches, meetings } = Route.useLoaderData()
+  const { groups, schedules, eventDates, churches, meetings } = Route.useLoaderData()
   const mine = groups.filter((g) => g.is_member)
+  // Upcoming events (one date each), soonest first
+  const events = eventDates
+    .map((s) => ({ s, t: nextStart(s), g: groups.find((x) => x.id === s.group_id) }))
+    .filter((x): x is { s: typeof x.s; t: number; g: NonNullable<typeof x.g> } => x.t != null && !!x.g)
+    .sort((a, b) => a.t - b.t)
+    .slice(0, 5)
   const liveGroups = groups.filter((g) => g.live_count > 0 && (g.is_member || !g.is_private))
   const liveMeetings = meetings.filter((m) => m.status === 'live')
-  const count = (kind: string) => groups.filter((g) => !g.is_private && (g.kind ?? 'prayer') === kind).length
+  const count = (kind: string) => groups.filter((g) => !g.is_private && !g.is_event && (g.kind ?? 'prayer') === kind).length
 
   // Coming up in the next 36 hours: my groups' regular times + my churches' meetings
   const soon = [
@@ -143,9 +149,30 @@ function Community() {
         </div>
         <div className="mt-3 grid grid-cols-2 gap-3">
           <Link to="/app/community/new" className="btn-primary !px-3 !py-3 text-sm whitespace-nowrap">+ Start a group</Link>
-          <Link to="/app/plans" className="btn-ghost !px-3 !py-3 text-sm whitespace-nowrap"><LineIcon name="calendar" className="mr-1.5 inline h-4 w-4 -translate-y-px" />Reading plans</Link>
+          <Link to="/app/community/new" search={{ type: 'event' }} className="btn-ghost !px-3 !py-3 text-sm whitespace-nowrap"><LineIcon name="calendar" className="mr-1.5 inline h-4 w-4 -translate-y-px" />Create an event</Link>
         </div>
       </section>
+
+      {events.length > 0 && (
+        <section className="mt-7">
+          <p className="eyebrow flex items-center gap-1.5"><LineIcon name="calendar" className="h-3.5 w-3.5" /> Upcoming events</p>
+          <div className="mt-3 space-y-2">
+            {events.map(({ s, t, g }) => (
+              <Link key={g.id} to="/app/community/$groupId" params={{ groupId: g.id }} className={`card flex items-center gap-3 !p-4 hover:border-accent ${g.live_count > 0 ? 'ring-2 ring-red-500/50' : ''}`}>
+                <span className="flex h-12 w-12 shrink-0 flex-col items-center justify-center rounded-xl bg-accent-soft/70 text-accent" aria-hidden>
+                  <span className="text-[10px] font-bold uppercase">{new Date(t).toLocaleDateString([], { month: 'short' })}</span>
+                  <span className="font-display text-lg leading-none font-semibold">{new Date(t).getDate()}</span>
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate font-semibold">{g.name}</span>
+                  <span className="block truncate text-xs text-muted">{g.live_count > 0 ? '● Live now' : relativeStart(t, s.duration_min)} · {g.member_count} going</span>
+                </span>
+                <span className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-bold ${g.is_member ? 'bg-sage-soft text-sage' : 'bg-accent-soft text-accent'}`}>{g.is_member ? '✓ Going' : 'Event'}</span>
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* 3. My groups and what's coming up */}
       {soon.length > 0 && (
@@ -171,7 +198,7 @@ function Community() {
 
       {mine.length > 0 && (
         <section className="mt-7">
-          <p className="eyebrow">My groups</p>
+          <p className="eyebrow">My groups and events</p>
           <div className="card mt-3 divide-y divide-line !p-0">
             {mine.map((g) => {
               const look = groupLook(g)
@@ -180,7 +207,7 @@ function Community() {
                   <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-accent-soft/70 text-accent" aria-hidden><Glyph e={look.emoji} className="h-5 w-5" /></span>
                   <span className="min-w-0 flex-1">
                     <span className="block truncate font-semibold">{g.name}</span>
-                    <span className="block text-xs text-muted">{look.label} · {g.member_count} member{g.member_count === 1 ? '' : 's'}</span>
+                    <span className="block text-xs text-muted"><span className="mr-1 rounded bg-surface-2 px-1 py-px text-[10px] font-bold tracking-wider uppercase">{g.is_event ? 'Event' : 'Group'}</span>{look.label} · {g.member_count} {g.is_event ? 'going' : `member${g.member_count === 1 ? '' : 's'}`}</span>
                   </span>
                   {g.live_count > 0 ? <span className="shrink-0 rounded-full bg-red-500 px-2.5 py-0.5 text-xs font-semibold text-white">● LIVE</span> : <span className="text-muted" aria-hidden>›</span>}
                 </Link>
@@ -251,7 +278,7 @@ function InviteCode() {
   }
   return (
     <section className="card mt-8">
-      <p className="font-semibold">Have a group invite code?</p>
+      <p className="font-semibold">Have an invite code for a group or event?</p>
       <form onSubmit={join} className="mt-3 flex gap-2">
         <input className="input uppercase" placeholder="e.g. 7KQ2MX9P" maxLength={12} value={code} onChange={(e) => setCode(e.target.value)} aria-label="Group invite code" />
         <button className="btn-primary" disabled={code.trim().length < 6}>Join</button>

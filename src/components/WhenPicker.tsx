@@ -24,12 +24,12 @@ export const whenData = (w: When) => ({
 
 export const whenReady = (w: When) => (w.repeats === 'once' ? !!w.onDate : w.repeats === 'monthly' ? w.days.length > 0 : w.daily || w.days.length > 0)
 
-export function WhenPicker({ value: w, onChange }: { value: When; onChange: (w: When) => void }) {
+export function WhenPicker({ value: w, onChange, onlyOnce }: { value: When; onChange: (w: When) => void; onlyOnce?: boolean }) {
   const set = (p: Partial<When>) => onChange({ ...w, ...p })
   const d = whenData(w)
   return (
     <div className="space-y-3">
-      <div className="grid grid-cols-3 gap-1.5" role="radiogroup" aria-label="How often">
+      {!onlyOnce && <div className="grid grid-cols-3 gap-1.5" role="radiogroup" aria-label="How often">
         {REPEATS.map((r) => (
           <button
             key={r.key}
@@ -42,7 +42,7 @@ export function WhenPicker({ value: w, onChange }: { value: When; onChange: (w: 
             {r.label}
           </button>
         ))}
-      </div>
+      </div>}
 
       {w.repeats === 'weekly' && (
         <div className="flex flex-wrap gap-1.5">

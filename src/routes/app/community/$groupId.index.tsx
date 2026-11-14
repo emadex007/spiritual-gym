@@ -10,6 +10,9 @@ import { Avatar, timeAgo } from '~/components/Avatar'
 import { PrayerTimes } from '~/components/PrayerTimes'
 import { Glyph, LineIcon } from '~/components/LineIcon'
 import { Portal } from '~/components/Portal'
+import { EditGroup } from '~/components/EditGroup'
+import { inviteLink } from '~/lib/invite'
+import { describeSchedule, nextStart, relativeStart } from '~/lib/schedule'
 
 export const Route = createFileRoute('/app/community/$groupId/')({
   validateSearch: (s: Record<string, unknown>): { tab?: 'members' } => (s.tab === 'members' ? { tab: 'members' } : {}),
@@ -28,8 +31,14 @@ function GroupPage() {
   const gk = groupKind(g.kind)
   const isPrayer = gk.key === 'prayer'
   const search = Route.useSearch()
+  // An event: its one date, shown at the top and in what's shared
+  const event = !!g.is_event
+  const eventSched = event ? (d.schedules.find((x) => x.repeats === 'once') ?? null) : null
+  const eventWhen = eventSched ? describeSchedule(eventSched) : null
+  const eventStart = eventSched ? nextStart(eventSched) : null
   const [tab, setTab] = useState<'wall' | 'members'>(search.tab === 'members' ? 'members' : 'wall')
   const [inviting, setInviting] = useState(false)
+  const [editing, setEditing] = useState(false)
   const [err, setErr] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [copied, setCopied] = useState(false)
@@ -82,8 +91,11 @@ function GroupPage() {
     await router.navigate({ to: '/app/community' })
   }
   async function share() {
-    // The link carries the code: one tap joins (new people sign up first, then land on the group)
-    const text = `Join “${g.name}” on TheRenewGym${isPrayer ? ' to pray together' : ''}.\nTap to join: ${location.origin}/app/community/join/${g.invite_code}\nInvite code: ${g.invite_code}`
+    // The link carries the name and the code: one tap joins (new people sign up first, then land on it)
+    const link = g.invite_code ? inviteLink(g.name, g.invite_code) : location.href
+    const text = event
+      ? `You’re invited: ${g.name}${eventWhen ? `\n🗓️ ${eventWhen}` : ''}\nLive on TheRenewGym. Tap to join: ${link}${g.invite_code ? `\nEvent code: ${g.invite_code}` : ''}`
+      : `Join “${g.name}” on TheRenewGym${isPrayer ? ' to pray together' : ''}.\nTap to join: ${link}${g.invite_code ? `\nInvite code: ${g.invite_code}` : ''}`
     try {
       if (navigator.share) await navigator.share({ title: g.name, text })
       else {
@@ -100,21 +112,38 @@ function GroupPage() {
         <div className="absolute inset-0 -z-10 bg-gradient-to-t from-black/60 to-transparent" />
         <BackLink to="/app/community" className="absolute top-4 left-4 rounded-full bg-black/30 px-3 py-1.5 text-sm font-semibold text-white backdrop-blur">← Back</BackLink>
         <div className="px-5 pt-16 pb-4 text-white">
-          <p className="flex items-center gap-1.5 text-xs font-semibold tracking-[0.12em] uppercase opacity-90"><Glyph e={p.emoji} className="h-3.5 w-3.5" />{p.label}{g.is_featured ? ' · Official' : ''}{g.is_private ? ' · Private' : ''}{g.is_private ? <LineIcon name="lock" className="h-3 w-3" /> : null}</p>
+          <p className="flex items-center gap-1.5 text-xs font-semibold tracking-[0.12em] uppercase opacity-90"><span className="rounded-md bg-white/90 px-1.5 py-0.5 text-[10px] font-bold tracking-wider text-navy">{event ? 'Event' : 'Group'}</span><Glyph e={p.emoji} className="h-3.5 w-3.5" />{p.label}{g.is_featured ? ' · Official' : ''}{g.is_private ? ' · Private' : ''}{g.is_private ? <LineIcon name="lock" className="h-3 w-3" /> : null}</p>
           <h1 className="mt-1 font-display text-2xl leading-tight font-semibold break-words drop-shadow sm:text-3xl">{g.name}</h1>
         </div>
       </div>
 
       <div className="px-5">
+        {event && eventWhen && (
+          <div className="mt-4 flex items-center gap-3 rounded-2xl bg-accent-soft/60 px-4 py-3">
+            <LineIcon name="calendar" className="h-6 w-6 shrink-0 text-accent" />
+            <div className="min-w-0">
+              <p className="font-semibold">{eventWhen}</p>
+              <p className="text-xs text-muted">{eventStart == null ? 'This event has passed' : relativeStart(eventStart, eventSched!.duration_min)} · live in the app</p>
+            </div>
+          </div>
+        )}
         {g.description && <p className="mt-4 text-muted">{g.description}</p>}
+        {(d.isMember || d.leads) && (
+          <div className="mt-3 flex flex-wrap gap-2">
+            {d.isMember && g.invite_code && (
+              <button type="button" className="btn-primary !px-4 !py-2" onClick={share}><LineIcon name="share" className="mr-1.5 inline h-4 w-4 -translate-y-px" />{copied ? 'Copied ✓' : event ? 'Share event' : 'Share group'}</button>
+            )}
+            {d.leads && <button type="button" className="btn-ghost !px-4 !py-2" onClick={() => setEditing(true)}><LineIcon name="pen" className="mr-1.5 inline h-4 w-4 -translate-y-px" />{event ? 'Edit event' : 'Edit group'}</button>}
+          </div>
+        )}
         <div className="mt-4 flex flex-wrap items-center gap-2">
-          <span className="text-sm text-muted">{g.member_count} member{g.member_count === 1 ? '' : 's'}</span>
+          <span className="text-sm text-muted">{g.member_count} {event ? 'going' : `member${g.member_count === 1 ? '' : 's'}`}</span>
           <span className="flex-1" />
           {d.isMember ? (
             <>
               <button type="button" className="btn-ghost !px-4 !py-2" onClick={() => setInviting(true)}><LineIcon name="share" className="mr-1.5 inline h-4 w-4 -translate-y-px" />Invite</button>
               <button type="button" className="btn-ghost !px-4 !py-2" onClick={leave}>Leave</button>
-              {d.isOwner && <button type="button" className="rounded-full px-4 py-2 text-sm font-semibold text-red-600 hover:bg-red-500/10" disabled={busy} onClick={remove}>Delete group</button>}
+              {d.isOwner && <button type="button" className="rounded-full px-4 py-2 text-sm font-semibold text-red-600 hover:bg-red-500/10" disabled={busy} onClick={remove}>{event ? 'Delete event' : 'Delete group'}</button>}
             </>
           ) : d.pending ? (
             <>
@@ -123,7 +152,7 @@ function GroupPage() {
             </>
           ) : (
             <button type="button" className="btn-primary" disabled={busy} onClick={join}>
-              {busy ? 'Sending…' : d.invited ? 'Accept invite' : d.approveJoins ? 'Ask to join' : 'Join group'}
+              {busy ? 'Sending…' : d.invited ? 'Accept invite' : d.approveJoins ? 'Ask to join' : event ? 'Join event' : 'Join group'}
             </button>
           )}
         </div>
@@ -160,7 +189,7 @@ function GroupPage() {
           )}
         </section>
 
-        <PrayerTimes groupId={g.id} schedules={d.schedules} canSchedule={d.canSchedule} isMember={d.isMember} notifyOn={d.notifyOn} prayer={isPrayer} liveCount={g.live_count} />
+        {!event && <PrayerTimes groupId={g.id} schedules={d.schedules} canSchedule={d.canSchedule} isMember={d.isMember} notifyOn={d.notifyOn} prayer={isPrayer} liveCount={g.live_count} />}
 
         <div className="mt-6 grid grid-cols-2 gap-1 rounded-full bg-surface-2 p-1">
           {(['wall', 'members'] as const).map((t) => (
@@ -238,6 +267,7 @@ function GroupPage() {
         )}
       </div>
 
+      {editing && <EditGroup g={g} when={eventSched ? { on_date: eventSched.on_date, time: eventSched.time } : null} onClose={() => setEditing(false)} />}
       {inviting && <InviteSheet groupId={g.id} name={g.name} code={g.invite_code} onShare={share} copied={copied} onClose={() => setInviting(false)} />}
       {report && <ReportDialog targetType={report.type} targetId={report.id} onClose={() => setReport(null)} />}
     </main>
@@ -305,7 +335,7 @@ function InviteSheet({ groupId, name, code, onShare, copied, onClose }: { groupI
         {code && (
           <div className="mt-4 border-t border-line pt-4">
             <p className="text-sm text-muted">Or share the invite link. It has the code in it, so one tap joins:</p>
-            <p className="mt-2 break-all rounded-2xl bg-surface-2 px-3 py-2 font-mono text-xs">{typeof location !== 'undefined' ? location.origin : ''}/app/community/join/{code}</p>
+            <p className="mt-2 break-all rounded-2xl bg-surface-2 px-3 py-2 font-mono text-xs">{inviteLink(name, code)}</p>
             <p className="mt-1 text-xs text-muted">Invite code: <span className="font-mono font-semibold tracking-wider text-ink">{code}</span></p>
             <button type="button" className="btn-ghost mt-3 w-full" onClick={onShare}>{copied ? 'Copied ✓' : 'Share the invite link'}</button>
           </div>

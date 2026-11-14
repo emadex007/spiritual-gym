@@ -20,7 +20,9 @@ function FindGroups() {
   const [q, setQ] = useState('')
   const k = kind ? groupKind(kind) : null
   const words = q.trim().toLowerCase()
+  // Events are listed on Community under "Upcoming events"; this page finds groups
   const shown = groups
+    .filter((g) => !g.is_event)
     .filter((g) => !kind || (g.kind ?? 'prayer') === kind)
     .filter((g) => !words || `${g.name} ${g.description ?? ''}`.toLowerCase().includes(words))
     .sort((a, b) => b.is_member - a.is_member || b.live_count - a.live_count || b.is_featured - a.is_featured || b.member_count - a.member_count)
