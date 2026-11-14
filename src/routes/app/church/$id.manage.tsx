@@ -15,7 +15,9 @@ import {
 } from '~/fns/church'
 import { ChurchBadge } from '~/components/ChurchBadge'
 import { Avatar, timeAgo } from '~/components/Avatar'
-import { squareJpeg } from '~/components/AvatarUpload'
+import { fitImage } from '~/lib/fit-image'
+import { IMAGE_SIZES } from '~/lib/image-sizes'
+import { PictureHint } from '~/components/PictureHint'
 import { FormError, errorText } from '~/components/AuthShell'
 import { CHURCH_COLORS, PROGRAM_KINDS, programKind } from '~/lib/content'
 import { Glyph, LineIcon } from '~/components/LineIcon'
@@ -343,6 +345,7 @@ function Details({ d }: { d: Data }) {
   const [f, setF] = useState({ name: c.name, city: c.city ?? '', country: c.country ?? '', denomination: c.denomination ?? '', description: c.description ?? '', website: c.website ?? '', color: c.color })
   const [msg, setMsg] = useState<string | null>(null)
   const [uploading, setUploading] = useState(false)
+  const [notes, setNotes] = useState<string[]>([])
   const file = useRef<HTMLInputElement>(null)
   const a = useAction()
   const router = useRouter()
@@ -352,9 +355,10 @@ function Details({ d }: { d: Data }) {
     setUploading(true)
     setMsg(null)
     try {
-      const blob = await squareJpeg(fl, 400)
+      const fit = await fitImage(fl, IMAGE_SIZES.churchLogo)
+      setNotes(fit.notes)
       const body = new FormData()
-      body.append('file', new File([blob], 'logo.jpg', { type: 'image/jpeg' }))
+      body.append('file', fit.file)
       const res = await fetch(`/api/church-logo?church=${encodeURIComponent(c.id)}`, { method: 'POST', body })
       const j = (await res.json()) as { error?: string }
       if (!res.ok) throw new Error(j.error || 'Upload failed.')
@@ -376,6 +380,7 @@ function Details({ d }: { d: Data }) {
           <input ref={file} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={(e) => e.target.files?.[0] && upload(e.target.files[0])} />
           <button className="btn-ghost !py-2" disabled={uploading} onClick={() => file.current?.click()}>{uploading ? 'Uploading…' : 'Change logo'}</button>
           {msg && <p className="mt-2 text-sm text-muted">{msg}</p>}
+          <PictureHint kind="churchLogo" notes={notes} className="mt-1.5" />
         </div>
       </section>
       <section className="card space-y-3">

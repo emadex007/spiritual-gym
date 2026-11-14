@@ -8,7 +8,7 @@ import { LineIcon } from '~/components/LineIcon'
 import { groupLook, spaceOf } from '~/lib/content'
 import { relativeStart } from '~/lib/schedule'
 
-export type ComingUpItem = { id: string; name: string; title: string; kind: string; purpose: string; isEvent: boolean; isPrivate: boolean; isMember: boolean; live: boolean; going: number; start: number; minutes: number; when: string }
+export type ComingUpItem = { id: string; name: string; title: string; kind: string; purpose: string; isEvent: boolean; isPrivate: boolean; isMember: boolean; live: boolean; going: number; start: number; minutes: number; when: string; flyer?: string | null }
 
 export function ComingUp({ items }: { items: ComingUpItem[] }) {
   const track = useRef<HTMLDivElement>(null)
@@ -65,19 +65,29 @@ export function ComingUp({ items }: { items: ComingUpItem[] }) {
               aria-roledescription="slide"
               aria-label={`${i + 1} of ${items.length}: ${x.name}`}
             >
-              <JourneyCover focus={look.focus} className="absolute inset-0 -z-10 h-full w-full" />
+              {x.flyer ? (
+                // A flyer: a blurred copy fills the slide, the flyer itself sits whole on the right
+                <>
+                  <img src={`/media/${x.flyer}`} alt="" aria-hidden className="absolute inset-0 -z-10 h-full w-full scale-125 object-cover blur-xl" />
+                  <img src={`/media/${x.flyer}`} alt={`Flyer: ${x.name}`} className="absolute top-1/2 right-4 h-[78%] max-w-[38%] -translate-y-1/2 rounded-xl object-contain shadow-xl" loading="lazy" />
+                </>
+              ) : (
+                <JourneyCover focus={look.focus} className="absolute inset-0 -z-10 h-full w-full" />
+              )}
               <div className="absolute inset-0 -z-10 bg-gradient-to-t from-black/75 via-black/35 to-black/10" />
               <div className="absolute top-4 left-4 flex flex-wrap items-center gap-1.5 text-[10px] font-bold tracking-wider uppercase">
                 <span className="rounded-md bg-white/90 px-1.5 py-0.5 text-navy">{x.isEvent ? 'Event' : 'Group'}</span>
                 {x.live && <span className="flex items-center gap-1 rounded-md bg-red-600 px-1.5 py-0.5"><span className="h-1.5 w-1.5 animate-pulse rounded-full bg-white" />Live now</span>}
                 {x.isPrivate && <span className="flex items-center gap-1 rounded-md bg-black/40 px-1.5 py-0.5"><LineIcon name="lock" className="h-3 w-3" />Private</span>}
               </div>
+              <div className={x.flyer ? 'max-w-[58%]' : ''}>
               <p className="text-xs font-semibold text-white/80">{x.isEvent ? look.label : x.name}</p>
               <p className="mt-0.5 font-display text-2xl leading-tight font-semibold">{x.title}</p>
               <p className="mt-1 text-sm text-white/85">
                 {x.live ? `${sp.join.replace(/^Join /, '')} is happening now` : relativeStart(x.start, x.minutes)} · {x.going} {x.isEvent ? 'going' : 'members'}
               </p>
-              <span className="btn-gold mt-3 self-start !px-4 !py-2 text-sm">{cta}</span>
+              <span className="btn-gold mt-3 inline-block !px-4 !py-2 text-sm">{cta}</span>
+              </div>
             </Link>
           )
         })}

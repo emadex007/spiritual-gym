@@ -159,6 +159,7 @@ function Community() {
           <div className="mt-3 space-y-2">
             {events.map(({ s, t, g }) => (
               <Link key={g.id} to="/app/community/$groupId" params={{ groupId: g.id }} className={`card flex items-center gap-3 !p-4 hover:border-accent ${g.live_count > 0 ? 'ring-2 ring-red-500/50' : ''}`}>
+                {g.flyer_key && <img src={`/media/${g.flyer_key}`} alt="" className="h-14 w-11 shrink-0 rounded-lg bg-surface-2 object-cover" loading="lazy" />}
                 <span className="flex h-12 w-12 shrink-0 flex-col items-center justify-center rounded-xl bg-accent-soft/70 text-accent" aria-hidden>
                   <span className="text-[10px] font-bold uppercase">{new Date(t).toLocaleDateString([], { month: 'short' })}</span>
                   <span className="font-display text-lg leading-none font-semibold">{new Date(t).getDate()}</span>

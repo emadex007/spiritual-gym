@@ -3,6 +3,7 @@ import { Link, createFileRoute, useRouter } from '@tanstack/react-router'
 import { getGroupInvite, joinGroup } from '~/fns/community'
 import { errorText } from '~/components/AuthShell'
 import { JourneyCover } from '~/components/Art'
+import { FlyerView } from '~/components/Flyer'
 import { IconBadge, LineIcon } from '~/components/LineIcon'
 import { groupKind, groupLook } from '~/lib/content'
 
@@ -53,7 +54,7 @@ function JoinGroup() {
   const kind = groupKind(g.kind)
   return (
     <main className="fade-in mx-auto max-w-md px-5 pt-8 pb-10 text-center">
-      <JourneyCover focus={groupLook(g).focus} className="h-28 rounded-3xl" />
+      {g.flyer_key ? <FlyerView flyer={g.flyer_key} name={g.name} /> : <JourneyCover focus={groupLook(g).focus} className="h-28 rounded-3xl" />}
       <p className="mt-5 text-xs font-semibold tracking-[0.14em] text-muted uppercase">{g.is_event ? 'You’re invited to an event' : 'You’re invited to join a group'}</p>
       <h1 className="mt-1 font-display text-3xl font-semibold">{g.name}</h1>
       <p className="mt-1 text-sm text-muted">

@@ -6,9 +6,10 @@ import { updateGroup } from '~/fns/community'
 import { FormError, errorText } from '~/components/AuthShell'
 import { Portal } from '~/components/Portal'
 import { LineIcon } from '~/components/LineIcon'
+import { FlyerPicker } from '~/components/Flyer'
 import { MEETING_LENGTHS, SizePicker, lengthLabel, type MeetingSize } from '~/components/SizePicker'
 
-type G = { id: string; name: string; description: string | null; is_private: number; is_event: number; live_minutes: number | null; live_size: string | null }
+type G = { id: string; name: string; description: string | null; is_private: number; is_event: number; live_minutes: number | null; live_size: string | null; flyer_key?: string | null }
 type When = { on_date: string | null; time: string } | null
 
 export function EditGroup({ g, when, onClose }: { g: G; when: When; onClose: () => void }) {
@@ -53,6 +54,7 @@ export function EditGroup({ g, when, onClose }: { g: G; when: When; onClose: () 
               <span className="label">{event ? 'Event name' : 'Group name'}</span>
               <input className="input" value={f.name} maxLength={60} onChange={(e) => set({ name: e.target.value })} />
             </label>
+            <FlyerPicker groupId={g.id} current={g.flyer_key} event={event} />
             {event && (
               <div className="grid grid-cols-2 gap-2">
                 <label className="block">

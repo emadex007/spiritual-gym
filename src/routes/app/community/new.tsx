@@ -7,6 +7,7 @@ import { FormError, errorText } from '~/components/AuthShell'
 import { JourneyCover } from '~/components/Art'
 import { Glyph, LineIcon } from '~/components/LineIcon'
 import { MEETING_LENGTHS, SizePicker, lengthLabel, type MeetingSize } from '~/components/SizePicker'
+import { FlyerPicker, uploadFlyer } from '~/components/Flyer'
 import { WhenPicker, defaultWhen, whenData, whenReady, type When } from '~/components/WhenPicker'
 
 export const Route = createFileRoute('/app/community/new')({
@@ -27,6 +28,7 @@ function NewGroup() {
     const kind = isEventKind(f.kind) === ev ? f.kind : ev ? 'launch' : 'prayer'
     setF({ ...f, kind, minutes: ev && f.minutes === 60 ? 120 : f.minutes })
   }
+  const [flyer, setFlyer] = useState<File | null>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const look = groupLook(f)
@@ -39,6 +41,7 @@ function NewGroup() {
     setError(null)
     try {
       const r = await createGroup({ data: { ...f, isEvent, when: whenData(isEvent ? { ...when, repeats: 'once' } : when), timezone: Intl.DateTimeFormat().resolvedOptions().timeZone } })
+      if (flyer) await uploadFlyer(r.id, flyer)
       await router.navigate({ to: '/app/community/$groupId', params: { groupId: r.id } })
     } catch (e) {
       setError(errorText(e))
@@ -108,6 +111,7 @@ function NewGroup() {
           <span className="label">Description <span className="font-normal text-muted">(optional)</span></span>
           <textarea rows={3} className="input" placeholder="Who is this group for? When do you usually meet?" value={f.description} onChange={(e) => setF({ ...f, description: e.target.value })} maxLength={300} />
         </label>
+        <FlyerPicker event={isEvent} onPicked={(file) => setFlyer(file)} />
         <div className="grid grid-cols-2 gap-2">
           {[
             [false, 'Public', 'Anyone can find and join', 'globe'],

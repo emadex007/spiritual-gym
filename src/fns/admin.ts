@@ -370,7 +370,7 @@ export const adminListGroups = createServerFn({ method: 'GET' }).handler(async (
   const { results } = await db()
     .prepare(
       `SELECT g.id, g.name, g.purpose, g.kind, g.description, g.is_private, g.is_featured, g.is_hidden, g.member_count, g.live_count, g.invite_code,
-              g.last_activity_at, g.created_at, u.name AS creator, g.is_event, g.live_size, g.live_minutes, g.overview,
+              g.last_activity_at, g.created_at, u.name AS creator, g.is_event, g.live_size, g.live_minutes, g.overview, g.flyer_key,
               (SELECT COUNT(*) FROM group_recordings r WHERE r.group_id = g.id) AS recordings,
               (SELECT COALESCE(SUM(size), 0) FROM group_recordings r WHERE r.group_id = g.id) AS recording_bytes,
               (SELECT COUNT(*) FROM group_attendance a WHERE a.group_id = g.id) AS attended,
@@ -383,7 +383,7 @@ export const adminListGroups = createServerFn({ method: 'GET' }).handler(async (
     .all<{
       id: string; name: string; purpose: string; kind: string; description: string | null; is_private: number; is_featured: number; is_hidden: number
       member_count: number; live_count: number; invite_code: string; last_activity_at: string; created_at: string; creator: string | null; posts: number; open_reports: number
-      is_event: number; live_size: string | null; live_minutes: number | null; overview: string | null; recordings: number; recording_bytes: number; attended: number; event_at: string | null; times: number
+      is_event: number; live_size: string | null; live_minutes: number | null; overview: string | null; flyer_key: string | null; recordings: number; recording_bytes: number; attended: number; event_at: string | null; times: number
     }>()
   return results
 })
@@ -450,7 +450,7 @@ export const adminDeleteGroup = createServerFn({ method: 'POST' })
   .validator((d: { id: string }) => ({ id: String(d?.id ?? '') }))
   .handler(async ({ data }) => {
     const admin = await requireAdmin()
-    const g = await db().prepare('SELECT name FROM prayer_groups WHERE id = ?').bind(data.id).first<{ name: string }>()
+    const g = await db().prepare('SELECT name, flyer_key FROM prayer_groups WHERE id = ?').bind(data.id).first<{ name: string; flyer_key: string | null }>()
     await db().batch([
       db().prepare('DELETE FROM prayer_replies WHERE post_id IN (SELECT id FROM prayer_posts WHERE group_id = ?)').bind(data.id),
       db().prepare('DELETE FROM prayer_post_prayed WHERE post_id IN (SELECT id FROM prayer_posts WHERE group_id = ?)').bind(data.id),
@@ -458,6 +458,7 @@ export const adminDeleteGroup = createServerFn({ method: 'POST' })
       db().prepare('DELETE FROM prayer_group_members WHERE group_id = ?').bind(data.id),
       db().prepare('DELETE FROM prayer_groups WHERE id = ?').bind(data.id),
     ])
+    if (g?.flyer_key) await env().MEDIA.delete(g.flyer_key).catch(() => {})
     await audit(admin, 'group.delete', data.id, g?.name)
     return { ok: true }
   })

@@ -11,6 +11,7 @@ import { PrayerTimes } from '~/components/PrayerTimes'
 import { Glyph, LineIcon } from '~/components/LineIcon'
 import { Portal } from '~/components/Portal'
 import { EditGroup } from '~/components/EditGroup'
+import { FlyerView } from '~/components/Flyer'
 import { EventRecap } from '~/components/EventRecap'
 import { AddToCalendar } from '~/components/AddToCalendar'
 import { scheduleEvent, type CalEvent } from '~/lib/calendar'
@@ -122,6 +123,7 @@ function GroupPage() {
       </div>
 
       <div className="px-5">
+        {g.flyer_key && <FlyerView flyer={g.flyer_key} name={g.name} className="mt-4" />}
         {event && eventWhen && (
           <div className="mt-4 flex items-center gap-3 rounded-2xl bg-accent-soft/60 px-4 py-3">
             <LineIcon name="calendar" className="h-6 w-6 shrink-0 text-accent" />

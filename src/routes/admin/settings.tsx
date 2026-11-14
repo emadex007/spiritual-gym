@@ -4,6 +4,9 @@ import { getAdminSettings, saveSettings } from '~/fns/admin'
 import { Field, PageHead, Toast } from '~/components/AdminUI'
 import { FormError, errorText } from '~/components/AuthShell'
 import { mediaUrl } from '~/lib/util'
+import { fitImage } from '~/lib/fit-image'
+import { IMAGE_SIZES } from '~/lib/image-sizes'
+import { PictureHint } from '~/components/PictureHint'
 import { DEFAULT_GUIDELINES, DEFAULT_PRIVACY, DEFAULT_TERMS } from '~/lib/legal'
 import { CrossOfLight, DawnRoad, HERO_STYLES } from '~/components/HeroArt'
 import { SunriseScene } from '~/components/Art'
@@ -41,12 +44,15 @@ function Settings() {
     }
   }
 
+  const [heroNotes, setHeroNotes] = useState<string[]>([])
   async function upload(file: File) {
     setUploading(true)
     setError(null)
     try {
+      const fit = file.type === 'image/gif' ? null : await fitImage(file, IMAGE_SIZES.heroImage)
+      setHeroNotes(fit?.notes ?? [])
       const body = new FormData()
-      body.append('file', file)
+      body.append('file', fit?.file ?? file)
       const res = await fetch('/api/upload', { method: 'POST', body })
       const json = (await res.json()) as { key?: string; error?: string }
       if (!res.ok || !json.key) throw new Error(json.error || 'Upload failed.')
@@ -90,7 +96,7 @@ function Settings() {
             </div>
             {f.hero_image && <p className="mt-2 rounded-xl bg-accent-soft px-3 py-2 text-sm">An uploaded image is showing instead of these. Tap one of the pictures above (or <b>Remove</b> below), then Save.</p>}
           </Field>
-          <Field label="Or upload your own image" hint="Optional. A wide photo works best (JPG, PNG or WEBP up to 5 MB). Logos look stretched here: use one of the pictures above instead.">
+          <Field label="Or upload your own image" hint="Optional. Logos look stretched here: use one of the pictures above instead.">
             <div className="flex flex-wrap items-center gap-4">
               {f.hero_image ? (
                 <img src={mediaUrl(f.hero_image)} alt="" className="h-24 w-40 rounded-2xl object-cover" />
@@ -107,6 +113,7 @@ function Settings() {
               </div>
               <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp,image/gif" className="hidden" onChange={(e) => e.target.files?.[0] && upload(e.target.files[0])} />
             </div>
+            <PictureHint kind="heroImage" notes={heroNotes} className="mt-2" />
           </Field>
         </section>
 

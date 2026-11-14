@@ -17,7 +17,7 @@ async function comingUp(userId: string, today: string) {
   const { results } = await db()
     .prepare(
       `SELECT s.id, s.title, s.days, s.time, s.timezone, s.duration_min, s.repeats, s.on_date, s.nth,
-              g.id AS group_id, g.name, g.kind, g.purpose, g.is_event, g.is_private, g.is_featured, g.member_count, g.live_count,
+              g.id AS group_id, g.name, g.kind, g.purpose, g.is_event, g.is_private, g.is_featured, g.member_count, g.live_count, g.flyer_key,
               CASE WHEN m.user_id IS NULL THEN 0 ELSE 1 END AS is_member
        FROM prayer_schedules s JOIN prayer_groups g ON g.id = s.group_id
        LEFT JOIN prayer_group_members m ON m.group_id = g.id AND m.user_id = ?1
@@ -26,7 +26,7 @@ async function comingUp(userId: string, today: string) {
        ORDER BY g.is_featured DESC, g.live_count DESC, g.member_count DESC LIMIT 300`,
     )
     .bind(userId, new Date(Date.parse(today + 'T00:00:00Z') - 86_400_000).toISOString().slice(0, 10), until)
-    .all<Schedule & { group_id: string; name: string; kind: string; purpose: string; is_event: number; is_private: number; is_featured: number; member_count: number; live_count: number; is_member: number }>()
+    .all<Schedule & { group_id: string; name: string; kind: string; purpose: string; is_event: number; is_private: number; is_featured: number; member_count: number; live_count: number; is_member: number; flyer_key: string | null }>()
     .catch(() => ({ results: [] }))
   const now = Date.now()
   const seen = new Set<string>()
@@ -50,6 +50,7 @@ async function comingUp(userId: string, today: string) {
     start: t!,
     minutes: r.duration_min,
     when: describeSchedule(r),
+    flyer: r.flyer_key ?? null,
   }))
 }
 
