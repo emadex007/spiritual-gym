@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { UpLink } from '~/components/BackLink'
 import { Link, createFileRoute } from '@tanstack/react-router'
 import { BackLink } from '~/components/BackLink'
 import { getMeeting, meetingAction } from '~/fns/meetings'
@@ -105,7 +106,7 @@ function Lobby({ d, meet, camera, setCamera }: { d: ReturnType<typeof Route.useL
         </>
       )}
       {ended && (
-        <Link to="/app/church/$id" params={{ id: m.church_id }} className="btn-gold mt-6 w-full py-4 text-base">Back to the church</Link>
+        <UpLink to="/app/church/$id" params={{ id: m.church_id }} className="btn-gold mt-6 w-full py-4 text-base">Back to the church</UpLink>
       )}
     </main>
   )

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { UpLink } from '~/components/BackLink'
 import { bookSlug } from '~/lib/bible'
 import { Link, createFileRoute, useRouter } from '@tanstack/react-router'
 import { completeWorkout, getWorkout } from '~/fns/train'
@@ -185,9 +186,9 @@ function WorkoutPlayer() {
     <div className="relative isolate flex min-h-dvh flex-col text-white transition-[background] duration-700" style={{ background: bg }}>
       {phase !== 'running' && <SunriseScene className="pointer-events-none absolute inset-x-0 bottom-0 -z-10 h-[45%] w-full opacity-70" />}
       <header className="mx-auto flex w-full max-w-xl items-center justify-between px-5 py-4">
-        <Link to="/app" className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 hover:bg-white/15" aria-label="Close workout">
+        <UpLink to="/app" className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 hover:bg-white/15" aria-label="Close workout">
           <CloseIcon />
-        </Link>
+        </UpLink>
         <p className="text-sm font-medium text-white/70">{workout.title}</p>
         <span className="w-10" />
       </header>
@@ -358,9 +359,9 @@ function WorkoutPlayer() {
                 <p className="mt-3 text-white/70">One prayer. One Scripture. One day at a time.</p>
               </>
             )}
-            <Link to="/app" className="btn-gold mx-auto mt-10 w-full max-w-xs py-4 text-base">
+            <UpLink to="/app" className="btn-gold mx-auto mt-10 w-full max-w-xs py-4 text-base">
               Back to home
-            </Link>
+            </UpLink>
             {firstWord && (
               <Link
                 to="/app/bible/$book/$chapter"

@@ -22,7 +22,7 @@ function JoinChurch() {
     setError(null)
     try {
       const r = await joinChurch({ data: { code } })
-      await router.navigate({ to: '/app/church/$id', params: { id: r.id } })
+      await router.navigate({ to: '/app/church/$id', params: { id: r.id }, replace: true })
     } catch (e) {
       setError(errorText(e))
       setBusy(false)

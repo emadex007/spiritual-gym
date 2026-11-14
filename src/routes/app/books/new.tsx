@@ -98,7 +98,7 @@ function AddBook() {
           setError(`Your book was added, but not shared yet: ${errorText(e)}`)
         })
       }
-      await navigate({ to: '/app/books/$id', params: { id } })
+      await navigate({ to: '/app/books/$id', params: { id }, replace: true })
     } catch (e) {
       setError(errorText(e))
       setStep(null)

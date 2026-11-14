@@ -24,7 +24,7 @@ function JoinGroup() {
   const [pending, setPending] = useState(false)
 
   const go = (id: string) =>
-    live ? router.navigate({ to: '/app/community/$groupId/live', params: { groupId: id } }) : router.navigate({ to: '/app/community/$groupId', params: { groupId: id } })
+    live ? router.navigate({ to: '/app/community/$groupId/live', params: { groupId: id }, replace: true }) : router.navigate({ to: '/app/community/$groupId', params: { groupId: id }, replace: true })
 
   async function join() {
     setBusy(true)
