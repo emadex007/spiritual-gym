@@ -16,9 +16,18 @@
 // - The screen stays on for the whole meeting (asked again whenever the app comes back to the front).
 // - If the microphone stops (a phone call, headphones unplugged) we get it back.
 // - Upload is shared fairly: the more people, the lighter each camera / screen picture, so voices never break up.
+//
+// Big meetings (the room says size "large", up to 50, or "event", hundreds watching): instead of a connection to each
+// person, everyone sends once to Cloudflare Realtime and receives from it (see src/lib/sfu-client.ts). The rest (chat,
+// hands, host tools, captions, presenting) works the same. In an event only people on stage can speak or show a picture.
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { translateCaption } from '~/fns/meetings'
 import { useKeepAwake } from '~/hooks/useKeepAwake'
+import { SfuLink, type SfuTracks, type SfuWant } from '~/lib/sfu-client'
+
+export type MeetSize = 'small' | 'large' | 'event'
+/** The key used for my senders to Cloudflare (instead of a person's id) */
+const SFU = '__sfu'
 
 export type MeetPeer = {
   id: string
@@ -33,6 +42,10 @@ export type MeetPeer = {
   connected: boolean
   /** Still not connected after ~20 seconds */
   trouble: boolean
+  /** Events: on stage (can speak and show a picture). Always true in other sizes. */
+  stage: boolean
+  /** Big meetings: where to receive this person's voice and pictures from */
+  sfu: { session: string; tracks: SfuTracks } | null
 }
 export type MeetStatus = 'idle' | 'connecting' | 'waiting' | 'live' | 'reconnecting' | 'full' | 'error' | 'ended' | 'removed' | 'denied' | 'not-started'
 export type WaitPeer = { id: string; name: string; avatar: string }
@@ -86,6 +99,11 @@ export function useMeeting(wsPath: string) {
   const [endReason, setEndReason] = useState<string | null>(null)
   const [askUnmute, setAskUnmute] = useState<string | null>(null)
   const [streamsVersion, setStreamsVersion] = useState(0)
+  const [size, setSize] = useState<MeetSize>('small')
+  const [onStage, setOnStage] = useState(true)
+  const [fullLimit, setFullLimit] = useState(12)
+  /** Host only: the size asked for, when the room had to run smaller (big meetings not set up, or the free data used up) */
+  const [sizeWanted, setSizeWanted] = useState<MeetSize | null>(null)
 
   const ws = useRef<WebSocket | null>(null)
   const myId = useRef('')
@@ -119,6 +137,12 @@ export function useMeeting(wsPath: string) {
   const warned = useRef(new Set<string>())
   const statusRef = useRef<MeetStatus>('idle')
   statusRef.current = status
+  const link = useRef<SfuLink | null>(null)
+  const sizeRef = useRef<MeetSize>('small')
+  const stageRef = useRef(true)
+  stageRef.current = onStage
+  const peersRef = useRef(peers)
+  peersRef.current = peers
   mutedRef.current = muted
   useKeepAwake(status === 'live' || status === 'reconnecting' || status === 'waiting')
   const chatOpen = useRef(false)
@@ -203,6 +227,32 @@ export function useMeeting(wsPath: string) {
       if (e instanceof DOMException && e.name === 'NotAllowedError') setNeedsSound(true)
     })
 
+  /** Someone's voice arrived: play it, and watch its level (who's speaking) */
+  const gotVoice = (id: string, track: MediaStreamTrack) => {
+    let stream = remote.current.get(id)
+    if (!stream) remote.current.set(id, (stream = new MediaStream()))
+    for (const t of stream.getAudioTracks()) if (t !== track) stream.removeTrack(t)
+    if (!stream.getTracks().includes(track)) stream.addTrack(track)
+    let el = audios.current.get(id)
+    if (!el) {
+      el = document.createElement('audio')
+      el.autoplay = true
+      el.setAttribute('playsinline', '')
+      el.style.display = 'none'
+      document.body.appendChild(el)
+      audios.current.set(id, el)
+    }
+    el.srcObject = new MediaStream([track])
+    playAudio(el)
+    analysers.current.delete(id)
+    watchLevel(id, stream)
+    bump()
+  }
+  const gotPicture = (id: string, slot: 'cam' | 'screen', track: MediaStreamTrack) => {
+    ;(slot === 'screen' ? remoteScreen : remoteCam).current.set(id, new MediaStream([track]))
+    bump()
+  }
+
   const dropPeer = useCallback((id: string) => {
     pcs.current.get(id)?.pc.close()
     pcs.current.delete(id)
@@ -220,6 +270,7 @@ export function useMeeting(wsPath: string) {
     remoteScreen.current.delete(id)
     analysers.current.delete(id)
     warned.current.delete(id)
+    link.current?.forget(id)
     rebalance()
     bump()
     setPeers((p) => {
@@ -253,26 +304,8 @@ export function useMeeting(wsPath: string) {
     pc.onicecandidate = (e) => e.candidate && send({ t: 'signal', to: id, data: { candidate: e.candidate.toJSON() } })
     pc.ontrack = (e) => {
       const slot = pc.getTransceivers().indexOf(e.transceiver)
-      if (e.track.kind === 'audio') {
-        let stream = remote.current.get(id)
-        if (!stream) remote.current.set(id, (stream = new MediaStream()))
-        if (!stream.getTracks().includes(e.track)) stream.addTrack(e.track)
-        let el = audios.current.get(id)
-        if (!el) {
-          el = document.createElement('audio')
-          el.autoplay = true
-          el.setAttribute('playsinline', '')
-          el.style.display = 'none'
-          document.body.appendChild(el)
-          audios.current.set(id, el)
-        }
-        el.srcObject = new MediaStream([e.track])
-        playAudio(el)
-        watchLevel(id, stream)
-      } else {
-        ;(slot === 2 ? remoteScreen : remoteCam).current.set(id, new MediaStream([e.track]))
-      }
-      bump()
+      if (e.track.kind === 'audio') gotVoice(id, e.track)
+      else gotPicture(id, slot === 2 ? 'screen' : 'cam', e.track)
     }
     const onState = () => {
       const up = pc.connectionState === 'connected' || pc.iceConnectionState === 'connected' || pc.iceConnectionState === 'completed'
@@ -348,11 +381,77 @@ export function useMeeting(wsPath: string) {
         })
         .catch(() => ({ relay: 0, direct: 0 })),
     )
-    Promise.all(jobs).then((parts) => {
+    const sfuJob = link.current ? link.current.bytesSinceLast().catch(() => 0) : Promise.resolve(0)
+    Promise.all([Promise.all(jobs), sfuJob]).then(([parts, sfu]) => {
       const relay = parts.reduce((a, p) => a + p.relay, 0)
       const direct = parts.reduce((a, p) => a + p.direct, 0)
-      fetch('/api/meet-usage', { method: 'POST', keepalive: true, headers: { 'content-type': 'application/json' }, body: JSON.stringify({ room, relay, direct, seconds: Math.round(seconds) }) }).catch(() => {})
+      fetch('/api/meet-usage', { method: 'POST', keepalive: true, headers: { 'content-type': 'application/json' }, body: JSON.stringify({ room, relay, direct, sfu, seconds: Math.round(seconds) }) }).catch(() => {})
     })
+  }
+
+  // ---------- Big meetings (Cloudflare Realtime) ----------
+  /** Send my voice, camera and screen to Cloudflare, then tell the room the track names */
+  const publishSfu = async () => {
+    const l = link.current
+    const voice = mic.current?.getAudioTracks()[0]
+    if (!l || !voice) return
+    try {
+      const r = await l.publish({ a: voice, v: cam.current ?? blank(blankCam), s: screen.current ?? blank(blankScreen) }, myId.current)
+      if (link.current !== l) return
+      if (l.senders.v) {
+        camSenders.current.set(SFU, l.senders.v)
+        capBitrate(l.senders.v, VIDEO_BITRATE, 15)
+      }
+      if (l.senders.s) {
+        screenSenders.current.set(SFU, l.senders.s)
+        capBitrate(l.senders.s, SCREEN_BITRATE, 10)
+      }
+      // The camera / screen may have been switched on while this was connecting
+      if (cam.current && l.senders.v) l.senders.v.replaceTrack(cam.current).catch(() => {})
+      if (screen.current && l.senders.s) l.senders.s.replaceTrack(screen.current).catch(() => {})
+      send({ t: 'sfu', session: r.session, tracks: r.tracks })
+    } catch {
+      if (link.current === l) flash('Couldn’t connect your microphone to the meeting. Leave and join again.', 9000)
+    }
+  }
+
+  /** Receive what we need: everyone's voice (in an event: the people on stage), and pictures that are switched on */
+  const syncPulls = () => {
+    const l = link.current
+    if (!l) return
+    const wants: SfuWant[] = []
+    for (const p of Object.values(peersRef.current)) {
+      const t = p.sfu?.tracks
+      if (!p.sfu?.session || !t) continue
+      if (t.a && (sizeRef.current !== 'event' || p.stage)) wants.push({ peer: p.id, kind: 'a', session: p.sfu.session, trackName: t.a })
+      if (t.v && p.video) wants.push({ peer: p.id, kind: 'v', session: p.sfu.session, trackName: t.v })
+      if (t.s && p.screen) wants.push({ peer: p.id, kind: 's', session: p.sfu.session, trackName: t.s })
+    }
+    l.pull(wants).catch(() => {})
+  }
+  useEffect(() => {
+    if (size !== 'small' && status === 'live') syncPulls()
+  }, [peers, size, status])
+
+  /** Start (or start again) the connection to Cloudflare */
+  const startSfu = async () => {
+    link.current?.close()
+    camSenders.current.delete(SFU)
+    screenSenders.current.delete(SFU)
+    const l = new SfuLink({
+      room,
+      iceServers: ice.current,
+      onTrack: (peer, kind, track) => (kind === 'a' ? gotVoice(peer, track) : gotPicture(peer, kind === 'v' ? 'cam' : 'screen', track)),
+      onFail: () => {
+        if (link.current !== l || statusRef.current !== 'live') return
+        flash('Reconnecting the meeting…', 4000)
+        // Everyone's tracks are received again on the new connection
+        startSfu()
+      },
+    })
+    link.current = l
+    if (stageRef.current) await publishSfu()
+    syncPulls()
   }
 
   // ---------- Live captions ----------
@@ -591,6 +690,8 @@ export function useMeeting(wsPath: string) {
   }, [])
 
   // ---------- Joining and leaving ----------
+  /** Everyone we have a connection, a voice or a picture for */
+  const everyone = () => new Set([...pcs.current.keys(), ...audios.current.keys(), ...remoteCam.current.keys(), ...remoteScreen.current.keys()])
   const cleanup = useCallback(() => {
     timers.current.forEach((t) => clearInterval(t))
     timers.current = []
@@ -606,7 +707,11 @@ export function useMeeting(wsPath: string) {
     try {
       sock?.close()
     } catch {}
-    for (const id of [...pcs.current.keys()]) dropPeer(id)
+    link.current?.close()
+    link.current = null
+    camSenders.current.delete(SFU)
+    screenSenders.current.delete(SFU)
+    for (const id of everyone()) dropPeer(id)
     mic.current?.getTracks().forEach((t) => t.stop())
     mic.current = null
     cam.current?.stop()
@@ -648,7 +753,9 @@ export function useMeeting(wsPath: string) {
     if (st !== 'live' && st !== 'waiting' && st !== 'reconnecting') return
     if (st !== 'reconnecting') {
       // Everyone's connections start again with the new link (they get new ids from the room)
-      for (const id of [...pcs.current.keys()]) dropPeer(id)
+      link.current?.close()
+      link.current = null
+      for (const id of everyone()) dropPeer(id)
       setPeers({})
       setKnocks([])
       droppedAt.current = Date.now()
@@ -684,6 +791,7 @@ export function useMeeting(wsPath: string) {
         mic.current = fresh
         // Voice is always the first slot on every connection
         for (const { pc } of pcs.current.values()) await pc.getTransceivers()[0]?.sender.replaceTrack(t).catch(() => {})
+        await link.current?.senders.a?.replaceTrack(t).catch(() => {})
         analysers.current.delete('me')
         watchLevel('me', fresh)
         keepMic(fresh)
@@ -775,10 +883,27 @@ export function useMeeting(wsPath: string) {
               setEndsAt(m.endsAt ?? null)
               // What was said before you came in (or while you were reconnecting)
               if (Array.isArray(m.chat)) setChat(m.chat)
+              const sz: MeetSize = m.size === 'large' || m.size === 'event' ? m.size : 'small'
+              const stage = m.stage !== false
+              setSize(sz)
+              sizeRef.current = sz
+              setSizeWanted(m.sizeWanted && m.sizeWanted !== sz ? m.sizeWanted : null)
+              setOnStage(stage)
+              stageRef.current = stage
+              // In the audience of an event: listening only (a host can invite you up)
+              if (!stage) {
+                mic.current?.getAudioTracks().forEach((t) => (t.enabled = false))
+                setMuted(true)
+                mutedRef.current = true
+              }
               setStatus('live')
+              statusRef.current = 'live'
               usageAt.current = Date.now()
-              setPeers(Object.fromEntries(m.peers.map((p: MeetPeer) => [p.id, { ...p, screen: !!p.screen, speaking: false, connected: false, trouble: false }])))
-              for (const p of m.peers) await createPc(p.id, true)
+              const list = Object.fromEntries(m.peers.map((p: MeetPeer) => [p.id, { ...p, screen: !!p.screen, stage: p.stage !== false, sfu: p.sfu ?? null, speaking: false, connected: sz !== 'small', trouble: false }]))
+              setPeers(list)
+              peersRef.current = list
+              if (sz === 'small') for (const p of m.peers) await createPc(p.id, true)
+              else await startSfu()
               if (back) {
                 // Carry on where you were: muted or not, camera, presentation
                 if (mutedRef.current) send({ t: 'mute', muted: true })
@@ -793,7 +918,7 @@ export function useMeeting(wsPath: string) {
               break
             }
             case 'peer-joined':
-              setPeers((ps) => ({ ...ps, [m.peer.id]: { ...m.peer, screen: !!m.peer.screen, speaking: false, connected: false, trouble: false } }))
+              setPeers((ps) => ({ ...ps, [m.peer.id]: { ...m.peer, screen: !!m.peer.screen, stage: m.peer.stage !== false, sfu: m.peer.sfu ?? null, speaking: false, connected: sizeRef.current !== 'small', trouble: false } }))
               break
             case 'peer-left':
               dropPeer(m.id)
@@ -801,6 +926,27 @@ export function useMeeting(wsPath: string) {
               break
             case 'mute':
               patchPeer(m.id, { muted: m.muted })
+              break
+            case 'peer-sfu':
+              patchPeer(m.id, { sfu: m.sfu ?? null })
+              break
+            case 'peer-stage':
+              patchPeer(m.id, { stage: !!m.on, muted: !!m.muted, video: !!m.video, screen: !!m.screen, hand: false })
+              break
+            case 'stage':
+              setOnStage(!!m.on)
+              stageRef.current = !!m.on
+              setHand(false)
+              if (m.on) {
+                await publishSfu()
+                flash(`${m.by ?? 'The host'} invited you on stage. Tap the microphone to speak.`, 8000)
+              } else {
+                mic.current?.getAudioTracks().forEach((t) => (t.enabled = false))
+                setMuted(true)
+                stopCamera()
+                stopPresenting(false)
+                flash('You’re back in the audience. Raise your hand to speak again.', 6000)
+              }
               break
             case 'video':
               patchPeer(m.id, { video: m.on })
@@ -832,7 +978,7 @@ export function useMeeting(wsPath: string) {
               break
             case 'screen-denied':
               stopPresenting(false)
-              flash('Presenting is for adults (18+).')
+              flash(m.stage ? 'Only people on stage can present.' : 'Presenting is for adults (18+).')
               break
             case 'force-screen-off':
               stopPresenting(false)
@@ -918,6 +1064,7 @@ export function useMeeting(wsPath: string) {
               break
             case 'full':
               cleanup()
+              if (m.limit) setFullLimit(m.limit)
               setStatus('full')
               break
             case 'not-started':
@@ -1009,6 +1156,7 @@ export function useMeeting(wsPath: string) {
 
   const toggleMute = useCallback(() => {
     const next = !muted
+    if (!next && !stageRef.current) return flash('Raise your hand and a host can invite you on stage to speak.')
     mic.current?.getAudioTracks().forEach((t) => (t.enabled = !next))
     send({ t: 'mute', muted: next })
     setMuted(next)
@@ -1055,6 +1203,10 @@ export function useMeeting(wsPath: string) {
     spotlight,
     needsSound,
     relay,
+    size,
+    sizeWanted,
+    onStage,
+    fullLimit,
     canShareScreen,
     streamsVersion,
     myVideo: () => (cam.current ? new MediaStream([cam.current]) : null),
@@ -1085,6 +1237,8 @@ export function useMeeting(wsPath: string) {
     hostLowerHand: (id: string) => send({ t: 'host-lower-hand', id }),
     hostRemove: (id: string) => send({ t: 'host-remove', id }),
     hostSpotlight: (id: string | null) => send({ t: 'spotlight', id }),
+    /** Events: invite someone on stage, or send them back to the audience */
+    hostStage: (id: string, on: boolean) => send({ t: 'stage', id, on }),
     announceRecording: (on: boolean) => send({ t: 'recording', on }),
     endForAll: () => send({ t: 'end' }),
     // waiting room
@@ -1101,7 +1255,7 @@ export function useMeeting(wsPath: string) {
     askUnmute,
     answerUnmute: (yes: boolean) => {
       setAskUnmute(null)
-      if (yes && muted) {
+      if (yes && muted && stageRef.current) {
         mic.current?.getAudioTracks().forEach((t) => (t.enabled = true))
         send({ t: 'mute', muted: false })
         setMuted(false)

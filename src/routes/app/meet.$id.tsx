@@ -63,7 +63,7 @@ function Lobby({ d, meet, camera, setCamera }: { d: ReturnType<typeof Route.useL
       {meet.status === 'denied' && <p className="mt-5 rounded-2xl bg-white/10 px-4 py-3 text-sm">The host didn’t let you in this time.</p>}
       {meet.status === 'ended' && meet.endReason === 'time' && <p className="mt-5 rounded-2xl bg-white/10 px-4 py-3 text-sm">The meeting has ended: its time is up.</p>}
       {meet.status === 'removed' && <p className="mt-5 rounded-2xl bg-white/10 px-4 py-3 text-sm">The host removed you from this meeting.</p>}
-      {meet.status === 'full' && <p className="mt-5 rounded-2xl bg-white/10 px-4 py-3 text-sm">The meeting is full ({MEETING_LIMIT} people). Please try again a little later.</p>}
+      {meet.status === 'full' && <p className="mt-5 rounded-2xl bg-white/10 px-4 py-3 text-sm">The meeting is full ({meet.fullLimit} people). Please try again a little later.</p>}
       {meet.error && <p className="mt-5 rounded-2xl bg-red-500/20 px-4 py-3 text-sm">{meet.error}</p>}
 
       {!ended && meet.status !== 'removed' && (
@@ -75,7 +75,7 @@ function Lobby({ d, meet, camera, setCamera }: { d: ReturnType<typeof Route.useL
             <li className="flex gap-2.5"><LineIcon name="presentation" className="mt-0.5 h-4 w-4 shrink-0 text-gold" /><span>Share your screen or show slides and pictures.</span></li>
             <li className="flex gap-2.5"><LineIcon name="door" className="mt-0.5 h-4 w-4 shrink-0 text-gold" /><span>The host lets people in, and the meeting ends at its set time.</span></li>
             <li className="flex gap-2.5"><LineIcon name="headphones" className="mt-0.5 h-4 w-4 shrink-0 text-gold" /><span>Headphones help others hear you clearly.</span></li>
-            <li className="flex gap-2.5"><LineIcon name="users" className="mt-0.5 h-4 w-4 shrink-0 text-gold" /><span>Up to {MEETING_LIMIT} people. Works on phone, tablet and computer.</span></li>
+            <li className="flex gap-2.5"><LineIcon name="users" className="mt-0.5 h-4 w-4 shrink-0 text-gold" /><span>{m.size === 'event' ? 'A big event: hundreds can watch, chat and raise a hand; a few people speak on stage.' : `Up to ${m.size === 'large' ? 50 : MEETING_LIMIT} people.`} Works on phone, tablet and computer.</span></li>
           </ul>
           {d.adult && (
             <label className="mx-auto mt-5 flex cursor-pointer items-center gap-3 rounded-2xl bg-white/10 px-4 py-3 text-sm">
