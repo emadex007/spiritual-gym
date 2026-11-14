@@ -432,6 +432,41 @@ export const setBookVisibility = createServerFn({ method: 'POST' })
     return { ok: true }
   })
 
+/** Admin: who can read any book (including older library books with no owner saved).
+ *  public = in the library for everyone; private = only its owner (an owner-less library book becomes the admin's own);
+ *  invited = only people its owner invites. */
+export const adminSetBookVisibility = createServerFn({ method: 'POST' })
+  .validator((d: { id: string; visibility: string }) => ({ id: String(d?.id ?? ''), visibility: (['public', 'invited'].includes(d?.visibility) ? d.visibility : 'private') as 'public' | 'invited' | 'private' }))
+  .handler(async ({ data }) => {
+    const admin = await requireAdmin()
+    const b = await getRow(data.id)
+    if (data.visibility === 'public') {
+      if (!(b.status === 'ready' || b.status === 'published')) throw new Error('This book isn’t ready to read yet.')
+      await db()
+        .prepare(`UPDATE books SET share_status = 'approved', share_note = NULL, visibility = 'public', approved_at = COALESCE(approved_at, datetime('now')) WHERE id = ?`)
+        .bind(data.id)
+        .run()
+      await announceNew({ kind: 'book', id: data.id, title: b.title, url: `/app/books/${data.id}` })
+    } else {
+      // An owner-less library book needs an owner to be private: it becomes the admin's own book
+      await db()
+        .prepare(
+          `UPDATE books SET share_status = '', approved_at = NULL, visibility = ?,
+             owner_id = COALESCE(owner_id, ?), status = CASE WHEN status = 'published' THEN 'ready' ELSE status END
+           WHERE id = ?`,
+        )
+        .bind(data.visibility, admin.id, data.id)
+        .run()
+      if (b.owner_id && b.owner_id !== admin.id && b.share_status === 'approved')
+        await notify(
+          { userIds: [b.owner_id] },
+          { kind: 'book', title: `“${b.title}” was taken out of the library`, body: 'It’s still in your books, and you can still read it. Contact us if you have questions.', url: `/app/books/${data.id}` },
+        )
+    }
+    await audit(admin, `book.visibility.${data.visibility}`, data.id, b.title)
+    return { ok: true }
+  })
+
 /** Invite someone to read my book. Members get a notification; anyone else gets an email. */
 export const inviteToBook = createServerFn({ method: 'POST' })
   .validator((d: { id: string; email: string }) => {

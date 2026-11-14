@@ -152,9 +152,9 @@ function AddBook() {
           <span className="label">Who can read it?</span>
           <div className="grid gap-2" role="radiogroup" aria-label="Who can read it">
             {([
-              ['private', 'Private', 'Only you', 'lock'],
-              ['invited', 'People I invite', 'You choose who, by email', 'users'],
-              ['public', 'Public', isAdmin ? 'Everyone on TheRenewGym can find it, read it and study it with you' : 'Everyone on TheRenewGym can find it and read it with you, once our team has checked it', 'globe'],
+              ['private', 'Private', 'Only you. For any book you want to read: one you bought or downloaded, or by another author.', 'lock'],
+              ['invited', 'People I invite', 'You choose who, by email. Only for your own book, or one you may share.', 'users'],
+              ['public', 'Public', isAdmin ? 'Everyone on TheRenewGym can read it. Only books the author wrote or gave permission to share free.' : 'Everyone on TheRenewGym can read it, after our team checks it. Only for a book you wrote, or have permission to share free.', 'globe'],
             ] as const).map(([k, t, d, ic]) => (
               <button key={k} type="button" role="radio" aria-checked={who === k} disabled={busy} onClick={() => setWho(k)} className={`option !justify-start gap-3 !p-3 text-left ${who === k ? 'option-on' : ''}`}>
                 <LineIcon name={ic} className="mt-0.5 h-5 w-5 shrink-0 text-accent" />

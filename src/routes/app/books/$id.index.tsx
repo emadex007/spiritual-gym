@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link, createFileRoute, useRouter } from '@tanstack/react-router'
 import { BackLink } from '~/components/BackLink'
 import { BookSharing } from '~/components/BookSharing'
+import { AdminBookAccess } from '~/components/AdminBookAccess'
 import { ReadTogether } from '~/components/ReadTogether'
 import { joinCircle } from '~/fns/topics'
 import { deleteMyBook, getBook, startBook, stopBook, updateMyBook } from '~/fns/books'
@@ -202,6 +203,7 @@ function BookPage() {
         </section>
       )}
       {d.mine && d.ready && <BookSharing b={b} shares={d.shares} />}
+      {d.canEdit && !d.mine && <AdminBookAccess b={b} />}
       {d.canEdit && !d.mine && <p className="mt-6 rounded-2xl bg-accent-soft px-4 py-3 text-sm">You’re editing as an admin{b.owner_id ? '' : ' (a library book)'}. Changes show for everyone.</p>}
       {d.canEdit && (
         <section className="card mt-6">
