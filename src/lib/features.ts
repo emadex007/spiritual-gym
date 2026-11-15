@@ -41,7 +41,7 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
       { icon: 'users', title: 'Read together and talk', text: 'Start a reading circle for any plan or book: invite friends with a link, see how far everyone is, and talk about each day.', isNew: true },
       { icon: 'lock', title: 'You choose who reads your book', text: 'When you add a book: private, people you invite, or public so everyone can read and study it with you (checked by our team first).', to: '/app/books/new', isNew: true },
       { icon: 'gem', title: 'Memory verses', text: 'Learn verses by heart in short sessions: read, repeat, fill the gaps, recall, with reviews at the right time.', to: '/app/journal/memory' },
-      { icon: 'lightbulb', title: 'Understand', text: 'Type any Scripture and get its meaning, background, key words, how to live it and a prayer.', to: '/app/understand' },
+      { icon: 'lightbulb', title: 'Understand', text: 'Type any Scripture or open any chapter: its setting, original Hebrew and Greek words, what it meant then, how it points to Jesus, how to live it, questions to think about and a prayer.', to: '/app/understand', isNew: true },
       { icon: 'puzzle', title: 'Bible games', text: 'A daily quiz (the same for everyone), Verse Scramble and Match the Reference.', to: '/app/games' },
     ],
   },
@@ -58,7 +58,7 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
       { icon: 'music', title: 'My songs', text: 'Your worship songs with lyrics, to sing along in your workouts.', to: '/app/journal/worship' },
       { icon: 'flame', title: 'Fasting', text: 'Choose a fast and keep it with guidance along the way.', to: '/app/fasting' },
       { icon: 'alarm', title: 'Wake-up', text: 'A Scripture alarm: bells, then a spoken word that keeps going until you’re up.', to: '/app/wake' },
-      { icon: 'chatHeart', title: 'Coach', text: 'A gentle, private companion to talk to about your walk with God. Tap the chat button at the top of Home, or talk it through after your daily check-in.', to: '/app/coach', isNew: true },
+      { icon: 'chatHeart', title: 'Coach', text: 'A wise, gentle, private companion for your walk with God. It knows how your day is going, answers Bible questions in their context, and remembers your conversation. Tap the chat button at the top of Home.', to: '/app/coach', isNew: true },
     ],
   },
   {
@@ -106,7 +106,7 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
     color: '#866724',
     items: [
       { icon: 'crown', title: 'Minister mode', text: 'Your ministry work and your personal time with God, side by side and never mixed.', to: '/app/pastor' },
-      { icon: 'scroll', title: 'Sermon studio', text: 'Prepare full sermons in one place.', to: '/app/pastor' },
+      { icon: 'scroll', title: 'Sermon studio', text: 'Prepare full sermons in your preaching style (teaching, verse by verse, storytelling, exhortation, evangelistic, devotional) with a gripping opening, memorable points, small-group questions and quotes to share.', to: '/app/pastor', isNew: true },
     ],
   },
   {

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { createFileRoute, useRouter } from '@tanstack/react-router'
-import { adminCoachSettings, adminSaveCoachKey } from '~/fns/admin'
+import { adminCoachSettings, adminSaveCoachKey, adminSetAiQuality } from '~/fns/admin'
+import { AI_TASKS } from '~/lib/ai-tasks'
 import { PageHead, Stat } from '~/components/AdminUI'
 import { FormError, errorText } from '~/components/AuthShell'
 
@@ -65,6 +66,45 @@ function CoachAdmin() {
           <button className="btn-primary" disabled={busy || !key.trim()} onClick={() => save(key)}>{busy ? 'Saving…' : 'Save key'}</button>
           {d.claudeKey && <button className="btn-ghost" disabled={busy} onClick={() => confirm('Remove the Claude key?') && save('__clear__')}>Remove</button>}
         </div>
+      </section>
+
+      <section className="card mt-5 space-y-3">
+        <p className="font-semibold">How clever the AI is</p>
+        <p className="text-sm text-muted">
+          With a Claude key, each area can use <b>Smart</b> (Claude Sonnet: deeper thinking and better writing, a little slower, about 4× the cost of Fast) or <b>Fast</b> (Claude Haiku: quick and cheap). If Smart isn’t available on your key, the app falls back to Fast by itself.
+          {!d.claudeKey && ' These settings take effect once a Claude key is saved; the free Workers AI has one level.'}
+        </p>
+        {AI_TASKS.map((t) => (
+          <div key={t.key} className="flex flex-wrap items-center gap-3 rounded-2xl bg-surface-2 px-4 py-3">
+            <span className="min-w-0 flex-1">
+              <span className="block text-sm font-semibold">{t.label}</span>
+              <span className="block text-xs text-muted">{t.note}</span>
+            </span>
+            <span className="flex gap-1.5">
+              {(['smart', 'fast'] as const).map((q) => (
+                <button
+                  key={q}
+                  type="button"
+                  disabled={busy}
+                  className={`chip !py-1.5 text-sm ${d.quality[t.key] === q ? 'chip-on' : ''}`}
+                  onClick={async () => {
+                    setBusy(true)
+                    try {
+                      await adminSetAiQuality({ data: { task: t.key, quality: q } })
+                      await router.invalidate()
+                    } catch (e) {
+                      setError(errorText(e))
+                    } finally {
+                      setBusy(false)
+                    }
+                  }}
+                >
+                  {q === 'smart' ? 'Smart' : 'Fast'}
+                </button>
+              ))}
+            </span>
+          </div>
+        ))}
       </section>
 
       <section className="card mt-5 text-sm text-muted">

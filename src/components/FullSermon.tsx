@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react'
 import { errorText } from '~/components/AuthShell'
-import { SERMON_AUDIENCES, SERMON_MINUTES, SERMON_SERVICES } from '~/lib/content'
+import { SERMON_AUDIENCES, SERMON_MINUTES, SERMON_SERVICES, SERMON_STYLES } from '~/lib/content'
 import { SermonStudio } from '~/components/SermonStudio'
 import { LineIcon } from '~/components/LineIcon'
 
-export type SermonOptions = { church: string; audience: string; service: string; minutes: number; altarCall: boolean }
+export type SermonOptions = { church: string; audience: string; service: string; minutes: number; altarCall: boolean; style: string; memorable: boolean }
 const saved = (): Partial<SermonOptions> => {
   try {
     return JSON.parse(localStorage.getItem('sg-sermon-opts') || '{}')
@@ -37,10 +37,13 @@ export function FullSermon({
     service: (SERMON_SERVICES as readonly string[]).includes(venue) ? venue : 'Sunday service',
     minutes: 45,
     altarCall: true,
+    style: 'teaching',
+    memorable: false,
   })
   useEffect(() => {
     const s = saved()
     if (!(SERMON_MINUTES as readonly number[]).includes(Number(s.minutes))) delete s.minutes
+    if (!SERMON_STYLES.some((x) => x.key === s.style)) delete s.style
     setO((cur) => ({ ...cur, ...s, church: s.church || cur.church, service: (SERMON_SERVICES as readonly string[]).includes(venue) ? venue : s.service || cur.service }))
   }, [venue])
   const [sermonTitle, setSermonTitle] = useState<string | undefined>()
@@ -107,10 +110,22 @@ export function FullSermon({
               </div>
             </div>
           </div>
+          <div>
+            <span className="label">Preaching style</span>
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+              {SERMON_STYLES.map((st) => (
+                <button key={st.key} type="button" aria-pressed={o.style === st.key} onClick={() => setO({ ...o, style: st.key })} className={`rounded-2xl border-2 px-3 py-2.5 text-left transition ${o.style === st.key ? 'border-accent bg-accent-soft/60' : 'border-line hover:border-accent/50'}`}>
+                  <span className="block text-sm font-semibold">{st.label}</span>
+                  <span className="block text-xs leading-snug text-muted">{st.note}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+          <label className="flex items-center gap-2 text-sm"><input type="checkbox" className="h-4 w-4" checked={o.memorable} onChange={(e) => setO({ ...o, memorable: e.target.checked })} /> Make the points easy to remember (parallel wording or alliteration)</label>
           <label className="flex items-center gap-2 text-sm"><input type="checkbox" className="h-4 w-4" checked={o.altarCall} onChange={(e) => setO({ ...o, altarCall: e.target.checked })} /> Include an altar / response moment when the message calls for one</label>
           {error && <p className="rounded-2xl bg-red-500/10 px-3 py-2 text-sm text-red-600">{error}</p>}
           <button className="btn-primary w-full" disabled={busy || (!title.trim() && !scripture.trim())} onClick={go}>
-            {busy ? `${secs < 12 ? 'Planning the message' : secs < 60 ? 'Writing the points and prayers' : 'Adding the Scriptures, nearly there'}… ${secs}s (1–3 minutes)` : 'Write the full sermon'}
+            {busy ? `${secs < 12 ? 'Planning the message' : secs < 60 ? 'Writing the points and prayers' : 'Adding the Scriptures, nearly there'}… ${secs}s (2–4 minutes)` : 'Write the full sermon'}
           </button>
           {busy && <p className="text-xs text-muted">Keep this page open while the sermon is written.</p>}
           {!title.trim() && !scripture.trim() && <p className="text-xs text-muted">Add a title (your topic) or a main Scripture above first.</p>}

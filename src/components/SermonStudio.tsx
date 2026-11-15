@@ -17,6 +17,9 @@ const QUICK = [
   'Add more prayer points',
   'Make the altar call stronger',
   'Make it suitable for youths',
+  'Add a gripping opening story',
+  'Add fresh everyday illustrations',
+  'Make the points easier to remember',
 ]
 
 /** Read the sermon (Scriptures are tappable), ask the AI to adjust it ("make it shorter"), undo, copy, share or download it */

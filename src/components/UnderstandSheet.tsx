@@ -13,7 +13,8 @@ import { speechChunks } from '~/lib/audio'
 /** Text for reading aloud: no emoji markers or “(KJV):” labels */
 export const forSpeech = (t: string) => speechChunks(t.replace(/📖\s*/g, '').replace(/\s*\(KJV\):\s*/g, ': ').replace(/[“”]/g, ''))
 
-export const INSIGHT_MAJOR = /^(WHAT IT SAYS|THE BACKGROUND|KEY WORDS|WHAT IT TEACHES US|LIVE IT TODAY|RELATED SCRIPTURES|PRAY THIS|DECLARE):/
+/** Any heading the explanation uses: a line in capitals ending with a colon (WHAT IT SAYS:, THE BIGGER PICTURE:, …) */
+export const INSIGHT_MAJOR = /^[A-Z][A-Z ’'/&-]{3,40}:/
 type Data = Awaited<ReturnType<typeof explainVerse>>
 
 /** The first part of an explanation ("What it says"), for sharing */
@@ -150,7 +151,7 @@ export function UnderstandSheet({ reference, onClose }: { reference: string; onC
   )
 }
 
-export const CHAPTER_MAJOR = /^(IN SUMMARY|THE BACKGROUND|THE CHAPTER STEP BY STEP|KEY VERSES|KEY WORDS|WHAT IT TEACHES US|LIVE IT TODAY|PRAY THIS|DECLARE):/
+export const CHAPTER_MAJOR = INSIGHT_MAJOR
 
 /** "Understand this chapter": the whole chapter explained, in a pop-up over the Bible reader, with Share and Copy */
 export function ChapterSheet({ book, chapter, onClose }: { book: number; chapter: number; onClose: () => void }) {

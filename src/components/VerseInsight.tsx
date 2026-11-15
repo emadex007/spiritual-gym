@@ -9,7 +9,7 @@ import { forSpeech, insightSummary } from '~/components/UnderstandSheet'
 import { ListenButton } from '~/components/ListenButton'
 import { LineIcon } from '~/components/LineIcon'
 
-const MAJOR = /^(WHAT IT SAYS|THE BACKGROUND|KEY WORDS|WHAT IT TEACHES US|LIVE IT TODAY|RELATED SCRIPTURES|PRAY THIS|DECLARE):/
+const MAJOR = /^[A-Z][A-Z ’'/&-]{3,40}:/ // any heading in capitals ending with a colon
 type Data = Awaited<ReturnType<typeof explainVerseOfDay>>
 
 /** "Understand this verse" under the verse of the day: a simple explanation, then the verses around it */

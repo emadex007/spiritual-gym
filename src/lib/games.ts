@@ -85,7 +85,7 @@ export async function chapterQuiz(reference: string, bookId: number, chapter: nu
   const saved = await db().prepare('SELECT questions FROM quiz_cache WHERE reference = ?').bind(reference).first<{ questions: string }>().catch(() => null)
   if (saved) return JSON.parse(saved.questions) as QuizQuestion[]
   const text = verses.map((v) => `${v.verse} ${v.text}`).join(' ').slice(0, 9000)
-  const out = await askCoach(QUIZ_SYSTEM, [{ role: 'user', content: `Write 5 multiple-choice questions about ${reference} (KJV). Mix: what happens, who, and what it teaches.\n\n${text}` }], 1400)
+  const out = await askCoach(QUIZ_SYSTEM, [{ role: 'user', content: `Write 5 multiple-choice questions about ${reference} (KJV). Mix: what happens, who, and what it teaches.\n\n${text}` }], 1400, 'study')
   if (!out) return null
   const json = out.slice(out.indexOf('['), out.lastIndexOf(']') + 1)
   let raw: unknown

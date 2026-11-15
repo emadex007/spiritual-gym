@@ -2,8 +2,9 @@ import { createServerFn } from '@tanstack/react-start'
 import { db } from '~/lib/env'
 import { requireUser } from '~/lib/auth'
 import { lookupText } from '~/lib/bible-db'
-import { CRISIS_REPLY, DAILY_LIMIT, askCoach, coachReady, isCrisis, systemPrompt } from '~/lib/coach'
-import { newId } from '~/lib/util'
+import { CRISIS_REPLY, DAILY_LIMIT, askCoach, coachReady, isCrisis, systemPrompt, type CoachAbout } from '~/lib/coach'
+import { getStreak } from '~/lib/streak-server'
+import { dayString, newId } from '~/lib/util'
 
 type Row = { id: string; role: 'user' | 'coach'; content: string; flagged: number; verses: string | null; created_at: string }
 
@@ -40,6 +41,25 @@ export const getCoach = createServerFn({ method: 'GET' }).handler(async () => {
   return { ready, name: user.name.split(' ')[0], messages: rows.results.reverse().map(parse), left: Math.max(0, DAILY_LIMIT - (today?.n ?? 0)) }
 })
 
+/** A little context so the coach can answer the person, not just the message. Never fails. */
+async function aboutPerson(userId: string): Promise<CoachAbout> {
+  const q = <T,>(p: Promise<T>) => p.catch(() => null)
+  const [checkin, streak, topics, books, church] = await Promise.all([
+    q(db().prepare('SELECT mood, note FROM checkins WHERE user_id = ? AND day = ?').bind(userId, dayString()).first<{ mood: string; note: string | null }>()),
+    q(getStreak(userId)),
+    q(db().prepare(`SELECT p.title FROM user_topic_plans u JOIN topic_plans p ON p.id = u.plan_id WHERE u.user_id = ? AND u.status = 'active' LIMIT 3`).bind(userId).all<{ title: string }>()),
+    q(db().prepare(`SELECT b.title FROM user_books u JOIN books b ON b.id = u.book_id WHERE u.user_id = ? AND u.status = 'active' LIMIT 2`).bind(userId).all<{ title: string }>()),
+    q(db().prepare('SELECT c.name FROM church_members m JOIN churches c ON c.id = m.church_id WHERE m.user_id = ? LIMIT 1').bind(userId).first<{ name: string }>()),
+  ])
+  return {
+    mood: checkin?.mood ?? null,
+    note: checkin?.note ?? null,
+    streak: streak?.days ?? 0,
+    reading: [...(topics?.results ?? []).map((t) => `the plan "${t.title}"`), ...(books?.results ?? []).map((b) => `the book "${b.title}"`)],
+    church: church?.name ?? null,
+  }
+}
+
 export const sendCoach = createServerFn({ method: 'POST' })
   .validator((d: { text: string }) => {
     const text = String(d?.text ?? '').trim()
@@ -59,12 +79,13 @@ export const sendCoach = createServerFn({ method: 'POST' })
     if (crisis) {
       reply = CRISIS_REPLY
     } else {
-      const [history, workouts] = await Promise.all([
+      const [history, workouts, about] = await Promise.all([
         db()
-          .prepare('SELECT role, content FROM coach_messages WHERE user_id = ? ORDER BY created_at DESC, rowid DESC LIMIT 12')
+          .prepare('SELECT role, content FROM coach_messages WHERE user_id = ? ORDER BY created_at DESC, rowid DESC LIMIT 20')
           .bind(user.id)
           .all<{ role: 'user' | 'coach'; content: string }>(),
         db().prepare('SELECT slug, title, minutes FROM workouts ORDER BY sort').all<{ slug: string; title: string; minutes: number }>(),
+        aboutPerson(user.id),
       ])
       const messages = history.results
         .reverse()
@@ -72,7 +93,7 @@ export const sendCoach = createServerFn({ method: 'POST' })
       // The conversation must start with the person and alternate
       while (messages.length && messages[0].role !== 'user') messages.shift()
       messages.push({ role: 'user', content: data.text })
-      reply = await askCoach(systemPrompt(user.name.split(' ')[0], workouts.results), messages).catch((e) => {
+      reply = await askCoach(systemPrompt(user.name.split(' ')[0], workouts.results, about), messages, 1100, 'coach').catch((e) => {
         throw new Error(e instanceof Error && e.message ? e.message : 'The coach couldn’t answer just now. Please try again.')
       })
       if (!reply) throw new Error('The coach isn’t switched on yet.')
