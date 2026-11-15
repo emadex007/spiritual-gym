@@ -29,6 +29,7 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
     intro: 'Read, understand and remember Scripture.',
     color: '#3f7cc0',
     items: [
+      { icon: 'image', title: 'Verse pictures', text: 'Turn any verse into a picture: 7 backgrounds or your own photo, 3 fonts, sizes for posts and WhatsApp status. Share or save.', to: '/app/verse-art', isNew: true },
       { icon: 'bible', title: 'The whole Bible (KJV)', text: 'Search, highlight in colours, take notes, and have chapters read aloud to you.', to: '/app/bible' },
       { icon: 'sparkles', title: 'Topic plans', text: 'Daily readings on what you’re facing: anxiety, marriage, hope, fear, healing, temptation and more. 3 days to 4 months, each with Scripture and a prayer.', to: '/app/topics', isNew: true },
       { icon: 'pen', title: 'Write a plan', text: 'Anyone can write a plan with a featured picture. Our team reads it, then it goes live for everyone.', to: '/app/topics/write', isNew: true },

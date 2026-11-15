@@ -30,6 +30,11 @@ Free Christian spiritual-growth web app (installable PWA) at therenewgym.org. Ow
 - Notifications: `src/lib/notify.ts`, `public/sw.js` (focus mode), `src/lib/push-client.ts` (`syncPush` self-repair).
 
 ## Change log (newest first)
+- 2026-11-15 · Verse pictures (`/app/verse-art`, `src/components/VerseArtMaker.tsx`, drawing in `src/lib/verseArt.ts`):
+  7 backgrounds + your own photo (stays on the phone, never uploaded), 3 fonts, centred/left, sizes 1080×1080 / 1080×1350
+  / 1080×1920, edit words (with a note to keep God's Word as it is), TheRenewGym footer on/off; Share (phone share sheet)
+  or Save picture; choices remembered (`sg-verse-art`). "Picture" in the Bible reader's verse bar (`VerseArtSheet`),
+  Explore → Read & learn. Uses `lookupVerse` (KJV).
 - 2026-11-15 · Growth card removed entirely (tree, then rings): Home was too busy. Only the streak chip remains.
 - 2026-11-15 · Growth card on Home → Your progress (`src/components/Growth.tsx`, rules in `src/lib/growth.ts`): three rings
   for today (time vs goal; Word = 5 min Scripture or any reading; Prayer = 5 min prayer or a retreat day / Night mode) and
