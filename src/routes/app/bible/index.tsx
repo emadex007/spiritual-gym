@@ -4,6 +4,7 @@ import { listBooks, searchBible } from '~/fns/bible'
 import { bookSlug } from '~/lib/bible'
 import { BibleIcon } from '~/components/Art'
 import { LineIcon } from '~/components/LineIcon'
+import { OfflineBible } from '~/components/OfflineBible'
 
 export const Route = createFileRoute('/app/bible/')({
   loader: () => listBooks(),
@@ -113,6 +114,8 @@ function BibleHome() {
           </div>
         </section>
       )}
+
+      {!hits && <OfflineBible />}
 
       {!hits && (
         <>

@@ -1,19 +1,118 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>You’re offline · TheRenewGym</title>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Offline Bible · TheRenewGym</title>
+<meta name="theme-color" content="#071629">
 <style>
-  body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;font-family:system-ui,sans-serif;background:linear-gradient(180deg,#16244a,#3a2f86 60%,#12203a);color:#fff;text-align:center;padding:24px}
-  .c{max-width:340px} h1{font-family:Georgia,serif;font-size:30px;margin:18px 0 8px} p{opacity:.85;line-height:1.5}
-  blockquote{font-family:Georgia,serif;font-size:19px;margin:28px 0 6px;line-height:1.4} small{color:#f6d38e}
-  button{margin-top:28px;background:#d4a94a;color:#12203a;border:0;border-radius:999px;padding:14px 26px;font-weight:700;font-size:15px}
+  :root{--bg:#f7f3ea;--card:#fff;--ink:#14213d;--muted:#5d6676;--line:#e6dfd0;--accent:#a0661d;--chip:#efe8da}
+  [data-theme=dark]{--bg:#071629;--card:#0f2137;--ink:#eef2f8;--muted:#9aa7bb;--line:#1f3550;--accent:#e3b648;--chip:#162c46}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,"Segoe UI",sans-serif;-webkit-text-size-adjust:100%}
+  .bar{position:sticky;top:0;z-index:2;background:linear-gradient(135deg,#16244a,#3a2f86);color:#fff;padding:12px 16px calc(12px);padding-top:max(12px,env(safe-area-inset-top))}
+  .row{display:flex;align-items:center;gap:10px;max-width:720px;margin:0 auto}
+  .bar img{width:34px;height:34px;border-radius:9px}
+  .bar b{font-size:15px;display:block}
+  .bar small{opacity:.8;font-size:12px}
+  .retry{margin-left:auto;background:#e3b648;color:#12203a;border:0;border-radius:999px;padding:8px 14px;font-weight:700;font-size:13px}
+  main{max-width:720px;margin:0 auto;padding:16px 16px 120px}
+  .pick{display:flex;gap:8px;flex-wrap:wrap}
+  select,button.s{font:inherit;font-size:15px;color:var(--ink);background:var(--card);border:1px solid var(--line);border-radius:14px;padding:10px 12px}
+  select{flex:1;min-width:0}
+  h1{font-family:Georgia,"Times New Roman",serif;font-size:28px;margin:22px 0 4px}
+  .tr{color:var(--muted);font-size:13px}
+  article{font-family:Georgia,"Times New Roman",serif;line-height:1.75;margin-top:18px}
+  article p{margin:0 0 6px;display:flex;gap:10px}
+  article sup{font-family:system-ui,sans-serif;font-size:.6em;font-weight:700;color:var(--accent);min-width:1.6em;text-align:right;padding-top:.45em}
+  .note{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:16px;margin-top:20px;line-height:1.55}
+  .note b{display:block;margin-bottom:4px}
+  .credit{margin-top:28px;border-top:1px solid var(--line);padding-top:12px;text-align:center;font-size:11px;color:var(--muted)}
+  .nav{position:fixed;left:0;right:0;bottom:0;background:var(--card);border-top:1px solid var(--line);padding:10px 16px;padding-bottom:max(10px,env(safe-area-inset-bottom))}
+  .nav .row{justify-content:space-between}
+  .nav button{font:inherit;font-weight:700;font-size:14px;border:0;border-radius:999px;padding:11px 18px;background:var(--chip);color:var(--ink)}
+  .nav button:disabled{opacity:.35}
+  .size{display:flex;gap:6px}
+  .size button{padding:11px 14px}
 </style>
 </head>
-<body><div class="c">
-  <img src="/icons/icon-192.png" width="72" height="72" alt="" style="border-radius:18px">
-  <h1>You’re offline</h1>
-  <p>Check your connection and try again. Bible books you’ve opened before still work.</p>
-  <blockquote>“Be still, and know that I am God.”</blockquote><small>Psalm 46:10</small><br>
-  <button onclick="location.reload()">Try again</button>
-</div></body></html>
+<body>
+<div class="bar"><div class="row">
+  <img src="/icons/icon-192.png" alt="">
+  <div><b>You’re offline</b><small>Your saved Bible still works</small></div>
+  <button class="retry" onclick="location.reload()">Try again</button>
+</div></div>
+<main>
+  <div class="pick">
+    <select id="tr" aria-label="Translation"></select>
+  </div>
+  <div class="pick" style="margin-top:8px">
+    <select id="book" aria-label="Book"></select>
+    <select id="ch" aria-label="Chapter" style="flex:0 0 96px"></select>
+  </div>
+  <h1 id="title"></h1>
+  <div class="tr" id="trname"></div>
+  <article id="text"></article>
+  <div class="credit" id="credit" hidden></div>
+</main>
+<div class="nav"><div class="row">
+  <button id="prev">← Prev</button>
+  <div class="size"><button id="smaller" aria-label="Smaller text">A−</button><button id="bigger" aria-label="Bigger text">A+</button></div>
+  <button id="next">Next →</button>
+</div></div>
+<script>
+(function(){
+var BOOKS=["Genesis", "Exodus", "Leviticus", "Numbers", "Deuteronomy", "Joshua", "Judges", "Ruth", "1 Samuel", "2 Samuel", "1 Kings", "2 Kings", "1 Chronicles", "2 Chronicles", "Ezra", "Nehemiah", "Esther", "Job", "Psalms", "Proverbs", "Ecclesiastes", "Song of Solomon", "Isaiah", "Jeremiah", "Lamentations", "Ezekiel", "Daniel", "Hosea", "Joel", "Amos", "Obadiah", "Jonah", "Micah", "Nahum", "Habakkuk", "Zephaniah", "Haggai", "Zechariah", "Malachi", "Matthew", "Mark", "Luke", "John", "Acts", "Romans", "1 Corinthians", "2 Corinthians", "Galatians", "Ephesians", "Philippians", "Colossians", "1 Thessalonians", "2 Thessalonians", "1 Timothy", "2 Timothy", "Titus", "Philemon", "Hebrews", "James", "1 Peter", "2 Peter", "1 John", "2 John", "3 John", "Jude", "Revelation"], CH=[50, 40, 27, 36, 34, 24, 21, 4, 31, 24, 22, 25, 29, 36, 10, 13, 10, 42, 150, 31, 12, 8, 66, 52, 5, 48, 12, 14, 3, 9, 1, 4, 7, 3, 3, 3, 2, 14, 4, 28, 16, 24, 21, 28, 16, 16, 13, 6, 6, 4, 4, 5, 3, 6, 4, 3, 1, 13, 5, 5, 3, 5, 1, 1, 1, 22], NAMES={"KJV": "King James Version", "BSB": "Berean Standard Bible", "ASV": "American Standard Version", "BBE": "Bible in Basic English", "YOR": "Yorùbá", "IBO": "Igbo", "HAU": "Hausa"}, CREDITS={"YOR": "Biblica® ní oore ọ̀fẹ́ láti lo Bíbélì Mímọ́ ní Èdè Yorùbá Òde-Òní. Copyright © 2017 Biblica, Inc. Used under CC BY-SA 4.0. Free at biblica.com and open.bible.", "IBO": "Biblica® Baịbụlụ Nsọ nʼIgbo Ndị Ugbu a nke dịrị onye ọbụla ịgụ. Copyright © 2020 Biblica, Inc. Used under CC BY-SA 4.0. Free at biblica.com and open.bible.", "HAU": "Biblica® Buɗaɗɗen Littafi Mai Tsarki, Sabon Rai Don Kowa™. Copyright © 2020 Biblica, Inc. Used under CC BY-SA 4.0. Free at biblica.com and open.bible."};
+var $=function(id){return document.getElementById(id)};
+function ls(k,d){try{var v=localStorage.getItem(k);return v==null?d:v}catch(e){return d}}
+function lsSet(k,v){try{localStorage.setItem(k,v)}catch(e){}}
+// theme, like the app
+var t=ls('sg-theme','system'),dark=t==='dark'||(t==='system'&&matchMedia('(prefers-color-scheme: dark)').matches);
+document.documentElement.setAttribute('data-theme',dark?'dark':'light');
+var saved={};try{saved=JSON.parse(ls('sg-offline-bibles','{}'))||{}}catch(e){}
+var codes=Object.keys(NAMES);
+var last={};try{last=JSON.parse(ls('sg-last-read','{}'))||{}}catch(e){}
+var book=Math.min(66,Math.max(1,+last.book||43)), ch=Math.min(CH[book-1],Math.max(1,+last.chapter||1));
+var tr=ls('sg-bible-tr','KJV'); if(!NAMES[tr])tr='KJV';
+if(!saved[tr]&&Object.keys(saved).length)tr=Object.keys(saved)[0];
+var size=+ls('sg-offline-size','19')||19;
+codes.forEach(function(c){var o=document.createElement('option');o.value=c;o.textContent=c+' · '+NAMES[c]+(saved[c]?' (saved)':'');$('tr').appendChild(o)});
+BOOKS.forEach(function(b,i){var o=document.createElement('option');o.value=i+1;o.textContent=b;$('book').appendChild(o)});
+function fillCh(){var s=$('ch');s.innerHTML='';for(var i=1;i<=CH[book-1];i++){var o=document.createElement('option');o.value=i;o.textContent=i;s.appendChild(o)}s.value=ch}
+function esc(s){return String(s).replace(/[&<>]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;'}[c]})}
+function get(url){
+  if(!('caches' in window))return Promise.resolve(null);
+  return caches.match(url).then(function(r){return r?r.json():fetch(url).then(function(x){return x.ok?x.json():null}).catch(function(){return null})});
+}
+function show(){
+  $('tr').value=tr;$('book').value=book;fillCh();
+  var name=BOOKS[book-1]==='Psalms'?'Psalm':BOOKS[book-1];
+  $('title').textContent=name+' '+ch;$('trname').textContent=NAMES[tr];
+  $('text').style.fontSize=size+'px';
+  $('prev').disabled=book===1&&ch===1;$('next').disabled=book===66&&ch===CH[65];
+  lsSet('sg-last-read',JSON.stringify({book:book,chapter:ch,name:BOOKS[book-1]}));lsSet('sg-bible-tr',tr);
+  var cr=CREDITS[tr];$('credit').hidden=!cr;$('credit').textContent=cr||'';
+  $('text').innerHTML='<p class="tr">Loading…</p>';
+  get('/bible/'+tr.toLowerCase()+'/'+book+'.json').then(function(d){
+    var rows=d&&d[ch];
+    if(!rows){
+      var others=Object.keys(saved).filter(function(c){return c!==tr});
+      $('text').innerHTML='<div class="note"><b>'+esc(name)+' in '+tr+' isn’t saved on this phone.</b>'+(others.length?'Saved here: '+others.join(', ')+'. Choose one above.':'When you’re back online, open the Bible page and tap <i>Read without internet</i> to save a whole Bible to this phone.')+'</div>';
+      return;
+    }
+    $('text').innerHTML=rows.map(function(r){return '<p><sup>'+r[0]+'</sup><span>'+esc(r[1])+'</span></p>'}).join('');
+  });
+  window.scrollTo(0,0);
+}
+$('tr').onchange=function(){tr=this.value;show()};
+$('book').onchange=function(){book=+this.value;ch=1;show()};
+$('ch').onchange=function(){ch=+this.value;show()};
+$('prev').onclick=function(){if(ch>1)ch--;else if(book>1){book--;ch=CH[book-1]}show()};
+$('next').onclick=function(){if(ch<CH[book-1])ch++;else if(book<66){book++;ch=1}show()};
+$('smaller').onclick=function(){size=Math.max(15,size-2);lsSet('sg-offline-size',size);$('text').style.fontSize=size+'px'};
+$('bigger').onclick=function(){size=Math.min(30,size+2);lsSet('sg-offline-size',size);$('text').style.fontSize=size+'px'};
+show();
+// back online: the app comes back by itself
+window.addEventListener('online',function(){$('trname').textContent=NAMES[tr]+' · You’re back online. Tap Try again.'});
+})();
+</script>
+</body></html>

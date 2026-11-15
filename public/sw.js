@@ -1,6 +1,7 @@
 // TheRenewGym service worker: installable app + offline fallback.
 // Never caches private data: server functions (/_serverFn), /api and signed-in pages always go to the network.
-const VERSION = 'sg-v8'
+const VERSION = 'sg-v9'
+const OFFLINE = 'sg-offline' // Bibles saved for offline reading: kept across app updates
 const STATIC = `${VERSION}-static`
 const PRECACHE = ['/offline.html', '/icons/icon-192.png', '/icons/badge-96.png', '/manifest.webmanifest']
 
@@ -10,7 +11,7 @@ self.addEventListener('install', (e) => {
 
 self.addEventListener('activate', (e) => {
   e.waitUntil(
-    caches.keys().then((keys) => Promise.all(keys.filter((k) => !k.startsWith(VERSION)).map((k) => caches.delete(k)))).then(() => self.clients.claim()),
+    caches.keys().then((keys) => Promise.all(keys.filter((k) => !k.startsWith(VERSION) && k !== OFFLINE).map((k) => caches.delete(k)))).then(() => self.clients.claim()),
   )
 })
 
@@ -25,7 +26,7 @@ self.addEventListener('fetch', (e) => {
 
   // Pages: always fresh from the network; show the offline page if there's no connection
   if (req.mode === 'navigate') {
-    e.respondWith(fetch(req).catch(() => caches.match('/offline.html')))
+    e.respondWith(fetch(req).catch(async () => (await caches.open(STATIC).then((c) => c.match('/offline.html'))) || (await caches.match('/offline.html')) || Response.error()))
     return
   }
 
@@ -33,7 +34,7 @@ self.addEventListener('fetch', (e) => {
   if (/^\/(assets|bible|xref|strongs|icons|media)\//.test(url.pathname) || url.pathname === '/favicon.png') {
     e.respondWith(
       caches.open(STATIC).then(async (cache) => {
-        const hit = await cache.match(req)
+        const hit = (await cache.match(req)) || (await caches.open(OFFLINE).then((c) => c.match(req)))
         if (hit) return hit
         const res = await fetch(req)
         if (res.status === 200) cache.put(req, res.clone())

@@ -29,6 +29,7 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
     intro: 'Read, understand and remember Scripture.',
     color: '#3f7cc0',
     items: [
+      { icon: 'wifi', title: 'Read without internet', text: 'Save a whole Bible to your phone (KJV, BSB, ASV, BBE, Yorùbá, Igbo, Hausa). With no data or network, the app opens an offline Bible where you stopped.', to: '/app/bible', isNew: true },
       { icon: 'link', title: 'Cross-references', text: 'Tap a verse and see up to 10 verses that connect to it, with their words, and jump straight there.', to: '/app/bible', isNew: true },
       { icon: 'search', title: 'Hebrew and Greek words', text: 'Tap a verse, then any word, to see the original Hebrew or Greek word, how to say it, what it means and how the KJV translates it (Strong’s).', to: '/app/bible', isNew: true },
       { icon: 'image', title: 'Verse pictures', text: 'Turn any verse into a picture: 7 backgrounds or your own photo, 3 fonts, sizes for posts and WhatsApp status. Share or save.', to: '/app/verse-art', isNew: true },
