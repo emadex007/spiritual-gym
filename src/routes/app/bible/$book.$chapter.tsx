@@ -248,6 +248,9 @@ function Reader() {
           )
         })}
       </article>
+      {TRANSLATIONS.find((t) => t.code === trLabel)?.credit && (
+        <p className="mt-8 border-t border-line pt-4 text-center text-[11px] leading-relaxed text-muted">{TRANSLATIONS.find((t) => t.code === trLabel)?.credit}</p>
+      )}
 
       <button type="button" onClick={() => setChapterOpen(true)} className="card mt-10 flex w-full items-center gap-3 !p-4 text-left transition hover:border-accent">
         <IconBadge name="lightbulb" />
@@ -307,6 +310,7 @@ function Reader() {
       {listen && (
         <ListenBar
           key={`${book.id}-${chapter}-${tr}`}
+          lang={TRANSLATIONS.find((t) => t.code === trLabel)?.lang ?? 'en'}
           title={`${book.name === 'Psalms' ? 'Psalm' : book.name} ${chapter}`}
           items={verses.map((v) => v.text)}
           autoStart={!!search.listen}

@@ -216,12 +216,18 @@ export function speechSupported() {
   return typeof window !== 'undefined' && 'speechSynthesis' in window
 }
 
+/** A voice on this phone for a language ('yo', 'ig', 'ha'…), if it has one */
+export function voiceFor(lang: string): SpeechSynthesisVoice | null {
+  if (!speechSupported()) return null
+  return speechSynthesis.getVoices().find((v) => v.lang.toLowerCase().startsWith(lang.toLowerCase())) ?? null
+}
+
 /** Speak slowly and warmly. Returns when finished (or after a safety timeout). */
-export function speak(text: string, opts: { onStart?: () => void; onEnd?: () => void; rate?: number } = {}) {
+export function speak(text: string, opts: { onStart?: () => void; onEnd?: () => void; rate?: number; lang?: string } = {}) {
   return new Promise<void>((resolve) => {
     if (!speechSupported()) return resolve()
     const u = new SpeechSynthesisUtterance(text)
-    const v = pickVoice()
+    const v = opts.lang && opts.lang !== 'en' ? voiceFor(opts.lang) : pickVoice()
     if (v) u.voice = v
     u.lang = v?.lang ?? 'en-GB'
     u.rate = 0.86 * (opts.rate ?? 1)
