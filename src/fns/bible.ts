@@ -2,7 +2,7 @@ import { createServerFn } from '@tanstack/react-start'
 import { db } from '~/lib/env'
 import { requireUser } from '~/lib/auth'
 import { parseReference } from '~/lib/bible'
-import { lookupText } from '~/lib/bible-db'
+import { lookupMany, lookupText } from '~/lib/bible-db'
 
 export type Verse = { verse: number; text: string }
 
@@ -74,3 +74,15 @@ export const lookupVerse = createServerFn({ method: 'GET' })
     return r
   })
 
+
+/** Several short references at once (cross-references), KJV, in one database round trip */
+export const lookupVerses = createServerFn({ method: 'GET' })
+  .validator((refs: string[]) => (Array.isArray(refs) ? refs : []).slice(0, 12).map((r) => String(r).slice(0, 40)))
+  .handler(async ({ data }) => {
+    await requireUser()
+    const found = await lookupMany(data)
+    return data.map((r) => {
+      const f = found.get(r)
+      return f ? { ref: r, reference: f.reference, text: f.text } : null
+    }).filter((x): x is { ref: string; reference: string; text: string } => !!x)
+  })

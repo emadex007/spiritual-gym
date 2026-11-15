@@ -30,6 +30,12 @@ Free Christian spiritual-growth web app (installable PWA) at therenewgym.org. Ow
 - Notifications: `src/lib/notify.ts`, `public/sw.js` (focus mode), `src/lib/push-client.ts` (`syncPush` self-repair).
 
 ## Change log (newest first)
+- 2026-11-15 · Bible study: cross-references and Hebrew/Greek words (Strong's). Static data in `public/xref/<bookId>.json`
+  (OpenBible.info, CC BY, ≥3 votes, top 10 per verse), `public/strongs/kjv/<bookId>.json` (KJV with [H/G] tags, all 31,102
+  verses) and `public/strongs/lex/{H,G}<n/250>.json` (Open Scriptures Strong's, CC BY-SA). Client helpers in
+  `src/lib/study.ts` (`crossRefs`, `strongsVerse`, `tokenize`, `lexeme`); sheets in `src/components/StudySheets.tsx`
+  (`XrefSheet` uses `lookupVerses` for KJV text; `WordsSheet` with tappable roots). Buttons in the reader's verse bar.
+  Credits in `public/bible/LICENSE.txt` and under each sheet.
 - 2026-11-15 · Verse pictures (`/app/verse-art`, `src/components/VerseArtMaker.tsx`, drawing in `src/lib/verseArt.ts`):
   7 backgrounds + your own photo (stays on the phone, never uploaded), 3 fonts, centred/left, sizes 1080×1080 / 1080×1350
   / 1080×1920, edit words (with a note to keep God's Word as it is), TheRenewGym footer on/off; Share (phone share sheet)
