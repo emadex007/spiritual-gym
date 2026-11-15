@@ -1,4 +1,5 @@
 import { createServerFn } from '@tanstack/react-start'
+import { markActive } from '~/lib/streak-server'
 import { passage, type Passage } from '~/lib/bible-db'
 import { buildWord, planFor, type StepWord } from '~/lib/word-plans'
 import { db } from '~/lib/env'
@@ -144,6 +145,7 @@ export const completeWorkout = createServerFn({ method: 'POST' })
       }
     }
     await db().batch(stmts)
+    await markActive(user.id, 'workout')
     const awards = await checkAwards(user.id, journeyFinished ? 'journey' : 'workout')
     return { minutes, journeyDay, journeyDays: journey?.days ?? null, journeyTitle: journey?.title ?? null, journeyFinished, awards, firstName: user.name.split(' ')[0] }
   })

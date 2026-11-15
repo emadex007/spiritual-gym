@@ -1,4 +1,5 @@
 import { createServerFn } from '@tanstack/react-start'
+import { getStreak } from '~/lib/streak-server'
 import { db } from '~/lib/env'
 import { requireUser } from '~/lib/auth'
 import { MOODS, recommendWorkout } from '~/lib/content'
@@ -144,6 +145,7 @@ export const getHome = createServerFn({ method: 'GET' }).handler(async () => {
     .bind(today, user.id)
     .first<{ pastor_mode: number; ministry_role: string | null; ministry: number }>()
     .catch(() => null)
+  const streakP = getStreak(user.id).catch(() => null)
   const batch2P = Promise.all([
     devotionOfTheDay(),
     includeTongues(user.id),
@@ -291,6 +293,7 @@ export const getHome = createServerFn({ method: 'GET' }).handler(async () => {
     sessionsByKind,
     totalSessions: counts.results.length,
     memory: { total: memory?.total ?? 0, due: memory?.due ?? 0, practicedToday: memory?.practiced_today ?? 0 },
+    streak: await streakP,
   }
 })
 

@@ -1,4 +1,6 @@
 import { createServerFn } from '@tanstack/react-start'
+import { markActive } from '~/lib/streak-server'
+import { checkAwards } from '~/lib/award-server'
 import { announceNew } from '~/lib/public-news'
 import { db, env } from '~/lib/env'
 import { requireUser } from '~/lib/auth'
@@ -172,6 +174,8 @@ export const finishBookDay = createServerFn({ method: 'POST' })
     if (!plan) throw new Error('Start a reading plan for this book first.')
     const done = Math.min(plan.days, Math.max(plan.done, data.day))
     await db().prepare(`UPDATE user_books SET done = ?, status = CASE WHEN ? >= days THEN 'finished' ELSE 'active' END WHERE id = ?`).bind(done, done, plan.id).run()
+    await markActive(user.id, 'book')
+    await checkAwards(user.id, 'active').catch(() => [])
     return { done, finished: done >= plan.days, next: done < plan.days ? done + 1 : null }
   })
 

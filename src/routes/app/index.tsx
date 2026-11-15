@@ -23,6 +23,7 @@ import { awardByKey } from '~/lib/awards'
 import { DoveIcon, HandsIcon, MOOD_STYLE, STEP_STYLE, stepStyle } from '~/components/Art'
 import { WeeklyScene, sceneFor, sceneForDay } from '~/components/WeeklyScene'
 import { WelcomeTour } from '~/components/WelcomeTour'
+import { StreakChip } from '~/components/StreakChip'
 
 export const Route = createFileRoute('/app/')({
   loader: async () => {
@@ -87,6 +88,7 @@ function Home() {
           {greeting()}, {firstName(h.name)}.
         </h1>
         <p className="text-on-photo mt-1 max-w-sm text-white/90">{site.home_message || 'One prayer. One Scripture. One day at a time.'}</p>
+        {h.streak && <StreakChip streak={h.streak} />}
       </section>
 
       {h.recovery && (
