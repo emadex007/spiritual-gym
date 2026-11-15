@@ -26,14 +26,14 @@ export function StreakChip({ streak }: { streak: Streak }) {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="mt-4 inline-flex items-center gap-2 rounded-full bg-black/30 py-1.5 pr-3.5 pl-2 text-sm font-semibold text-white backdrop-blur-sm ring-1 ring-white/25"
+        className="mt-4 inline-flex items-center gap-2 whitespace-nowrap rounded-full bg-black/30 py-1.5 pr-3.5 pl-2 text-sm font-semibold text-white backdrop-blur-sm ring-1 ring-white/25"
         aria-label={`${label}. ${streak.activeToday ? 'Today is done.' : 'Do one thing today to keep it.'} Tap for more.`}
       >
         <span className={`grid h-6 w-6 place-items-center rounded-full ${streak.activeToday ? 'bg-gold text-navy' : 'bg-white/20 text-white'}`}>
           <LineIcon name="flame" className="h-3.5 w-3.5" />
         </span>
         {label}
-        {!streak.activeToday && n > 0 && <span className="font-normal text-white/80">· keep it today</span>}
+        {!streak.activeToday && n > 0 && <span className="hidden font-normal text-white/80 min-[360px]:inline">· keep it today</span>}
         {streak.activeToday && <LineIcon name="check" className="h-4 w-4 text-gold" />}
       </button>
       {open && <StreakSheet streak={streak} onClose={() => setOpen(false)} />}

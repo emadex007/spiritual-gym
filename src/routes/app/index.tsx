@@ -4,7 +4,7 @@ import { ListenBar } from '~/components/ListenBar'
 import { Link, createFileRoute, useRouter } from '@tanstack/react-router'
 import { getHome, saveCheckin } from '~/fns/home'
 import { getSiteSettings } from '~/fns/site'
-import { MOODS, STEP_LABELS, cornerName, roleEmoji } from '~/lib/content'
+import { MOODS, MOOD_COACH, STEP_LABELS, cornerName, roleEmoji } from '~/lib/content'
 import { UnderstandSheet } from '~/components/UnderstandSheet'
 import { firstName, greeting, mediaUrl } from '~/lib/util'
 import { bookSlug } from '~/lib/bible'
@@ -78,13 +78,16 @@ function Home() {
           </>
         )}
         <div className="absolute top-5 right-5 flex items-center gap-2">
+          <Link to="/app/coach" className="flex h-10 w-10 items-center justify-center rounded-full bg-white/15 text-white backdrop-blur" aria-label="Talk to Coach" title="Coach">
+            <LineIcon name="chatHeart" className="h-5 w-5" />
+          </Link>
           <NotificationBell />
           <Link to="/app/profile" className="rounded-full ring-2 ring-white/60" aria-label="Your profile">
             <Avatar name={h.name} src={h.avatar} />
           </Link>
         </div>
-        <p className="text-on-photo pr-24 text-sm text-white/85">{new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'Africa/Lagos' })}</p>
-        <h1 className="mt-1 pr-20 font-display text-3xl font-semibold tracking-tight break-words text-on-photo sm:pr-24">
+        <p className="text-on-photo pr-36 text-sm text-white/85">{new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'Africa/Lagos' })}</p>
+        <h1 className="mt-4 font-display text-3xl font-semibold tracking-tight break-words text-on-photo">
           {greeting()}, {firstName(h.name)}.
         </h1>
         <p className="text-on-photo mt-1 max-w-sm text-white/90">{site.home_message || 'One prayer. One Scripture. One day at a time.'}</p>
@@ -444,6 +447,13 @@ function CheckIn({ current, tuck = true }: { current: { mood: string; note: stri
         })}
       </div>
       {suggestion && <p className="fade-in mt-4 text-sm text-muted">{suggestion}</p>}
+      {mood && MOOD_COACH[mood] && (
+        <Link to="/app/coach" search={{ q: (note.trim() ? `${MOOD_COACH[mood].q} ${note.trim()}` : MOOD_COACH[mood].q).slice(0, 500) }} className="fade-in mt-3 flex items-center gap-2.5 rounded-2xl bg-accent-soft/60 px-3.5 py-2.5 text-sm font-semibold text-accent transition hover:bg-accent-soft">
+          <LineIcon name="chatHeart" className="h-5 w-5 shrink-0" />
+          <span className="flex-1">{MOOD_COACH[mood].label}</span>
+          <span aria-hidden>→</span>
+        </Link>
+      )}
       {mood && !showNote && (
         <button type="button" onClick={() => setShowNote(true)} className="mt-3 text-sm font-semibold text-accent">
           {current?.note ? 'Edit what’s on your heart' : '+ What’s on your heart today?'}

@@ -38,6 +38,16 @@ export const MOODS = [
 
 export type MoodKey = (typeof MOODS)[number]['key']
 
+/** After the check-in: what Coach offers for each mood, and the first line it fills in for you */
+export const MOOD_COACH: Record<string, { label: string; q: string }> = {
+  dry: { label: 'Feeling dry? Talk it through with Coach', q: 'I feel dry and far from God today.' },
+  tired: { label: 'Tired? Talk it through with Coach', q: 'I’m tired and finding it hard to keep going.' },
+  okay: { label: 'Talk to Coach about your day', q: 'Today is an okay day. Help me make room for God in it.' },
+  encouraged: { label: 'Tell Coach what encouraged you', q: 'I feel encouraged today. ' },
+  hungry: { label: 'Ask Coach how to go deeper', q: 'I’m hungry for more of God. How can I go deeper?' },
+  strong: { label: 'Ask Coach how to grow from here', q: 'I feel strong in God today. How can I grow and help others?' },
+}
+
 export const LEVELS: Record<string, { label: string; range: string }> = {
   recovery: { label: 'Recovery', range: '5–15 min' },
   build: { label: 'Build', range: '15–30 min' },

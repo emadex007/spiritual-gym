@@ -30,6 +30,9 @@ Free Christian spiritual-growth web app (installable PWA) at therenewgym.org. Ow
 - Notifications: `src/lib/notify.ts`, `public/sw.js` (focus mode), `src/lib/push-client.ts` (`syncPush` self-repair).
 
 ## Change log (newest first)
+- 2026-11-15 · Coach easier to find: chat button at the top of Home (next to the bell), a mood-matched link after the
+  check-in (`MOOD_COACH` in `src/lib/content.ts`; adds the check-in note) that opens `/app/coach?q=…` with the message box
+  filled in (never sent by itself), a "Talk to Coach" card at the top of Explore, and a Coach screen in the welcome tour.
 - 2026-11-15 · Offline Bible: "Read without internet" card on the Bible page (`src/components/OfflineBible.tsx`,
   `src/lib/offline.ts`) saves all 66 books of a translation into the `sg-offline` cache (kept across service-worker
   versions; list in localStorage `sg-offline-bibles`). `public/offline.html` is now a small self-contained Bible reader
