@@ -30,6 +30,13 @@ Free Christian spiritual-growth web app (installable PWA) at therenewgym.org. Ow
 - Notifications: `src/lib/notify.ts`, `public/sw.js` (focus mode), `src/lib/push-client.ts` (`syncPush` self-repair).
 
 ## Change log (newest first)
+- 2026-11-15 · Offline Bible: "Read without internet" card on the Bible page (`src/components/OfflineBible.tsx`,
+  `src/lib/offline.ts`) saves all 66 books of a translation into the `sg-offline` cache (kept across service-worker
+  versions; list in localStorage `sg-offline-bibles`). `public/offline.html` is now a small self-contained Bible reader
+  (opens at `sg-last-read`, translation/book/chapter, prev/next, text size, app theme, Biblica credits). New
+  `public/bible/kjv/` (plain KJV for offline). `sw.js` v9: static files also served from `sg-offline`.
+  Data fix: the Strong's KJV source cut the end off ~3,450 verses; repaired from ebible.org's public-domain KJV
+  (matched by wording, since its verse numbering differs in places) and HTML entities unescaped.
 - 2026-11-15 · Bible study: cross-references and Hebrew/Greek words (Strong's). Static data in `public/xref/<bookId>.json`
   (OpenBible.info, CC BY, ≥3 votes, top 10 per verse), `public/strongs/kjv/<bookId>.json` (KJV with [H/G] tags, all 31,102
   verses) and `public/strongs/lex/{H,G}<n/250>.json` (Open Scriptures Strong's, CC BY-SA). Client helpers in
