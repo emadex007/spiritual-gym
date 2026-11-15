@@ -24,6 +24,8 @@ import { DoveIcon, HandsIcon, MOOD_STYLE, STEP_STYLE, stepStyle } from '~/compon
 import { WeeklyScene, sceneFor, sceneForDay } from '~/components/WeeklyScene'
 import { WelcomeTour } from '~/components/WelcomeTour'
 import { StreakChip } from '~/components/StreakChip'
+import { GrowthCard } from '~/components/Growth'
+import { ringsFor } from '~/lib/growth'
 
 export const Route = createFileRoute('/app/')({
   loader: async () => {
@@ -213,6 +215,14 @@ function Home() {
 
 
       <SectionTitle>Your progress</SectionTitle>
+      {h.streak && (
+        <GrowthCard
+          rings={ringsFor({ todayMinutes: h.todayMinutes, goalMinutes: h.goalMinutes, todayByKind: h.todayByKind, todayKinds: h.streak.todayKinds })}
+          todayMinutes={h.todayMinutes}
+          goalMinutes={h.goalMinutes}
+          total={h.streak.total}
+        />
+      )}
       <section className="card mt-3">
         <p className="text-sm text-muted">Sessions that included each part, since you started</p>
         {h.totalSessions === 0 ? (

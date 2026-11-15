@@ -20,6 +20,7 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
       { icon: 'smile', title: 'Daily check-in', text: 'Say how you feel today and get a workout that fits, with gentler ones for hard days.' },
       { icon: 'home', title: 'Home dashboard', text: 'Today’s workout, the verse of the day, your minutes, and everything you’re following in one place.', isNew: true },
       { icon: 'flame', title: 'Days with God streak, with grace days', text: 'Any one thing a day keeps your streak: a workout, a plan or book reading, a retreat day, the daily quiz or Night mode. Miss one day and it’s forgiven: one grace day a week.', to: '/app', isNew: true },
+      { icon: 'sprout', title: 'Today’s rings and your growth tree', text: 'Three rings fill each day: time with God, the Word and prayer. A tree grows with every day you spend with God, from a seed to a tree by the rivers (Psalm 1:3).', to: '/app', isNew: true },
       { icon: 'trophy', title: 'Medals', text: 'Celebrate your progress. Medals are personal: there are no leaderboards.' },
     ],
   },
