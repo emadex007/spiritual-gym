@@ -29,8 +29,8 @@ self.addEventListener('fetch', (e) => {
     return
   }
 
-  // Build files (hashed names), Bible books, icons and uploaded images never change: cache first
-  if (/^\/(assets|bible|icons|media)\//.test(url.pathname) || url.pathname === '/favicon.png') {
+  // Build files (hashed names), Bible books, study data, icons and uploaded images never change: cache first
+  if (/^\/(assets|bible|xref|strongs|icons|media)\//.test(url.pathname) || url.pathname === '/favicon.png') {
     e.respondWith(
       caches.open(STATIC).then(async (cache) => {
         const hit = await cache.match(req)

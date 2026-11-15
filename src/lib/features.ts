@@ -29,6 +29,8 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
     intro: 'Read, understand and remember Scripture.',
     color: '#3f7cc0',
     items: [
+      { icon: 'link', title: 'Cross-references', text: 'Tap a verse and see up to 10 verses that connect to it, with their words, and jump straight there.', to: '/app/bible', isNew: true },
+      { icon: 'search', title: 'Hebrew and Greek words', text: 'Tap a verse, then any word, to see the original Hebrew or Greek word, how to say it, what it means and how the KJV translates it (Strong’s).', to: '/app/bible', isNew: true },
       { icon: 'image', title: 'Verse pictures', text: 'Turn any verse into a picture: 7 backgrounds or your own photo, 3 fonts, sizes for posts and WhatsApp status. Share or save.', to: '/app/verse-art', isNew: true },
       { icon: 'bible', title: 'The whole Bible (KJV)', text: 'Search, highlight in colours, take notes, and have chapters read aloud to you.', to: '/app/bible' },
       { icon: 'sparkles', title: 'Topic plans', text: 'Daily readings on what you’re facing: anxiety, marriage, hope, fear, healing, temptation and more. 3 days to 4 months, each with Scripture and a prayer.', to: '/app/topics', isNew: true },

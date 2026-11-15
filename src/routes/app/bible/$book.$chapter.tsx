@@ -8,6 +8,7 @@ import { VERSE_COLORS, verseColor } from '~/lib/content'
 import { TRANSLATIONS, bookFromSlug, bookSlug, formatReference, type TranslationCode } from '~/lib/bible'
 import { ShareButton } from '~/components/ShareButton'
 import { VerseArtSheet } from '~/components/VerseArtMaker'
+import { WordsSheet, XrefSheet } from '~/components/StudySheets'
 import { ChapterSheet, UnderstandSheet } from '~/components/UnderstandSheet'
 import { ListenBar } from '~/components/ListenBar'
 import { ChapterQuizSheet } from '~/components/Games'
@@ -45,6 +46,7 @@ function Reader() {
   const keep = (b: number, c: number) => (inPlan && dayChapters(search.pk, search.day).some((x) => x.book === b && x.chapter === c) ? search : {})
   const [selected, setSelected] = useState<number[]>([])
   const [picture, setPicture] = useState(false)
+  const [study, setStudy] = useState<{ kind: 'xref' | 'words'; verse: number } | null>(null)
   const [size, setSize] = useState(1)
   const [msg, setMsg] = useState<string | null>(null)
   const [tr, setTr] = useState<TranslationCode>('KJV')
@@ -227,7 +229,7 @@ function Reader() {
       <button type="button" onClick={() => setListen(true)} className="mt-4 ml-2 inline-flex items-center gap-2 rounded-full border border-line bg-surface px-4 py-2 text-sm font-semibold transition hover:border-accent">
         <LineIcon name="volume" className="h-4 w-4" />Listen
       </button>
-      <p className="mt-2 text-xs text-muted">Tip: tap a verse to colour it, save it to your journal, share it or have it explained.</p>
+      <p className="mt-2 text-xs text-muted">Tip: tap a verse to colour it, save it, share it, have it explained, see related verses or the original Hebrew and Greek words.</p>
 
       <article className={`mt-8 space-y-1 font-display leading-[1.7] ${SIZES[size]}`}>
         {verses.map((v) => {
@@ -305,6 +307,8 @@ function Reader() {
               {contiguous && sorted.length <= 12 && (
                 <button type="button" onClick={() => setUnderstand(formatReference(book.id, chapter, sorted[0], sorted[sorted.length - 1]))} className="rounded-full bg-white/10 px-3 py-2 text-xs font-semibold"><LineIcon name="lightbulb" className="mr-1 inline h-4 w-4 -translate-y-px" />Understand</button>
               )}
+              <button type="button" onClick={() => setStudy({ kind: 'xref', verse: sorted[0] })} className="rounded-full bg-white/10 px-3 py-2 text-xs font-semibold"><LineIcon name="link" className="mr-1 inline h-4 w-4 -translate-y-px" />{sorted.length > 1 ? `Cross-refs (v${sorted[0]})` : 'Cross-references'}</button>
+              <button type="button" onClick={() => setStudy({ kind: 'words', verse: sorted[0] })} className="rounded-full bg-white/10 px-3 py-2 text-xs font-semibold"><LineIcon name="search" className="mr-1 inline h-4 w-4 -translate-y-px" />{book.id <= 39 ? 'Hebrew' : 'Greek'} words</button>
               <button type="button" onClick={memorize} className="rounded-full bg-white/10 px-3 py-2 text-xs font-semibold"><LineIcon name="gem" className="mr-1 inline h-4 w-4 -translate-y-px" />Memorise</button>
               <button type="button" onClick={copy} className="rounded-full bg-white/10 px-3 py-2 text-xs font-semibold">Copy</button>
             </div>
@@ -312,6 +316,8 @@ function Reader() {
         </div>
       )}
       {understand && <UnderstandSheet reference={understand} onClose={() => setUnderstand(null)} />}
+      {study?.kind === 'xref' && <XrefSheet bookId={book.id} chapter={chapter} verse={study.verse} onClose={() => setStudy(null)} />}
+      {study?.kind === 'words' && <WordsSheet bookId={book.id} chapter={chapter} verse={study.verse} onClose={() => setStudy(null)} />}
       {picture && selected.length > 0 && <VerseArtSheet text={text} reference={ref} translation={trLabel} onClose={() => setPicture(false)} />}
       {listen && (
         <ListenBar

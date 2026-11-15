@@ -6,3 +6,16 @@ YOR: Biblica® ní oore ọ̀fẹ́ láti lo Bíbélì Mímọ́ ní Èdè Yorù
 IBO: Biblica® Baịbụlụ Nsọ nʼIgbo Ndị Ugbu a nke dịrị onye ọbụla ịgụ. Copyright © 2020 Biblica, Inc.
 HAU: Biblica® Buɗaɗɗen Littafi Mai Tsarki, Sabon Rai Don Kowa™. Copyright © 2020 Biblica, Inc.
 YOR, IBO, HAU: licensed under the Creative Commons Attribution-ShareAlike 4.0 International License (CC BY-SA 4.0), https://creativecommons.org/licenses/by-sa/4.0/. The original works by Biblica, Inc. are available for free at www.biblica.com and open.bible. Text unchanged (verses merged into the verse before are left out as separate empty lines). Source: ebible.org via github.com/BibleNLP/ebible.
+
+----------------------------------------------------------------------
+Cross-references (public/xref/)
+From OpenBible.info (https://www.openbible.info/labs/cross-references/), licensed CC BY.
+Only references with 3+ votes are kept, up to 10 per verse, most agreed-on first.
+
+KJV with Strong's numbers (public/strongs/kjv/)
+The King James Version and James Strong's numbering (1890) are in the public domain.
+Tagged text taken from github.com/kaiserlik/kjv.
+
+Strong's Hebrew and Greek dictionaries (public/strongs/lex/)
+Copyright 2010, Open Scriptures (github.com/openscriptures/strongs). CC BY-SA.
+Derived from public-domain sources cleaned by David Instone-Brewer; transliterations by David Troidl.
