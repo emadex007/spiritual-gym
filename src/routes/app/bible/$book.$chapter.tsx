@@ -7,6 +7,7 @@ import { getVerseMarks, saveVerseToJournal, setVerseMarks } from '~/fns/verses'
 import { VERSE_COLORS, verseColor } from '~/lib/content'
 import { TRANSLATIONS, bookFromSlug, bookSlug, formatReference, type TranslationCode } from '~/lib/bible'
 import { ShareButton } from '~/components/ShareButton'
+import { VerseArtSheet } from '~/components/VerseArtMaker'
 import { ChapterSheet, UnderstandSheet } from '~/components/UnderstandSheet'
 import { ListenBar } from '~/components/ListenBar'
 import { ChapterQuizSheet } from '~/components/Games'
@@ -43,6 +44,7 @@ function Reader() {
   const inPlan = !!search.plan && dayChapters(search.pk, search.day).some((c) => c.book === book.id && c.chapter === chapter)
   const keep = (b: number, c: number) => (inPlan && dayChapters(search.pk, search.day).some((x) => x.book === b && x.chapter === c) ? search : {})
   const [selected, setSelected] = useState<number[]>([])
+  const [picture, setPicture] = useState(false)
   const [size, setSize] = useState(1)
   const [msg, setMsg] = useState<string | null>(null)
   const [tr, setTr] = useState<TranslationCode>('KJV')
@@ -297,6 +299,9 @@ function Reader() {
                   text={`“${text}” (${ref} ${trLabel})`}
                 />
               )}
+              {contiguous && text.length <= 900 && (
+                <button type="button" onClick={() => setPicture(true)} className="rounded-full bg-white/10 px-3 py-2 text-xs font-semibold"><LineIcon name="image" className="mr-1 inline h-4 w-4 -translate-y-px" />Picture</button>
+              )}
               {contiguous && sorted.length <= 12 && (
                 <button type="button" onClick={() => setUnderstand(formatReference(book.id, chapter, sorted[0], sorted[sorted.length - 1]))} className="rounded-full bg-white/10 px-3 py-2 text-xs font-semibold"><LineIcon name="lightbulb" className="mr-1 inline h-4 w-4 -translate-y-px" />Understand</button>
               )}
@@ -307,6 +312,7 @@ function Reader() {
         </div>
       )}
       {understand && <UnderstandSheet reference={understand} onClose={() => setUnderstand(null)} />}
+      {picture && selected.length > 0 && <VerseArtSheet text={text} reference={ref} translation={trLabel} onClose={() => setPicture(false)} />}
       {listen && (
         <ListenBar
           key={`${book.id}-${chapter}-${tr}`}

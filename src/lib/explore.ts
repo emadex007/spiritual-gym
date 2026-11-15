@@ -12,6 +12,7 @@ export const EXPLORE: ExploreGroup[] = [
       { to: '/app/topics', icon: 'calendar', title: 'Plans', text: 'Topic plans, Bible plans and books, a little each day' },
       { to: '/app/journal/memory', icon: 'gem', title: 'Memory verses', text: 'Learn Scripture by heart' },
       { to: '/app/understand', icon: 'lightbulb', title: 'Understand', text: 'What a verse means and how to live it' },
+      { to: '/app/verse-art', icon: 'image', title: 'Verse pictures', text: 'Turn a verse into a picture to share' },
       { to: '/app/games', icon: 'puzzle', title: 'Bible games', text: 'Daily quiz and word games' },
     ],
   },
