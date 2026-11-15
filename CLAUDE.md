@@ -30,6 +30,10 @@ Free Christian spiritual-growth web app (installable PWA) at therenewgym.org. Ow
 - Notifications: `src/lib/notify.ts`, `public/sw.js` (focus mode), `src/lib/push-client.ts` (`syncPush` self-repair).
 
 ## Change log (newest first)
+- 2026-11-15 · Celebrations: `celebrate({ title, sub, big, share })` from `src/components/Celebrate.tsx` (host mounted in
+  `src/routes/app.tsx`, also on immersive pages). Small = confetti + toast for a day done (Bible plan, topic plan, book,
+  retreat); big = a "finished" card with 2 Timothy 4:7 and Share for a whole plan, book or retreat (skipped in favour of a
+  small toast when a medal is also shown). Light haptic; no motion with reduced-motion.
 - 2026-11-15 · Smarter AI. `askCoach(system, messages, maxTokens, task)`: task coach | study | sermon | other picks the
   Claude model per area (Admin → AI coach → "How clever the AI is": Smart = `claude-sonnet-5` (default), Fast = Haiku 4.5;
   settings `ai_quality_<task>` in `secure_settings`; Smart falls back to Fast if unavailable; Workers AI unchanged).

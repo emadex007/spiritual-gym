@@ -1,5 +1,6 @@
 import { useState, type ReactNode } from 'react'
 import { Link, createFileRoute, useNavigate, useRouter } from '@tanstack/react-router'
+import { celebrate } from '~/components/Celebrate'
 import { getTopicDay, getTopicPlan, joinCircle, markTopicDay, startTopicPlan, stopTopicPlan } from '~/fns/topics'
 import { findReferences } from '~/lib/bible'
 import { plural } from '~/lib/topics'
@@ -207,7 +208,13 @@ function TopicPlan() {
                   disabled={busy}
                   onClick={() =>
                     run(async () => {
-                      await markTopicDay({ data: { id: mine!.id, day, done: !isDone } })
+                      const res = await markTopicDay({ data: { id: mine!.id, day, done: !isDone } })
+                      if (!isDone)
+                        celebrate(
+                          res.finished
+                            ? { big: true, title: 'Plan finished!', sub: `You finished “${p.title}”. Well done.`, share: `I just finished the plan “${p.title}” on TheRenewGym. 🙌` }
+                            : { title: `Day ${day} done`, sub: day + 1 <= mine!.today ? 'Well done. The next day is ready.' : 'Well done. See you tomorrow.' },
+                        )
                       if (!isDone && day < p.days && day + 1 <= mine!.today) await go(day + 1)
                     })
                   }

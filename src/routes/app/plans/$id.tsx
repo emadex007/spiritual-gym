@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { celebrate } from '~/components/Celebrate'
 import { Link, createFileRoute, useRouter } from '@tanstack/react-router'
 import { BackLink } from '~/components/BackLink'
 import { addPlanNote, deletePlanNote, getMyPlan, markPlanDay, stopPlan } from '~/fns/plans'
@@ -32,6 +33,13 @@ function MyPlan() {
   const search = Route.useSearch()
   const [won, setWon] = useState<AwardDef[]>(() => (search.won ?? '').split(',').flatMap((w) => { const [k, t] = w.split(':'); const a = awardByKey(k); return a ? [{ ...a, times: Number(t) || 1 }] : [] }))
   const [justRead] = useState(search.done)
+  // Arrived from the Bible reader after finishing a day's reading
+  useEffect(() => {
+    if (!justRead) return
+    const finished = d.plan.status === 'completed'
+    if (finished && !won.length) celebrate({ big: true, title: 'Plan finished!', sub: `You read all of ${d.plan.title}. Well done.`, share: `I just finished “${d.plan.title}” on TheRenewGym, reading the Bible a little every day. 🙌` })
+    else celebrate({ title: `Day ${justRead} done`, sub: finished ? `You finished ${d.plan.title}!` : 'Well done. Your next reading is ready.' })
+  }, [])
   const [note, setNote] = useState('')
   const [share, setShare] = useState(!!d.circle)
   const [msg, setMsg] = useState<string | null>(null)
@@ -43,10 +51,16 @@ function MyPlan() {
   const inviteLink = d.circle ? `${typeof location !== 'undefined' ? location.origin : ''}/app/plans/join/${d.circle.invite_code}` : ''
 
   async function toggle(dayNo: number) {
-    const r = await markPlanDay({ data: { userPlanId: d.plan.id, day: dayNo, done: !done.has(dayNo) } })
+    const marking = !done.has(dayNo)
+    const r = await markPlanDay({ data: { userPlanId: d.plan.id, day: dayNo, done: marking } })
+    if (marking) celebrateDay(dayNo, r.finished, !!r.awards?.length)
     if (r.awards?.length) setWon(r.awards)
     await router.invalidate()
     if (!done.has(dayNo) && dayNo === sel && dayNo < d.days.length) setSel(dayNo + 1)
+  }
+  function celebrateDay(dayNo: number, finished: boolean, medal: boolean) {
+    if (finished && !medal) celebrate({ big: true, title: 'Plan finished!', sub: `You read all of ${d.plan.title}. Well done.`, share: `I just finished “${d.plan.title}” on TheRenewGym, reading the Bible a little every day. 🙌` })
+    else celebrate({ title: `Day ${dayNo} done`, sub: finished ? `You finished ${d.plan.title}!` : 'Well done. See you tomorrow.' })
   }
   async function saveNote() {
     setMsg(null)
