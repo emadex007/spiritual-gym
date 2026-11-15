@@ -275,6 +275,16 @@ export const testimonyCategory = (k: string) => TESTIMONY_CATEGORIES.find((c) =>
 export const SERMON_AUDIENCES = ['General congregation', 'Youths', 'Teens', 'Children', 'Workers', 'Leaders', 'Men', 'Women', 'Couples', 'New believers'] as const
 export const SERMON_SERVICES = ['Sunday service', 'Bible study', 'Midweek service', 'Communion service', 'Thanksgiving service', 'Vigil / night of prayer', 'Revival / crusade', 'Youth meeting', 'Workers’ meeting', 'Funeral / memorial', 'Wedding'] as const
 export const SERMON_MINUTES = [30, 45, 60] as const
+/** How the sermon is preached. `how` goes to the AI. */
+export const SERMON_STYLES = [
+  { key: 'teaching', label: 'Teaching', note: 'Explains clearly, step by step', how: 'A teaching sermon: explain the truth clearly and logically, with definitions, numbered points and notes people can write down.' },
+  { key: 'expository', label: 'Verse by verse', note: 'Walks through the passage', how: 'An expository sermon: walk through the main passage in order, verse by verse or section by section, letting the text set the points; each point comes from the passage itself.' },
+  { key: 'story', label: 'Storytelling', note: 'Carried by a story and vivid pictures', how: 'A narrative sermon: tell the Bible story vividly (setting, people, tension, turning point), pause at key moments to draw out the truth, and use rich everyday illustrations. Let the story carry the message.' },
+  { key: 'exhortation', label: 'Exhortation', note: 'Stirring, bold, faith-building', how: 'An exhortation: teach the truth, then stir faith boldly with strong, Scripture-anchored declarations, repetition the congregation can say back, and a rising call to action. Fire with substance, never hype.' },
+  { key: 'evangelistic', label: 'Evangelistic', note: 'Reaches people who don’t know Jesus', how: 'An evangelistic sermon: speak to people who may not know Jesus; explain sin, grace, the cross and the resurrection simply, answer common doubts kindly, and lead to a clear, gentle invitation to follow Christ.' },
+  { key: 'devotional', label: 'Devotional', note: 'Gentle and reflective', how: 'A devotional message: gentle, reflective and intimate; speak to the heart, linger on God’s character and love, use quiet moments and questions, and lead people into worship and surrender.' },
+] as const
+export type SermonStyle = (typeof SERMON_STYLES)[number]['key']
 
 /** When "praying in tongues" is switched off, those steps become personal prayer (used on the server and on the workout screen).
  *  If that lands next to a Prayer step, the two join into one longer prayer time. */

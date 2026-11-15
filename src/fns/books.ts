@@ -236,7 +236,7 @@ Scriptures
 Living it out
 (1-3 short practical sentences, and a one-line prayer starting "Lord,".)
 Stay faithful to the Bible. Keep it under 220 words. No markdown symbols.`
-    const body = await askCoach(system, [{ role: 'user', content: data.text }], 600).catch((e) => {
+    const body = await askCoach(system, [{ role: 'user', content: data.text }], 800, 'study').catch((e) => {
       throw e instanceof Error ? e : new Error('Couldn’t explain this right now.')
     })
     if (!body) throw new Error('Explanations aren’t switched on yet. (Admin → AI coach)')

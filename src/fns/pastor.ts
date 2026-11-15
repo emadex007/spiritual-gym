@@ -3,7 +3,7 @@ import { db } from '~/lib/env'
 import { communityAccess, requireCommunityUser, requireUser } from '~/lib/auth'
 import { askCoach, coachReady } from '~/lib/coach'
 import { composeSermon, reviseSermonText } from '~/lib/sermon'
-import { SERMON_AUDIENCES, SERMON_MINUTES, SERMON_SERVICES, cleanRole } from '~/lib/content'
+import { SERMON_AUDIENCES, SERMON_MINUTES, SERMON_SERVICES, SERMON_STYLES, cleanRole, type SermonStyle } from '~/lib/content'
 import { dayString, newId } from '~/lib/util'
 
 const clean = (v: unknown, max: number) => String(v ?? '').trim().slice(0, max)
@@ -179,7 +179,7 @@ APPLICATION: 2–3 practical steps for this week.
 CLOSING: a short prayer or response/altar-call idea.
 Write Scripture references only inside [[double brackets]] and never quote verse text. Keep it under 300 words.`
     const prompt = `Sermon title: ${data.title || '(none yet)'}\nMain Scripture: ${data.scripture || '(choose a fitting one)'}${data.bigIdea ? `\nThe preacher's big idea: ${data.bigIdea}` : ''}${data.audience ? `\nAudience: ${data.audience}` : ''}`
-    const out = await askCoach(system, [{ role: 'user', content: prompt }])
+    const out = await askCoach(system, [{ role: 'user', content: prompt }], 900, 'sermon')
     if (!out) throw new Error('The AI helper isn’t switched on yet (Admin → AI coach).')
     await log(user.id, 'ai').run()
     return { text: out.replace(/\[\[([^\]]+)\]\]/g, '$1').replace(/[*#]+/g, '').trim() }
@@ -274,7 +274,7 @@ export const menteeAction = createServerFn({ method: 'POST' })
  *  about 5 points (explanation, Scriptures in exact KJV, Bible and everyday examples, steps, mistakes), application, warnings,
  *  takeaways, conclusion, response moment, prayer points with Scriptures, declarations, closing prayer and benediction. */
 export const writeSermon = createServerFn({ method: 'POST' })
-  .validator((d: { title: string; scripture?: string; bigIdea?: string; church?: string; audience?: string; service?: string; minutes?: number; altarCall?: boolean }) => {
+  .validator((d: { title: string; scripture?: string; bigIdea?: string; church?: string; audience?: string; service?: string; minutes?: number; altarCall?: boolean; style?: string; memorable?: boolean }) => {
     const topic = clean(d?.title, 120)
     const scripture = clean(d?.scripture, 120)
     if (!topic && !scripture) throw new Error('Add a topic or a main Scripture first.')
@@ -288,6 +288,8 @@ export const writeSermon = createServerFn({ method: 'POST' })
       service: pick(SERMON_SERVICES, d?.service, 'Sunday service'),
       minutes: (SERMON_MINUTES as readonly number[]).includes(Number(d?.minutes)) ? (Number(d?.minutes) as 30 | 45 | 60) : 45,
       response: d?.altarCall !== false,
+      style: SERMON_STYLES.some((x) => x.key === d?.style) ? (d!.style as SermonStyle) : ('teaching' as SermonStyle),
+      memorable: !!d?.memorable,
     }
   })
   .handler(async ({ data }) => {

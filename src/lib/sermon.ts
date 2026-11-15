@@ -4,6 +4,7 @@
 // Three AI calls: a short plan first, then the body and the response half in parallel (about half the waiting time).
 import { askCoach } from '~/lib/coach'
 import { lookupMany } from '~/lib/bible-db'
+import { SERMON_STYLES, type SermonStyle } from '~/lib/content'
 
 export type SermonInput = {
   topic: string
@@ -15,6 +16,8 @@ export type SermonInput = {
   minutes: 30 | 45 | 60
   response: boolean
   role?: string
+  style?: SermonStyle
+  memorable?: boolean
 }
 
 /** Headings the reader and the Word export make bold. Order = order in the finished sermon. */
@@ -39,6 +42,8 @@ export const SERMON_SECTIONS = [
   'PROPHETIC DECLARATIONS',
   'CLOSING PRAYER',
   'BENEDICTION',
+  'FOR SMALL GROUPS',
+  'QUOTES TO SHARE',
 ] as const
 
 const BASE = `You are an experienced Christian Bible teacher, preacher and sermon writer helping a minister prepare a sermon they will study, pray over and make their own.
@@ -52,6 +57,14 @@ PREACHING STYLE
 - Original languages: give a Hebrew or Greek word only when you are certain of it and its meaning (e.g. agape and phileo for love, pistis for faith, shalom for peace). Never invent word meanings. If a popular teaching is not actually in the Bible text (e.g. "eros" and "storge" are Greek words for love that the New Testament does not use), say so honestly.
 - Everyday examples should fit ordinary church members (family, market, work, school, business, traffic, farming, phones). Never name real living people.
 - Mainstream, Bible-based Christian teaching that respects all denominations. No prosperity hype, no pressure to give money, no attacks on other churches or faiths, no politics. Never promise specific outcomes that Scripture does not promise.
+
+CREATIVITY (what makes a sermon live)
+- Open with a hook that grips: a vivid true-to-life story, a striking question, a surprising fact from the Bible, or a scene people can see. Never open with "In today's world" or a dictionary definition.
+- Carry ONE central image or metaphor (the "thread") through the whole sermon and come back to it at the end, so the message feels like one piece.
+- Paint pictures: concrete details (the sound of the market, the heat of the bus park, a mother waiting at the school gate), real dialogue, short moments of tension and release.
+- Use the preacher's tools: contrast ("not … but …"), repetition of a key line, a question left hanging and answered later, a callback to the opening story.
+- Every point needs a fresh angle; avoid the obvious, generic thing every sermon on this topic says. Surprise people with what the text really says.
+- Retell Bible stories with life and accuracy: the setting, what people felt, what was at stake.
 
 SCRIPTURE RULE (very important)
 - Write every Bible reference ONLY in double square brackets with the full book name, e.g. [[John 15:5]], [[1 Samuel 17:45-47]], [[Psalm 23:1-3]]. One reference per brackets.
@@ -67,6 +80,8 @@ Before you answer, silently review your work for biblical accuracy, Scripture re
 
 const context = (s: SermonInput) =>
   [
+    s.style && `Preaching style: ${SERMON_STYLES.find((x) => x.key === s.style)?.how ?? ''}`,
+    s.memorable && 'Make the point headings memorable and easy to recall (parallel wording or alliteration, but never forced or silly).',
     `Sermon topic: ${s.topic || '(suggest a fitting one from the Scripture)'}`,
     `Main Scripture: ${s.scripture || '(choose a fitting passage)'}`,
     s.church && `Church / ministry: ${s.church}`,
@@ -82,9 +97,9 @@ const context = (s: SermonInput) =>
 
 const pointCount = (m: number) => (m === 30 ? 4 : 5)
 /** Words the AI writes (the KJV text we insert comes on top). */
-const BUDGET = { 30: { body: 2200, rest: 1500 }, 45: { body: 3000, rest: 2000 }, 60: { body: 3900, rest: 2600 } } as const
+const BUDGET = { 30: { body: 2200, rest: 1750 }, 45: { body: 3000, rest: 2250 }, 60: { body: 3900, rest: 2850 } } as const
 
-type Plan = { title: string; main: string; key: string; truth: string; points: string[] }
+type Plan = { title: string; main: string; key: string; truth: string; points: string[]; alts: string[]; hook: string; thread: string }
 
 function parsePlan(text: string, s: SermonInput): Plan {
   const line = (label: string) => text.match(new RegExp(`^\\s*${label}\\s*:\\s*(.+)$`, 'im'))?.[1]?.trim() ?? ''
@@ -96,11 +111,17 @@ function parsePlan(text: string, s: SermonInput): Plan {
     key: ref(line('KEY VERSES')),
     truth: line('CENTRAL TRUTH') || s.bigIdea,
     points,
+    alts: line('OTHER TITLES').split(/\s*[|;]\s*/).map((t) => t.replace(/^["“]|["”]$/g, '').trim()).filter((t) => t && t.length < 90).slice(0, 2),
+    hook: line('HOOK'),
+    thread: line('THREAD'),
   }
 }
 
-const planPrompt = (s: SermonInput) => `Plan a sermon. Reply with ONLY these lines, nothing else:
+const planPrompt = (s: SermonInput) => `Plan a sermon. Think about what is fresh and true in this Scripture before you answer. Reply with ONLY these lines, nothing else:
 TITLE: (clear, powerful, memorable, connected to the main Scripture${s.topic ? `; build it from the topic "${s.topic}"` : ''})
+OTHER TITLES: (two different strong title ideas, separated by " | ")
+HOOK: (one sentence: the opening story, scene or question that will grip people in the first minute)
+THREAD: (one sentence: the central image or metaphor that runs through the whole sermon and ties it together)
 ${s.scripture ? '' : 'MAIN SCRIPTURE: [[Book C:V-V]] (one passage, usually 3–15 verses)\n'}KEY VERSES: [[Book C:V-V]] (only if the main passage is longer than 10 verses: the 2–5 verses at its heart; otherwise write none)
 CENTRAL TRUTH: (one sentence the congregation should remember)
 ${Array.from({ length: pointCount(s.minutes) }, (_, i) => `POINT ${i + 1}: (a strong, distinct subheading — not generic, not repetitive)`).join('\n')}
@@ -112,7 +133,7 @@ const bodyPrompt = (s: SermonInput, p: Plan) => `Write the FIRST HALF of the ser
 Sermon title: ${p.title}
 Main Scripture: ${p.main}${p.key ? ` (key verses ${p.key})` : ''}
 Central truth: ${p.truth}
-Points (keep these subheadings, in this order):
+${p.hook ? `Opening hook to use: ${p.hook}\n` : ''}${p.thread ? `Central image to carry through: ${p.thread}\n` : ''}Points (keep these subheadings, in this order):
 ${p.points.length ? p.points.map((t, i) => `POINT ${i + 1}: ${t}`).join('\n') : `(write ${pointCount(s.minutes)} strong, distinct points)`}
 
 ${context(s)}
@@ -146,7 +167,7 @@ const restPrompt = (s: SermonInput, p: Plan) => `Write the SECOND HALF of the se
 Sermon title: ${p.title}
 Main Scripture: ${p.main}
 Central truth: ${p.truth}
-The points were:
+${p.thread ? `Central image used through the sermon (come back to it in the conclusion): ${p.thread}\n` : ''}The points were:
 ${p.points.map((t, i) => `${i + 1}. ${t}`).join('\n') || '(the points of this message)'}
 
 ${context(s)}
@@ -181,7 +202,11 @@ PROPHETIC DECLARATIONS:
 CLOSING PRAYER:
 (A heartfelt prayer that sums up the sermon and commits the congregation to God's grace, wisdom, strength, obedience and transformation, in Jesus' name.)
 BENEDICTION:
-(An appropriate biblical benediction: introduce it in one line, then its reference alone, e.g. [[Numbers 6:24-26]], [[2 Corinthians 13:14]], [[Hebrews 13:20-21]], [[Jude 1:24-25]], [[Romans 15:13]].)`
+(An appropriate biblical benediction: introduce it in one line, then its reference alone, e.g. [[Numbers 6:24-26]], [[2 Corinthians 13:14]], [[Hebrews 13:20-21]], [[Jude 1:24-25]], [[Romans 15:13]].)
+FOR SMALL GROUPS:
+(5 numbered discussion questions for a Bible study or house fellowship this week: start easy, go deeper, end with one about doing it.)
+QUOTES TO SHARE:
+(4 short, powerful lines from this sermon for the church's WhatsApp or social media, each on its own line starting with "- ". Under 25 words each; no references in brackets here.)`
 
 /** Clean the model's text: strip markdown, normalise headings */
 function tidy(text: string) {
@@ -221,21 +246,26 @@ async function mainScripture(p: Plan) {
 
 /** Write the complete sermon manuscript. Returns null when no AI is switched on. */
 export async function composeSermon(s: SermonInput): Promise<{ text: string; title: string } | null> {
-  const planText = await askCoach(BASE, [{ role: 'user', content: planPrompt(s) }], 500)
+  const planText = await askCoach(BASE, [{ role: 'user', content: planPrompt(s) }], 700, 'sermon')
   if (planText === null) return null
   const plan = parsePlan(tidy(planText), s)
   const b = BUDGET[s.minutes]
   const [body, rest] = await Promise.all([
-    askCoach(BASE, [{ role: 'user', content: bodyPrompt(s, plan) }], Math.min(7000, Math.round(b.body * 1.6))),
-    askCoach(BASE, [{ role: 'user', content: restPrompt(s, plan) }], Math.min(4800, Math.round(b.rest * 1.7))),
+    askCoach(BASE, [{ role: 'user', content: bodyPrompt(s, plan) }], Math.min(8000, Math.round(b.body * 1.6)), 'sermon'),
+    askCoach(BASE, [{ role: 'user', content: restPrompt(s, plan) }], Math.min(6000, Math.round(b.rest * 1.7)), 'sermon'),
   ])
   if (!body || !rest) throw new Error('The AI stopped part-way. Please tap Write again.')
 
   let second = tidy(rest)
-  if (!/^BENEDICTION:/m.test(second)) second += `\n\nBENEDICTION:\nNow receive the blessing of the Lord:\n[[2 Corinthians 13:14]]`
+  if (!/^BENEDICTION:/m.test(second)) {
+    const bless = `BENEDICTION:\nNow receive the blessing of the Lord:\n[[2 Corinthians 13:14]]`
+    const at = second.search(/^FOR SMALL GROUPS:/m)
+    second = at > 0 ? `${second.slice(0, at)}${bless}\n\n${second.slice(at)}` : `${second}\n\n${bless}`
+  }
   const head = [
     `SERMON TITLE:\n${plan.title}`,
     [s.church, s.service, s.audience !== 'General congregation' ? s.audience : '', `about ${s.minutes} minutes`].filter(Boolean).join(' · '),
+    plan.alts.length ? `Other title ideas: ${plan.alts.join(' · ')}` : '',
     await mainScripture(plan),
   ]
     .filter(Boolean)
@@ -272,7 +302,7 @@ Rewrite the sermon applying this request faithfully.
 - Keep every Bible reference in the [[Book C:V]] form. Never write out verse words. Any new reference must be real and genuinely support the point.
 - If the request asks for a new title, put "SERMON TITLE: the new title" as the very first line.
 - Return the complete revised sermon only, with no comments before or after it.`
-  const out = await askCoach(BASE, [{ role: 'user', content: prompt }], maxTokens)
+  const out = await askCoach(BASE, [{ role: 'user', content: prompt }], maxTokens, 'sermon')
   if (out === null) return null
   let revised = tidy(out).replace(/^---\s*|\s*---$/g, '')
   let title: string | undefined

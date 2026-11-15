@@ -30,6 +30,17 @@ Free Christian spiritual-growth web app (installable PWA) at therenewgym.org. Ow
 - Notifications: `src/lib/notify.ts`, `public/sw.js` (focus mode), `src/lib/push-client.ts` (`syncPush` self-repair).
 
 ## Change log (newest first)
+- 2026-11-15 · Smarter AI. `askCoach(system, messages, maxTokens, task)`: task coach | study | sermon | other picks the
+  Claude model per area (Admin → AI coach → "How clever the AI is": Smart = `claude-sonnet-5` (default), Fast = Haiku 4.5;
+  settings `ai_quality_<task>` in `secure_settings`; Smart falls back to Fast if unavailable; Workers AI unchanged).
+  Coach: deeper prompt (answer the real need, adaptive length, Bible questions taught in context), knows today's check-in,
+  streak, current plans/books and church (`aboutPerson` in `src/fns/coach.ts`), remembers 20 messages. Understand a
+  verse/chapter: new structure (In one sentence, The setting, Key words with Hebrew/Greek + Strong's when certain, What it
+  meant then, The bigger picture, Think about it…), the surrounding verses are sent as context; migration 0058 adds
+  `verse_insights.v`; `INSIGHT_VERSION = 2` so older explanations are rewritten when next opened. Renderers accept any
+  capitals heading. Sermons: preaching style (`SERMON_STYLES`: teaching, verse by verse, storytelling, exhortation,
+  evangelistic, devotional), memorable points option, a CREATIVITY brief (hook, one central image carried through, vivid
+  detail), plan returns OTHER TITLES / HOOK / THREAD, new sections FOR SMALL GROUPS and QUOTES TO SHARE.
 - 2026-11-15 · Coach easier to find: chat button at the top of Home (next to the bell), a mood-matched link after the
   check-in (`MOOD_COACH` in `src/lib/content.ts`; adds the check-in note) that opens `/app/coach?q=…` with the message box
   filled in (never sent by itself), a "Talk to Coach" card at the top of Explore, and a Coach screen in the welcome tour.

@@ -11,6 +11,8 @@ import { siteOrigin } from '~/lib/origin'
 import { buildWeekly, newToken, sendBatch } from '~/lib/weekly'
 import { BRAND_KEYS, DEFAULT_TAGLINE, cleanBrand } from '~/lib/brand'
 import { GROUP_KINDS } from '~/lib/content'
+import { aiQuality } from '~/lib/coach'
+import { AI_TASKS } from '~/lib/ai-tasks'
 
 const LEVELS = ['recovery', 'build', 'deepen', 'intensive']
 const STEP_KINDS = ['stillness', 'breathe', 'scripture', 'prayer', 'worship', 'reflection', 'thanksgiving', 'devotion', 'tongues']
@@ -941,7 +943,9 @@ export const adminCoachSettings = createServerFn({ method: 'GET' }).handler(asyn
     db().prepare(`SELECT COUNT(DISTINCT user_id) AS n FROM coach_messages WHERE created_at > datetime('now', '-7 days')`).first<{ n: number }>().catch(() => null),
     db().prepare(`SELECT COUNT(*) AS n FROM coach_messages WHERE role = 'user' AND flagged = 1 AND created_at > datetime('now', '-7 days')`).first<{ n: number }>().catch(() => null),
   ])
+  const quality = Object.fromEntries(await Promise.all(AI_TASKS.map(async (t) => [t.key, await aiQuality(t.key)] as const)))
   return {
+    quality,
     workersAi: !!env().AI,
     claudeKey: key?.value ? `••••${key.value.slice(-4)}` : '',
     stats: { today: today?.n ?? 0, week: week?.n ?? 0, people: users?.n ?? 0, crisis: flagged?.n ?? 0 },
@@ -963,6 +967,22 @@ export const adminSaveCoachKey = createServerFn({ method: 'POST' })
         .bind(data.key)
         .run()
     await audit(admin, 'coach.key', null, data.key === '__clear__' ? 'removed' : 'saved')
+    return { ok: true }
+  })
+
+/** Which Claude model each area uses: smart (Sonnet) or fast (Haiku) */
+export const adminSetAiQuality = createServerFn({ method: 'POST' })
+  .validator((d: { task: string; quality: string }) => {
+    if (!AI_TASKS.some((t) => t.key === d?.task)) throw new Error('Unknown area.')
+    return { task: d.task, quality: d?.quality === 'fast' ? 'fast' : 'smart' }
+  })
+  .handler(async ({ data }) => {
+    const admin = await requireAdmin()
+    await db()
+      .prepare(`INSERT INTO secure_settings (key, value) VALUES (?, ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value, updated_at = datetime('now')`)
+      .bind(`ai_quality_${data.task}`, data.quality)
+      .run()
+    await audit(admin, 'ai.quality', null, `${data.task}=${data.quality}`)
     return { ok: true }
   })
 
