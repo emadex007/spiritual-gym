@@ -30,6 +30,11 @@ Free Christian spiritual-growth web app (installable PWA) at therenewgym.org. Ow
 - Notifications: `src/lib/notify.ts`, `public/sw.js` (focus mode), `src/lib/push-client.ts` (`syncPush` self-repair).
 
 ## Change log (newest first)
+- 2026-11-15 · Night mode `/app/night` (`src/routes/app/night.tsx`, content in `src/lib/night.ts`, `getNight` in
+  `src/fns/night.ts`): settle → tonight's Scripture (31 bedtime passages, KJV from `bible_verses` via `lookupMany`, by day
+  of the year) → three look-back prompts with pauses → a prayer (14) → Numbers 6:24-26 blessing. Read aloud (rate 0.85) or
+  read yourself; background sound (default Quiet night); sleep timer 15–60 min fading out over the last minute; "Just the
+  sound". Home shows "Wind down with God" from 7pm (`EveningCard`); also in Explore → Prayer & worship.
 - 2026-11-15 · Background sounds (`src/lib/ambience.ts`: rain, waves, night made with Web Audio; levels matched to the calm
   music) via `WorkoutMusic(tracks, kind)`; `SoundPicker` in workout setup (`sg-sound`) and on the Listen bar
   (`sg-listen-sound`, off by default, stops on pause/close/finish). Read-along (Listen + highlighted paragraph) added to
