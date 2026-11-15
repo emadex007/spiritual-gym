@@ -30,6 +30,12 @@ Free Christian spiritual-growth web app (installable PWA) at therenewgym.org. Ow
 - Notifications: `src/lib/notify.ts`, `public/sw.js` (focus mode), `src/lib/push-client.ts` (`syncPush` self-repair).
 
 ## Change log (newest first)
+- 2026-11-15 · Whole-app review (88 pages, light + dark, phone): floating Support pill removed from app pages and the welcome
+  page (it covered buttons; giving is still "coming soon") → quiet "Support TheRenewGym" link in Profile (desktop sidebar
+  link kept). Legal pages header wraps on phones. Explore shows Coach once. Group page: Leave/Delete moved into a "⋯" menu.
+  Sermon editor "Add a verse" no longer squeezed. Admin → Books rows wrap so the title shows on phones. Dark mode: disabled
+  buttons are a grey pill instead of muddy gold; gold/red admin labels readable. Profile stats say "workouts / workout
+  days" (not to be confused with the streak). Understand button "Explain". Onboarding answers no longer touch the circle.
 - 2026-11-15 · Celebrations: `celebrate({ title, sub, big, share })` from `src/components/Celebrate.tsx` (host mounted in
   `src/routes/app.tsx`, also on immersive pages). Small = confetti + toast for a day done (Bible plan, topic plan, book,
   retreat); big = a "finished" card with 2 Timothy 4:7 and Share for a whole plan, book or retreat (skipped in favour of a

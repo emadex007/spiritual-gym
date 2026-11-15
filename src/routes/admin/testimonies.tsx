@@ -23,7 +23,7 @@ function AdminTestimonies() {
     <>
       <PageHead title="Testimonies" sub="Members share what God has done. Nothing appears on the wall until you approve it. You can correct small spelling mistakes before approving." />
       <div className="grid grid-cols-3 gap-3">
-        <Stat label="Waiting" value={list.filter((t) => t.status === 'pending').length} color="bg-gold/20 text-gold-ink" />
+        <Stat label="Waiting" value={list.filter((t) => t.status === 'pending').length} color="bg-gold/20 text-gold-ink dark:text-gold" />
         <Stat label="On the wall" value={list.filter((t) => t.status === 'approved').length} color="bg-sage-soft text-sage" />
         <Stat label="Amens & praises" value={list.reduce((a, t) => a + t.amens + t.praises, 0)} />
       </div>

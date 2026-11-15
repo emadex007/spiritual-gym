@@ -174,7 +174,7 @@ body {
     @apply text-xs font-semibold uppercase tracking-[0.14em] text-accent;
   }
   .option {
-    @apply flex w-full items-center justify-between rounded-2xl border border-line bg-surface px-5 py-4 text-left text-base font-medium transition hover:border-accent;
+    @apply flex w-full items-center justify-between gap-3 rounded-2xl border border-line bg-surface px-5 py-4 text-left text-base font-medium transition hover:border-accent;
   }
   .option-on {
     @apply border-navy ring-2 ring-navy/15 dark:border-gold dark:ring-gold/20;
@@ -292,3 +292,13 @@ a.card:active, button.card:active { transform: translateY(0) scale(0.99); }
 .celebrate-pop { animation: celebrate-pop 0.55s cubic-bezier(0.2, 1.4, 0.4, 1) both; }
 @keyframes celebrate-pop { from { transform: translateY(16px) scale(0.92); opacity: 0; } to { transform: none; opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { .celebrate-pop, .confetti { animation: none; } }
+
+/* Dark mode: a disabled gold button reads as muddy brown at half opacity, so it becomes a calm grey pill instead */
+[data-theme='dark'] .btn-primary:disabled,
+[data-theme='dark'] .btn-gold:disabled {
+  background-color: var(--surface-2);
+  color: var(--muted);
+  opacity: 1;
+  box-shadow: none;
+}
+[data-theme='dark'] .btn-gold:disabled::after { display: none; }

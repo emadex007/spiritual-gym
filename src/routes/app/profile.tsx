@@ -60,8 +60,8 @@ function Profile() {
 
       <div className="mt-6 grid grid-cols-3 gap-3">
         {[
-          [p.stats.sessions, 'sessions'],
-          [p.stats.days, 'days'],
+          [p.stats.sessions, 'workouts'],
+          [p.stats.days, 'workout days'],
           [p.stats.minutes, 'minutes'],
         ].map(([n, l]) => (
           <div key={l} className="card !p-4 text-center">
@@ -185,6 +185,7 @@ function Profile() {
           <Link to="/privacy">Privacy policy</Link>
           <Link to="/terms">Terms</Link>
           <Link to="/guidelines">Community guidelines</Link>
+          <a href="/give">Support TheRenewGym</a>
         </p>
         <button type="button" className="btn-ghost mt-4" onClick={logout}>
           Sign out

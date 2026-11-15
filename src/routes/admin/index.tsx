@@ -43,7 +43,7 @@ function Dashboard() {
       <p className="mt-8 mb-3 font-semibold">Community & Bible</p>
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Stat label="Community groups" value={s.community.groups} hint={`${s.community.postsWeek} posts this week`} color="bg-[#ebe8fd] text-[#5a4bd1]" />
-        <Stat label="Live in groups now" value={s.community.liveNow} hint={`${s.community.liveWeek} live joins this week`} color="bg-red-50 text-red-600" />
+        <Stat label="Live in groups now" value={s.community.liveNow} hint={`${s.community.liveWeek} live joins this week`} color="bg-red-50 text-red-600 dark:bg-red-500/20 dark:text-red-300" />
         <Link to="/admin/reports" className="block">
           <Stat label="Open reports" value={s.community.openReports} hint={s.community.openReports ? 'Tap to review' : 'All clear'} color={s.community.openReports ? 'bg-orange-100 text-orange-700' : 'bg-sage-soft text-sage'} />
         </Link>

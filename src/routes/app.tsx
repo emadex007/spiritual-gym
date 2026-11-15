@@ -12,7 +12,7 @@ import { NotificationBell } from '~/components/NotificationBell'
 import { getPushConfig, savePushSubscription } from '~/fns/notifications'
 import { syncPush } from '~/lib/push-client'
 import { InstallPrompt } from '~/components/InstallPrompt'
-import { SupportFloat, SupportLink } from '~/components/SupportButton'
+import { SupportLink } from '~/components/SupportButton'
 import { isInvite, safeNext } from '~/lib/next'
 
 export const Route = createFileRoute('/app')({
@@ -104,12 +104,6 @@ function AppLayout() {
         <Outlet />
       </div>
 
-      {/* Support pill (phones), kept out of the way of the plan reading bar and editors */}
-      {!pathname.startsWith('/app/bible/') && !pathname.endsWith('/manage') && (
-        <div className="md:hidden">
-          <SupportFloat />
-        </div>
-      )}
       <InstallPrompt />
       <UpdateBanner />
       <CelebrationHost />

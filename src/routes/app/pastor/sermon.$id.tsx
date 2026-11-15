@@ -144,7 +144,7 @@ function SermonEditor() {
       <label className="mt-3 block"><span className="label">Big idea: the one thing you want people to remember</span><textarea className="input" rows={2} value={f.bigIdea} onChange={set('bigIdea')} maxLength={400} /></label>
 
       <div className="mt-5 flex flex-wrap items-end gap-2">
-        <label className="block flex-1"><span className="label">Add a verse (KJV)</span><input className="input" placeholder="e.g. Romans 8:28" value={ref} onChange={(e) => setRef(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && ref.trim() && addVerse()} /></label>
+        <label className="block min-w-[13rem] flex-1"><span className="label">Add a verse (KJV)</span><input className="input" placeholder="e.g. Romans 8:28" value={ref} onChange={(e) => setRef(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && ref.trim() && addVerse()} /></label>
         <button className="btn-ghost" disabled={!ref.trim()} onClick={addVerse}>Insert</button>
         {!f.outline.trim() && <button className="btn-ghost" onClick={() => { setF({ ...f, outline: TEMPLATE }); setSaved(false) }}>Use outline template</button>}
         {aiReady && <button className="btn-ghost" disabled={busy === 'ai'} onClick={suggest}>{busy === 'ai' ? 'Thinking…' : <><LineIcon name="sparkles" className="h-4 w-4" />Suggest an outline</>}</button>}

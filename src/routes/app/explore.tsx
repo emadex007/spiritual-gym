@@ -11,7 +11,7 @@ export const Route = createFileRoute('/app/explore')({
 function Explore() {
   const [q, setQ] = useState('')
   const term = q.trim().toLowerCase()
-  const groups = EXPLORE.map((g) => ({ ...g, items: g.items.filter((i) => !term || `${i.title} ${i.text}`.toLowerCase().includes(term)) })).filter((g) => g.items.length)
+  const groups = EXPLORE.map((g) => ({ ...g, items: g.items.filter((i) => (term ? `${i.title} ${i.text}`.toLowerCase().includes(term) : i.to !== '/app/coach')) })).filter((g) => g.items.length)
 
   return (
     <main className="stagger mx-auto max-w-3xl px-5 pt-6 pb-12 md:pt-10">

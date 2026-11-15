@@ -30,14 +30,15 @@ function Books() {
       <div className="card divide-y divide-line !p-0">
         {books.length === 0 && <p className="p-5 text-sm text-muted">No books yet.</p>}
         {books.map((b) => (
-          <div key={b.id} className="flex items-center gap-3 p-3">
+          <div key={b.id} className="flex flex-wrap items-center gap-3 p-3">
             {b.cover_key ? <img src={mediaUrl(b.cover_key)} alt="" className="h-14 w-10 shrink-0 rounded object-cover" /> : <span className="flex h-14 w-10 shrink-0 items-center justify-center rounded bg-accent-soft/70 text-accent"><LineIcon name="bible" className="h-5 w-5" /></span>}
-            <div className="min-w-0 flex-1">
+            <div className="min-w-[10rem] flex-1">
               <p className="truncate font-semibold">{b.title}</p>
               <p className="truncate text-xs text-muted">
                 {[b.author, b.owner_name ? `added by ${b.owner_name}` : 'shared', `${b.pages} pages`, mb(b.size), b.share_status === 'approved' ? `in the library · ${b.readers} reading` : b.status === 'ready' || b.status === 'published' ? `${b.readers} reading` : b.status === 'rejected' ? `not added: ${b.check_note ?? 'not Christian'}` : 'upload not finished'].filter(Boolean).join(' · ')}
               </p>
             </div>
+            <div className="flex w-full items-center justify-end gap-2 sm:w-auto">
             {(b.status === 'ready' || b.status === 'published') && <AdminBookAccess b={b} compact />}
             <a href={`/app/books/${b.id}`} className="shrink-0 rounded-full bg-surface-2 px-3 py-1.5 text-sm font-semibold">Edit</a>
             <button
@@ -51,6 +52,7 @@ function Books() {
             >
               Delete
             </button>
+            </div>
           </div>
         ))}
       </div>

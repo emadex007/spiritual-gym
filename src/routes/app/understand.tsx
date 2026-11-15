@@ -38,8 +38,8 @@ function Understand() {
         <h1 className="mt-1 font-display text-3xl font-semibold text-navy">What does this Scripture really mean?</h1>
         <p className="mt-2 text-sm text-gold-ink">Type any verse, or a whole chapter like “Psalm 23”. You’ll get it explained simply: what it says, the background, key words, how to live it today, and a prayer. Then share it.</p>
         <form onSubmit={go} className="mt-4 flex gap-2">
-          <input className="input flex-1" placeholder="e.g. Romans 8:28 or Psalm 23" value={q} onChange={(e) => setQ(e.target.value)} maxLength={40} autoFocus aria-label="Scripture reference" />
-          <button type="submit" className="btn-primary shrink-0" disabled={!q.trim()}>Understand</button>
+          <input className="input flex-1" placeholder="e.g. Romans 8:28" value={q} onChange={(e) => setQ(e.target.value)} maxLength={40} autoFocus aria-label="Scripture reference" />
+          <button type="submit" className="btn-primary shrink-0 !px-5" disabled={!q.trim()}>Explain</button>
         </form>
         {hint && <p className="mt-2 text-sm text-red-700">{hint}</p>}
       </section>
