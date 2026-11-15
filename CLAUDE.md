@@ -30,6 +30,10 @@ Free Christian spiritual-growth web app (installable PWA) at therenewgym.org. Ow
 - Notifications: `src/lib/notify.ts`, `public/sw.js` (focus mode), `src/lib/push-client.ts` (`syncPush` self-repair).
 
 ## Change log (newest first)
+- 2026-11-15 · Dark mode: the light "on-light" boxes (Bible, Church, My songs, Walk with me, Understand, Verse pictures,
+  Plans, Pastor's Corner stats, Home recovery card, Profile help card, welcome page) are no longer bright cream/pink blocks.
+  In dark mode `.on-light` switches to the dark palette and an inset shadow tints over its gradient, keeping a hint of its
+  colour; `text-navy`, fixed `text-[#…]` text and `bg-white` chips inside adapt. Light mode unchanged.
 - 2026-11-15 · Whole-app review (88 pages, light + dark, phone): floating Support pill removed from app pages and the welcome
   page (it covered buttons; giving is still "coming soon") → quiet "Support TheRenewGym" link in Profile (desktop sidebar
   link kept). Legal pages header wraps on phones. Explore shows Coach once. Group page: Leave/Delete moved into a "⋯" menu.
