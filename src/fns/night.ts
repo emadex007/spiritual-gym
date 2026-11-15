@@ -2,6 +2,8 @@
 import { createServerFn } from '@tanstack/react-start'
 import { requireUser } from '~/lib/auth'
 import { lookupMany } from '~/lib/bible-db'
+import { markActive } from '~/lib/streak-server'
+import { checkAwards } from '~/lib/award-server'
 import { BLESSING_REF, NIGHT_PRAYERS, NIGHT_READINGS } from '~/lib/night'
 
 export const getNight = createServerFn({ method: 'GET' })
@@ -19,3 +21,11 @@ export const getNight = createServerFn({ method: 'GET' })
       prayer: NIGHT_PRAYERS[data.index % NIGHT_PRAYERS.length],
     }
   })
+
+/** Starting tonight's wind-down counts as a day with God */
+export const markNight = createServerFn({ method: 'POST' }).handler(async () => {
+  const user = await requireUser()
+  await markActive(user.id, 'night')
+  await checkAwards(user.id, 'active').catch(() => [])
+  return { ok: true }
+})

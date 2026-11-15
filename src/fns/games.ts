@@ -1,4 +1,5 @@
 import { createServerFn } from '@tanstack/react-start'
+import { markActive } from '~/lib/streak-server'
 import { db } from '~/lib/env'
 import { requireUser } from '~/lib/auth'
 import { dayString, newId } from '~/lib/util'
@@ -63,6 +64,7 @@ export const saveGameResult = createServerFn({ method: 'POST' })
       .prepare('INSERT INTO game_results (id, user_id, kind, ref, score, total, day) VALUES (?, ?, ?, ?, ?, ?, ?)')
       .bind(newId(), user.id, data.kind, data.kind === 'daily' ? today : data.ref, data.score, data.total, today)
       .run()
+    if (data.kind === 'daily') await markActive(user.id, 'quiz')
     const awards = await checkAwards(user.id, 'game', { perfect: data.score === data.total && data.total >= 5 && (data.kind === 'daily' || data.kind === 'chapter'), daily: data.kind === 'daily' })
     return { ok: true, awards }
   })

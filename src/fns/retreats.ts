@@ -1,4 +1,6 @@
 import { createServerFn } from '@tanstack/react-start'
+import { markActive } from '~/lib/streak-server'
+import { checkAwards } from '~/lib/award-server'
 import { db } from '~/lib/env'
 import { requireUser } from '~/lib/auth'
 import { retreatByKey } from '~/lib/retreats'
@@ -87,6 +89,8 @@ export const markRetreatDay = createServerFn({ method: 'POST' })
         .prepare(`INSERT INTO retreat_days_done (user_retreat_id, day, note) VALUES (?, ?, ?) ON CONFLICT(user_retreat_id, day) DO UPDATE SET note = CASE WHEN excluded.note <> '' THEN excluded.note ELSE note END`)
         .bind(data.id, data.day, data.note)
         .run()
+      await markActive(user.id, 'retreat')
+      await checkAwards(user.id, 'active').catch(() => [])
     } else {
       await db().prepare('DELETE FROM retreat_days_done WHERE user_retreat_id = ? AND day = ?').bind(data.id, data.day).run()
     }

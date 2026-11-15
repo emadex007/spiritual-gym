@@ -2,8 +2,9 @@
 import { db } from '~/lib/env'
 import { awardByKey, type AwardDef } from '~/lib/awards'
 import { dayString } from '~/lib/util'
+import { getStreak } from '~/lib/streak-server'
 
-export type AwardEvent = 'workout' | 'journey' | 'reading' | 'plan' | 'memory' | 'prayer' | 'walk' | 'fast' | 'testimony' | 'game'
+export type AwardEvent = 'workout' | 'journey' | 'reading' | 'plan' | 'memory' | 'prayer' | 'walk' | 'fast' | 'testimony' | 'game' | 'active'
 
 type Earn = { key: string; again?: boolean; daily?: boolean }
 
@@ -35,22 +36,8 @@ async function grant(userId: string, earns: Earn[]): Promise<AwardDef[]> {
   return won
 }
 
-/** Consecutive days (ending today or yesterday) with a completed workout */
-async function streak(userId: string) {
-  const { results } = await db()
-    .prepare('SELECT DISTINCT day FROM workout_sessions WHERE user_id = ? ORDER BY day DESC LIMIT 40')
-    .bind(userId)
-    .all<{ day: string }>()
-  const days = new Set(results.map((r) => r.day))
-  let d = new Date(dayString() + 'T00:00:00Z')
-  if (!days.has(dayString(d))) d = new Date(d.getTime() - 86_400_000)
-  let n = 0
-  while (days.has(d.toISOString().slice(0, 10))) {
-    n++
-    d = new Date(d.getTime() - 86_400_000)
-  }
-  return n
-}
+/** The current streak of days with God (any activity, with grace days) */
+const streak = async (userId: string) => (await getStreak(userId)).days
 
 export async function checkAwards(userId: string, event: AwardEvent, extra: { planKey?: string; fastDays?: number; perfect?: boolean; daily?: boolean; again?: boolean } = {}): Promise<AwardDef[]> {
   try {
@@ -66,9 +53,12 @@ export async function checkAwards(userId: string, event: AwardEvent, extra: { pl
       if (n >= 100) once('workouts_100')
       if ((s?.m ?? 0) >= 1000) once('minutes_1000')
       // A streak medal counts again on the day a NEW streak reaches it (3, 7 or 30 exactly)
+      if (event === 'journey') again('first_journey')
+    }
+    // Streak medals: any day with God counts (not only workouts)
+    if (['workout', 'journey', 'reading', 'plan', 'game', 'active'].includes(event)) {
       const st = await streak(userId)
       for (const [k, d] of [['streak_3', 3], ['streak_7', 7], ['streak_30', 30]] as const) if (st >= d) keys.push({ key: k, again: st === d, daily: true })
-      if (event === 'journey') again('first_journey')
     }
     if (event === 'reading') once('first_reading')
     if (event === 'plan') {

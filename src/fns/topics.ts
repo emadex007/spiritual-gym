@@ -1,4 +1,6 @@
 import { createServerFn } from '@tanstack/react-start'
+import { markActive } from '~/lib/streak-server'
+import { checkAwards } from '~/lib/award-server'
 import { announceNew } from '~/lib/public-news'
 import { db, env } from '~/lib/env'
 import { requireUser } from '~/lib/auth'
@@ -159,7 +161,11 @@ export const markTopicDay = createServerFn({ method: 'POST' })
     if (!me) throw new Error('Plan not found.')
     if (data.day < 1 || data.day > me.days) throw new Error('That day isn’t part of this plan.')
     if (data.done && data.day > todayOf(me.start_date, me.days)) throw new Error('That day hasn’t come yet. You can read ahead, and tick it on the day.')
-    if (data.done) await db().prepare('INSERT OR IGNORE INTO topic_days_done (user_plan_id, day) VALUES (?, ?)').bind(me.id, data.day).run()
+    if (data.done) {
+      await db().prepare('INSERT OR IGNORE INTO topic_days_done (user_plan_id, day) VALUES (?, ?)').bind(me.id, data.day).run()
+      await markActive(user.id, 'topic')
+      await checkAwards(user.id, 'active').catch(() => [])
+    }
     else await db().prepare('DELETE FROM topic_days_done WHERE user_plan_id = ? AND day = ?').bind(me.id, data.day).run()
     const n = (await db().prepare('SELECT COUNT(*) AS n FROM topic_days_done WHERE user_plan_id = ?').bind(me.id).first<{ n: number }>())?.n ?? 0
     const finished = n >= me.days

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { createFileRoute } from '@tanstack/react-router'
-import { getNight } from '~/fns/night'
+import { getNight, markNight } from '~/fns/night'
 import { UpLink } from '~/components/BackLink'
 import { LineIcon } from '~/components/LineIcon'
 import { SoundPicker, loadSound, saveSound } from '~/components/SoundPicker'
@@ -90,6 +90,7 @@ function Night() {
       return
     }
     setPhase('on')
+    void markNight().catch(() => {}) // counts toward the streak
     const id = ++run.current
     for (const p of parts) {
       if (run.current !== id) return

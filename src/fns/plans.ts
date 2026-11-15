@@ -1,4 +1,5 @@
 import { createServerFn } from '@tanstack/react-start'
+import { markActive } from '~/lib/streak-server'
 import { db } from '~/lib/env'
 import { requireCommunityUser, requireUser } from '~/lib/auth'
 import { PLANS, planByKey, planDays } from '~/lib/plans'
@@ -129,6 +130,7 @@ export const markPlanDay = createServerFn({ method: 'POST' })
     if (finished && up.status !== 'completed') {
       await db().prepare(`UPDATE user_plans SET status = 'completed', completed_at = datetime('now') WHERE id = ?`).bind(data.userPlanId).run()
     }
+    await markActive(user.id, 'plan')
     const awards = await checkAwards(user.id, finished ? 'plan' : 'reading', { planKey: up.plan_key, again: finished && up.status !== 'completed' })
     return { finished, awards, firstName: user.name.split(' ')[0] }
   })
