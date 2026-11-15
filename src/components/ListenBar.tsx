@@ -1,7 +1,9 @@
 import { Portal } from '~/components/Portal'
 import { LineIcon } from '~/components/LineIcon'
 import { useEffect, useRef, useState } from 'react'
-import { speak, speechChunks, speechSupported, unlockSpeech, voiceFor } from '~/lib/audio'
+import { WorkoutMusic, speak, speechChunks, speechSupported, unlockSpeech, voiceFor } from '~/lib/audio'
+import { SoundPicker, loadSound, saveSound } from '~/components/SoundPicker'
+import type { SoundKind } from '~/lib/ambience'
 
 const SPEEDS = [0.75, 1, 1.25, 1.5] as const
 
@@ -31,6 +33,21 @@ export function ListenBar({
   const [playing, setPlaying] = useState(false)
   const [speed, setSpeed] = useState<number>(1)
   const run = useRef(0) // each play session gets an id; changing it stops the old one
+  // A soft background sound under the reading (off by default)
+  const [sound, setSound] = useState<SoundKind>('off')
+  const [showSounds, setShowSounds] = useState(false)
+  const bed = useRef<WorkoutMusic | null>(null)
+  function startBed(kind: SoundKind) {
+    bed.current?.stop()
+    bed.current = null
+    if (kind === 'off') return
+    bed.current = new WorkoutMusic([], kind)
+    void bed.current.start(0.32)
+  }
+  function stopBed() {
+    bed.current?.stop()
+    bed.current = null
+  }
   const ok = typeof window !== 'undefined' && speechSupported()
 
   useEffect(() => {
@@ -38,17 +55,21 @@ export function ListenBar({
       const s = Number(localStorage.getItem('sg-listen-speed'))
       if ((SPEEDS as readonly number[]).includes(s)) setSpeed(s)
     } catch {}
-    if (autoStart) play(0)
+    const savedSound = loadSound('sg-listen-sound', 'off')
+    setSound(savedSound)
+    if (autoStart) play(0, undefined, savedSound)
     return () => {
+      stopBed()
       run.current++
       if (speechSupported()) speechSynthesis.cancel()
       onIndex?.(null)
     }
   }, [])
 
-  async function play(from: number, rate = speed) {
+  async function play(from: number, rate = speed, withSound: SoundKind = sound) {
     if (!ok) return
     unlockSpeech()
+    if (!bed.current && withSound !== 'off') startBed(withSound)
     const id = ++run.current
     setPlaying(true)
     for (let k = from; k < items.length; k++) {
@@ -64,12 +85,19 @@ export function ListenBar({
     if (run.current !== id) return
     setPlaying(false)
     onIndex?.(null)
+    stopBed() // the next chapter (if it carries on) starts its own
     onFinished?.()
   }
   function pause() {
     run.current++
     speechSynthesis.cancel()
+    stopBed()
     setPlaying(false)
+  }
+  function chooseSound(k: SoundKind) {
+    setSound(k)
+    saveSound('sg-listen-sound', k)
+    if (playing || k === 'off') startBed(k)
   }
   function jump(k: number) {
     const to = Math.max(0, Math.min(items.length - 1, k))
@@ -118,7 +146,11 @@ export function ListenBar({
             {playing ? <span className="mx-auto flex w-fit gap-1.5"><span className="h-5 w-1.5 rounded-sm bg-current" /><span className="h-5 w-1.5 rounded-sm bg-current" /></span> : <LineIcon name="play" className="mx-auto h-6 w-6 translate-x-0.5" fill="currentColor" />}
           </button>
           <button type="button" className="h-10 w-10 rounded-full bg-white/10 text-lg" onClick={() => jump(i + 1)} aria-label="Forward">⏭</button>
+          <button type="button" className={`h-10 rounded-full px-3 text-xs font-semibold ${sound !== 'off' ? 'bg-white text-navy' : 'bg-white/10 text-white/80'}`} onClick={() => setShowSounds(!showSounds)} aria-expanded={showSounds} aria-label="Background sound">
+            <LineIcon name="music" className="mr-1 inline h-4 w-4 -translate-y-px" />{sound === 'off' ? 'Sound' : 'On'}
+          </button>
         </div>
+        {showSounds && <div className="mt-2"><SoundPicker value={sound} onChange={chooseSound} label="" /></div>}
         <div className="mt-2 flex items-center justify-center gap-1">
           {SPEEDS.map((s) => (
             <button key={s} type="button" onClick={() => changeSpeed(s)} className={`rounded-full px-3 py-1 text-xs font-semibold ${speed === s ? 'bg-white text-navy' : 'text-white/70'}`}>
