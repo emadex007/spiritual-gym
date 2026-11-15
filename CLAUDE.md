@@ -30,6 +30,8 @@ Free Christian spiritual-growth web app (installable PWA) at therenewgym.org. Ow
 - Notifications: `src/lib/notify.ts`, `public/sw.js` (focus mode), `src/lib/push-client.ts` (`syncPush` self-repair).
 
 ## Change log (newest first)
+- 2026-11-15 · Daily words 21 Nov – 31 Dec (days 325–365) rewritten in the new style (migration 0056), same KJV verses.
+  Days are a yearly cycle by day of the year (`devotionOfTheDay`), so they repeat every year. Still old style: 1 Jan – 13 Nov.
 - 2026-11-14 · Who can read a book, for admins: `adminSetBookVisibility` (public = library + `announceNew`; private/invited;
   an owner-less library book made private becomes the admin's own), `AdminBookAccess` on the book page (admins who aren't
   the owner) and a selector per book in Admin → Books. Copyright rule in the upload choices, the share checkbox and the
