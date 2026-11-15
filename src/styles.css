@@ -287,3 +287,8 @@ a.card:active, button.card:active { transform: translateY(0) scale(0.99); }
   display: none;
 }
 
+
+/* Celebrations (day done / plan finished) */
+.celebrate-pop { animation: celebrate-pop 0.55s cubic-bezier(0.2, 1.4, 0.4, 1) both; }
+@keyframes celebrate-pop { from { transform: translateY(16px) scale(0.92); opacity: 0; } to { transform: none; opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .celebrate-pop, .confetti { animation: none; } }

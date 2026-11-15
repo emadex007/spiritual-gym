@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { UpLink } from '~/components/BackLink'
 import { Link, createFileRoute, useNavigate } from '@tanstack/react-router'
+import { celebrate } from '~/components/Celebrate'
 import { explainBookText, finishBookDay, readBook, saveHighlight } from '~/fns/books'
 import { Discussion } from '~/components/Discussion'
 import { paragraphs } from '~/lib/books'
@@ -122,6 +123,11 @@ function Reader() {
     try {
       const r = await finishBookDay({ data: { id: b.id, day } })
       setFinished({ next: r.next })
+      celebrate(
+        r.finished
+          ? { big: true, title: 'Book finished!', sub: `You read all of “${b.title}”, day by day.`, share: `I just finished reading “${b.title}” on TheRenewGym. 📖` }
+          : { title: `Day ${day} done`, sub: 'Well done for reading today.' },
+      )
     } catch (e) {
       flash(errorText(e))
     }

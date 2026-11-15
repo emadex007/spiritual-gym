@@ -1,5 +1,6 @@
 import { useState, type ReactNode } from 'react'
 import { Link, createFileRoute, useRouter } from '@tanstack/react-router'
+import { celebrate } from '~/components/Celebrate'
 import { getRetreat, markRetreatDay, startRetreat, stopRetreat } from '~/fns/retreats'
 import { VersePopup } from '~/components/ScriptureText'
 import { FormError, errorText } from '~/components/AuthShell'
@@ -87,6 +88,12 @@ function RetreatPage() {
                       setErr(null)
                       try {
                         const res = await markRetreatDay({ data: { id: mine!.id, day: n, done: !isDone, note } })
+                        if (!isDone)
+                          celebrate(
+                            res.finished
+                              ? { big: true, title: 'Retreat complete!', sub: `You finished “${r.title}”. May what God did in these days stay with you.`, share: `I just finished the retreat “${r.title}” on TheRenewGym. 🙏` }
+                              : { title: `Day ${n} done`, sub: 'Well done. Rest in Him.' },
+                          )
                         await router.invalidate()
                         // Done: open the next day if it has already come
                         if (!isDone && !res.finished && n + 1 <= mine!.today) setOpen(n + 1)

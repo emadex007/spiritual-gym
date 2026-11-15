@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { Link, Outlet, createFileRoute, redirect, useRouterState } from '@tanstack/react-router'
 import { UpdateBanner } from '~/components/UpdateBanner'
+import { CelebrationHost } from '~/components/Celebrate'
 import { getMe } from '~/fns/auth'
 import { ExploreIcon, HomeIcon, ProfileIcon, TrainIcon } from '~/components/Icons'
 import { EXPLORE_PATHS } from '~/lib/explore'
@@ -55,7 +56,13 @@ function AppLayout() {
     document.body.style.overflow = ''
   }, [pathname])
 
-  if (immersive) return <Outlet />
+  if (immersive)
+    return (
+      <>
+        <Outlet />
+        <CelebrationHost />
+      </>
+    )
 
   return (
     <div className="min-h-dvh md:flex">
@@ -105,6 +112,7 @@ function AppLayout() {
       )}
       <InstallPrompt />
       <UpdateBanner />
+      <CelebrationHost />
 
       {/* Mobile bottom navigation */}
       <nav className="fixed inset-x-0 bottom-0 z-20 border-t border-line bg-bg/92 backdrop-blur md:hidden safe-bottom" aria-label="Main">
