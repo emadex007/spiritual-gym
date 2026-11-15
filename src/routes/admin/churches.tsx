@@ -28,7 +28,7 @@ function Churches() {
     <>
       <PageHead title="Churches" sub="Pastors request a church; it only goes live after you approve it. Church admins never see members’ journals or personal data." />
       <div className="grid grid-cols-3 gap-3">
-        <Stat label="Waiting for review" value={pending} color="bg-gold/20 text-gold-ink" />
+        <Stat label="Waiting for review" value={pending} color="bg-gold/20 text-gold-ink dark:text-gold" />
         <Stat label="Live churches" value={list.filter((c) => c.status === 'approved').length} color="bg-sage-soft text-sage" />
         <Stat label="Church members" value={list.reduce((a, c) => a + c.members, 0)} />
       </div>

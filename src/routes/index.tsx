@@ -1,5 +1,4 @@
 import { InstallPrompt } from '~/components/InstallPrompt'
-import { SupportFloat } from '~/components/SupportButton'
 import { Link, createFileRoute } from '@tanstack/react-router'
 import { getMe } from '~/fns/auth'
 import { getSiteSettings } from '~/fns/site'
@@ -179,7 +178,6 @@ function Welcome() {
           </p>
         </footer>
       </main>
-      <SupportFloat bottom="bottom-5" />
       <InstallPrompt />
     </div>
   )

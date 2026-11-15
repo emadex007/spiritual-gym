@@ -149,8 +149,12 @@ function GroupPage() {
           {d.isMember ? (
             <>
               <button type="button" className="btn-ghost !px-4 !py-2" onClick={() => setInviting(true)}><LineIcon name="share" className="mr-1.5 inline h-4 w-4 -translate-y-px" />Invite</button>
-              <button type="button" className="btn-ghost !px-4 !py-2" onClick={leave}>Leave</button>
-              {d.isOwner && <button type="button" className="rounded-full px-4 py-2 text-sm font-semibold text-red-600 hover:bg-red-500/10" disabled={busy} onClick={remove}>{event ? 'Delete event' : 'Delete group'}</button>}
+              <MoreMenu
+                items={[
+                  { label: event ? 'Leave event' : 'Leave group', onClick: leave },
+                  ...(d.isOwner ? [{ label: event ? 'Delete event' : 'Delete group', onClick: remove, danger: true }] : []),
+                ]}
+              />
             </>
           ) : d.pending ? (
             <>
@@ -535,5 +539,34 @@ function PostCard({ post, me, canModerate, isMember, onReport }: { post: Post; m
         </div>
       )}
     </article>
+  )
+}
+
+/** Less-used actions (leave, delete) tucked behind "⋯" so the page stays calm */
+function MoreMenu({ items }: { items: { label: string; onClick: () => void; danger?: boolean }[] }) {
+  const [open, setOpen] = useState(false)
+  return (
+    <span className="relative">
+      <button type="button" className="btn-ghost !px-3 !py-2" aria-label="More" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
+        <LineIcon name="more" className="h-4 w-4" />
+      </button>
+      {open && (
+        <span className="fade-in absolute right-0 z-20 mt-1 block w-44 overflow-hidden rounded-2xl border border-line bg-surface text-sm shadow-lg">
+          {items.map((it) => (
+            <button
+              key={it.label}
+              type="button"
+              className={`block w-full px-4 py-3 text-left font-semibold hover:bg-surface-2 ${it.danger ? 'text-red-600' : ''}`}
+              onClick={() => {
+                setOpen(false)
+                it.onClick()
+              }}
+            >
+              {it.label}
+            </button>
+          ))}
+        </span>
+      )}
+    </span>
   )
 }

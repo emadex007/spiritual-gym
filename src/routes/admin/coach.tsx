@@ -40,7 +40,7 @@ function CoachAdmin() {
         <Stat label="Messages today" value={d.stats.today} />
         <Stat label="Messages this week" value={d.stats.week} />
         <Stat label="People this week" value={d.stats.people} />
-        <Stat label="Crisis help shown (week)" value={d.stats.crisis} color="bg-red-500/10 text-red-600" hint="Crisis messages get safety guidance, not AI" />
+        <Stat label="Crisis help shown (week)" value={d.stats.crisis} color="bg-red-500/10 text-red-600 dark:bg-red-500/20 dark:text-red-300" hint="Crisis messages get safety guidance, not AI" />
       </div>
 
       <section className="card mt-5 space-y-2">

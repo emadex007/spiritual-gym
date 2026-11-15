@@ -22,9 +22,9 @@ export function LegalPage({ title, text, updated }: { title: string; text: strin
 
   return (
     <div className="min-h-dvh">
-      <header className="mx-auto flex max-w-2xl items-center justify-between px-5 py-5">
+      <header className="mx-auto flex max-w-2xl flex-wrap items-center justify-between gap-x-4 gap-y-3 px-5 py-5">
         <Link to="/"><Logo /></Link>
-        <nav className="flex gap-4 text-sm font-medium text-muted">
+        <nav className="flex flex-wrap gap-x-4 gap-y-1 text-sm font-medium text-muted">
           <Link to="/features" activeProps={{ className: 'text-ink' }}>Features</Link>
           <Link to="/privacy" activeProps={{ className: 'text-ink' }}>Privacy</Link>
           <Link to="/terms" activeProps={{ className: 'text-ink' }}>Terms</Link>
