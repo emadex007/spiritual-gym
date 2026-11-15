@@ -30,6 +30,9 @@ Free Christian spiritual-growth web app (installable PWA) at therenewgym.org. Ow
 - Notifications: `src/lib/notify.ts`, `public/sw.js` (focus mode), `src/lib/push-client.ts` (`syncPush` self-repair).
 
 ## Change log (newest first)
+- 2026-11-15 · Daily words 1 Jan – 13 Nov (days 1–317) rewritten in the new style (migrations 0059–0069, one per month),
+  same KJV verses. All 365 days now have the multi-paragraph reflection ending "Today: …", a declaration and a prayer.
+  Each migration only updates rows still in the old one-paragraph style, so edits made in Admin are kept.
 - 2026-11-15 · Dark mode: the light "on-light" boxes (Bible, Church, My songs, Walk with me, Understand, Verse pictures,
   Plans, Pastor's Corner stats, Home recovery card, Profile help card, welcome page) are no longer bright cream/pink blocks.
   In dark mode `.on-light` switches to the dark palette and an inset shadow tints over its gradient, keeping a hint of its
@@ -98,7 +101,7 @@ Free Christian spiritual-growth web app (installable PWA) at therenewgym.org. Ow
   left out). `TRANSLATIONS` now has `lang` + `credit`; the reader shows the credit under the chapter (required by the
   licence). Listen uses a voice in that language if the phone has one, otherwise explains. LICENSE.txt updated.
 - 2026-11-15 · Daily words 21 Nov – 31 Dec (days 325–365) rewritten in the new style (migration 0056), same KJV verses.
-  Days are a yearly cycle by day of the year (`devotionOfTheDay`), so they repeat every year. Still old style: 1 Jan – 13 Nov.
+  Days are a yearly cycle by day of the year (`devotionOfTheDay`), so they repeat every year.
 - 2026-11-14 · Who can read a book, for admins: `adminSetBookVisibility` (public = library + `announceNew`; private/invited;
   an owner-less library book made private becomes the admin's own), `AdminBookAccess` on the book page (admins who aren't
   the owner) and a selector per book in Admin → Books. Copyright rule in the upload choices, the share checkbox and the
