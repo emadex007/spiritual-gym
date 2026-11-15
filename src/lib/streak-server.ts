@@ -23,14 +23,17 @@ export async function markActive(userId: string, kind: ActiveKind) {
 }
 
 export type DayMark = { day: string; state: 'active' | 'grace' | 'missed' | 'today' }
-export type Streak = StreakInfo & { week: DayMark[] }
+export type Streak = StreakInfo & { week: DayMark[]; total: number; todayKinds: string[] }
 
 export async function getStreak(userId: string): Promise<Streak> {
-  const { results } = await db()
-    .prepare(`SELECT day FROM active_days WHERE user_id = ? AND day >= date('now', '-400 days') ORDER BY day DESC`)
-    .bind(userId)
-    .all<{ day: string }>()
-    .catch(() => ({ results: [] as { day: string }[] }))
+  const [{ results }, count] = await Promise.all([
+    db()
+      .prepare(`SELECT day, kinds FROM active_days WHERE user_id = ? AND day >= date('now', '-400 days') ORDER BY day DESC`)
+      .bind(userId)
+      .all<{ day: string; kinds: string }>()
+      .catch(() => ({ results: [] as { day: string; kinds: string }[] })),
+    db().prepare('SELECT COUNT(*) AS n FROM active_days WHERE user_id = ?').bind(userId).first<{ n: number }>().catch(() => null),
+  ])
   const today = dayString()
   const days = results.map((r) => r.day)
   const info = computeStreak(days, today)
@@ -41,5 +44,6 @@ export async function getStreak(userId: string): Promise<Streak> {
     const d = new Date(Date.parse(today + 'T00:00:00Z') - i * 86_400_000).toISOString().slice(0, 10)
     week.push({ day: d, state: set.has(d) ? 'active' : info.graceDays.includes(d) ? 'grace' : d === today ? 'today' : 'missed' })
   }
-  return { ...info, week }
+  const todayKinds = (results.find((r) => r.day === today)?.kinds ?? '').split(',').filter(Boolean)
+  return { ...info, week, total: count?.n ?? days.length, todayKinds }
 }

@@ -286,3 +286,12 @@ a.card:active, button.card:active { transform: translateY(0) scale(0.99); }
 .no-scrollbar::-webkit-scrollbar {
   display: none;
 }
+
+/* Growth card: rings draw in, the tree grows up from the ground, the seed's star twinkles */
+.ring-grow { animation: ring-grow 1.1s cubic-bezier(.2,.8,.2,1) both; }
+@keyframes ring-grow { from { stroke-dashoffset: var(--c); } to { stroke-dashoffset: 0; } }
+.tree-grow { animation: tree-grow .9s cubic-bezier(.2,.9,.3,1.2) both; transform-box: view-box; }
+@keyframes tree-grow { from { transform: scale(.6); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+.twinkle { animation: twinkle 2.4s ease-in-out infinite; }
+@keyframes twinkle { 50% { opacity: .35; } }
+@media (prefers-reduced-motion: reduce) { .ring-grow, .tree-grow, .twinkle { animation: none; } }
