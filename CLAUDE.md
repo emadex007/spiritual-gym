@@ -30,6 +30,8 @@ Free Christian spiritual-growth web app (installable PWA) at therenewgym.org. Ow
 - Notifications: `src/lib/notify.ts`, `public/sw.js` (focus mode), `src/lib/push-client.ts` (`syncPush` self-repair).
 
 ## Change log (newest first)
+- 2026-11-15 · Daily words in the new style, month by month (one migration per month, only replacing old one-paragraph
+  days): January = 0059. Source files and generator in the session scratchpad (`dv/*.py`, `dv/gen.py`).
 - 2026-11-15 · Dark mode: the light "on-light" boxes (Bible, Church, My songs, Walk with me, Understand, Verse pictures,
   Plans, Pastor's Corner stats, Home recovery card, Profile help card, welcome page) are no longer bright cream/pink blocks.
   In dark mode `.on-light` switches to the dark palette and an inset shadow tints over its gradient, keeping a hint of its
