@@ -1,3 +1,4 @@
+import { buildNight, buildRain, buildWaves, type SoundKind } from '~/lib/ambience'
 // Browser-only audio for workouts: calm instrumental music + a spoken guide.
 // The built-in music is generated live with the Web Audio API (soft pads, gentle bell notes and a long reverb),
 // so it needs no downloads and has no licensing issues. Admin-uploaded tracks are used instead when available.
@@ -124,8 +125,12 @@ export class WorkoutMusic {
   private tracks: string[] = []
   private trackIndex = 0
 
-  constructor(tracks: string[] = []) {
-    this.tracks = tracks
+  private kind: SoundKind = 'music'
+
+  /** `kind`: calm music (my uploaded tracks if there are any, otherwise made on the phone) or a nature sound */
+  constructor(tracks: string[] = [], kind: SoundKind = 'music') {
+    this.tracks = kind === 'music' ? tracks : []
+    this.kind = kind === 'off' ? 'music' : kind
   }
 
   /** Must be called from a tap (browsers only allow audio to start after a user gesture) */
@@ -147,7 +152,8 @@ export class WorkoutMusic {
     this.out = this.ctx.createGain()
     this.out.connect(this.ctx.destination)
     this.applyVolume()
-    this.calm = buildCalmMusic(this.ctx, this.out)
+    this.calm =
+      this.kind === 'rain' ? buildRain(this.ctx, this.out) : this.kind === 'waves' ? buildWaves(this.ctx, this.out) : this.kind === 'night' ? buildNight(this.ctx, this.out) : buildCalmMusic(this.ctx, this.out)
   }
 
   private nextTrack() {

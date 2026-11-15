@@ -1,4 +1,5 @@
 import { useState, type ReactNode } from 'react'
+import { ListenBar } from '~/components/ListenBar'
 import { Link, createFileRoute, useRouter } from '@tanstack/react-router'
 import { getHome, saveCheckin } from '~/fns/home'
 import { getSiteSettings } from '~/fns/site'
@@ -246,19 +247,42 @@ type HomeData = ReturnType<typeof Route.useLoaderData>['h']
 const paras = (t: string | null | undefined) => (t ?? '').split(/\n\s*\n/).map((x) => x.trim()).filter(Boolean)
 function Devotion({ text }: { text: string }) {
   const [open, setOpen] = useState(false)
+  const [listen, setListen] = useState(false)
+  const [reading, setReading] = useState<number | null>(null)
   const ps = paras(text)
   const shown = open ? ps : ps.slice(0, 1)
+  const on = (i: number) => (reading === i ? 'rounded-xl bg-white/10 ring-1 ring-[#fde7b0]/50 -mx-2 px-2 py-1' : '')
   return (
     <div className="relative mt-4">
-      <p className="text-xs font-bold tracking-[0.14em] text-[#fde7b0] uppercase">Today’s devotion</p>
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-xs font-bold tracking-[0.14em] text-[#fde7b0] uppercase">Today’s devotion</p>
+        <button type="button" onClick={() => { setOpen(true); setListen(true) }} className="inline-flex items-center gap-1 rounded-full bg-white/10 px-3 py-1 text-xs font-semibold text-white hover:bg-white/15">
+          <LineIcon name="volume" className="h-3.5 w-3.5" />Listen
+        </button>
+      </div>
       {shown.map((p, i) => {
         const step = /^today:/i.test(p)
         return step ? (
-          <p key={i} className="mt-3 rounded-2xl border border-white/25 px-4 py-3 text-sm text-white"><b className="text-[#fde7b0]">Today:</b>{p.replace(/^today:/i, '')}</p>
+          <p key={i} id={`dev-${i}`} className={`mt-3 rounded-2xl border border-white/25 px-4 py-3 text-sm text-white ${reading === i ? 'bg-white/10' : ''}`}><b className="text-[#fde7b0]">Today:</b>{p.replace(/^today:/i, '')}</p>
         ) : (
-          <p key={i} className="mt-2 text-[15px] leading-relaxed text-white/90">{p}</p>
+          <p key={i} id={`dev-${i}`} className={`mt-2 text-[15px] leading-relaxed text-white/90 transition ${on(i)}`}>{p}</p>
         )
       })}
+      {listen && (
+        <ListenBar
+          title="Today’s devotion"
+          items={ps}
+          autoStart
+          onIndex={(i) => {
+            setReading(i)
+            if (i !== null) document.getElementById(`dev-${i}`)?.scrollIntoView({ block: 'center', behavior: 'smooth' })
+          }}
+          onClose={() => {
+            setListen(false)
+            setReading(null)
+          }}
+        />
+      )}
       {ps.length > 1 && (
         <button type="button" onClick={() => setOpen(!open)} className="mt-2 text-sm font-semibold text-[#fde7b0] underline-offset-4 hover:underline">
           {open ? 'Show less' : 'Read the full devotion'}

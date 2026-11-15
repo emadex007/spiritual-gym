@@ -30,6 +30,10 @@ Free Christian spiritual-growth web app (installable PWA) at therenewgym.org. Ow
 - Notifications: `src/lib/notify.ts`, `public/sw.js` (focus mode), `src/lib/push-client.ts` (`syncPush` self-repair).
 
 ## Change log (newest first)
+- 2026-11-15 · Background sounds (`src/lib/ambience.ts`: rain, waves, night made with Web Audio; levels matched to the calm
+  music) via `WorkoutMusic(tracks, kind)`; `SoundPicker` in workout setup (`sg-sound`) and on the Listen bar
+  (`sg-listen-sound`, off by default, stops on pause/close/finish). Read-along (Listen + highlighted paragraph) added to
+  today's devotion on Home and topic plan days (Bible and books already had it).
 - 2026-11-15 · Bibles in Yorùbá (YOR), Igbo (IBO), Hausa (HAU): Biblica's open translations (CC BY-SA 4.0), converted from
   github.com/BibleNLP/ebible into `public/bible/{yor,ibo,hau}/<book>.json` (same format as BSB/ASV/BBE; merged-verse blanks
   left out). `TRANSLATIONS` now has `lang` + `credit`; the reader shows the credit under the chapter (required by the

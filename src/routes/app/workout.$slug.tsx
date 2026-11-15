@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { SoundPicker, loadSound, saveSound } from '~/components/SoundPicker'
+import type { SoundKind } from '~/lib/ambience'
 import { UpLink } from '~/components/BackLink'
 import { bookSlug } from '~/lib/bible'
 import { Link, createFileRoute, useRouter } from '@tanstack/react-router'
@@ -45,14 +47,15 @@ function WorkoutPlayer() {
   const music = useRef<WorkoutMusic | null>(null)
   const announced = useRef(-1)
   const [voiceOn, setVoiceOn] = useState(true)
-  const [musicOn, setMusicOn] = useState(true)
+  const [sound, setSound] = useState<SoundKind>('music')
+  const musicOn = sound !== 'off'
   const [musicVol, setMusicVol] = useState(0.6)
 
   // Remember audio choices on this device
   useEffect(() => {
     try {
       setVoiceOn(localStorage.getItem('sg-voice') !== '0')
-      setMusicOn(localStorage.getItem('sg-music') !== '0')
+      setSound(loadSound('sg-sound', localStorage.getItem('sg-music') === '0' ? 'off' : 'music'))
       const v = Number(localStorage.getItem('sg-music-vol'))
       if (v > 0 && v <= 1) setMusicVol(v)
     } catch {}
@@ -116,7 +119,7 @@ function WorkoutPlayer() {
     if (voiceOn) unlockSpeech()
     if (musicOn) {
       music.current?.stop()
-      music.current = new WorkoutMusic(tracks.map((t) => `/media/${t}`))
+      music.current = new WorkoutMusic(tracks.map((t) => `/media/${t}`), sound)
       music.current.start(musicVol)
     }
     announced.current = -1
@@ -226,10 +229,7 @@ function WorkoutPlayer() {
                 <span><LineIcon name="volume" className="mr-1.5 inline h-4 w-4 -translate-y-px" />Voice guide <span className="text-white/50">(announces each next step)</span></span>
                 <input type="checkbox" className="h-5 w-5 accent-gold" checked={voiceOn} disabled={!speechSupported()} onChange={(e) => { setVoiceOn(e.target.checked); savePref('sg-voice', e.target.checked ? '1' : '0') }} />
               </label>
-              <label className="flex items-center justify-between gap-3 text-sm">
-                <span><LineIcon name="music" className="mr-1.5 inline h-4 w-4 -translate-y-px" />Calm instrumental music</span>
-                <input type="checkbox" className="h-5 w-5 accent-gold" checked={musicOn} onChange={(e) => { setMusicOn(e.target.checked); savePref('sg-music', e.target.checked ? '1' : '0') }} />
-              </label>
+              <SoundPicker value={sound} onChange={(v) => { setSound(v); saveSound('sg-sound', v) }} />
               {musicOn && (
                 <label className="flex items-center gap-3 text-xs text-white/70">
                   <span>Volume</span>

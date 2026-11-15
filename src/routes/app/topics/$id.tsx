@@ -11,6 +11,7 @@ import { Discussion } from '~/components/Discussion'
 import { VersePopup } from '~/components/ScriptureText'
 import { FormError, errorText } from '~/components/AuthShell'
 import { LineIcon } from '~/components/LineIcon'
+import { ListenBar } from '~/components/ListenBar'
 
 export const Route = createFileRoute('/app/topics/$id')({
   validateSearch: (s: Record<string, unknown>): { day?: number; join?: string } => ({
@@ -38,6 +39,8 @@ function TopicPlan() {
   const router = useRouter()
   const nav = useNavigate({ from: '/app/topics/$id' })
   const [verse, setVerse] = useState<string | null>(null)
+  const [listen, setListen] = useState(false)
+  const [speaking, setSpeaking] = useState<number | null>(null)
   const [err, setErr] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [showDays, setShowDays] = useState(false)
@@ -150,7 +153,12 @@ function TopicPlan() {
               ))}
             </div>
           )}
-          <h2 className="mt-4 font-display text-2xl leading-snug font-semibold">{reading.day.title || `Day ${day}`}</h2>
+          <div className="mt-4 flex items-start justify-between gap-3">
+            <h2 className="font-display text-2xl leading-snug font-semibold">{reading.day.title || `Day ${day}`}</h2>
+            <button type="button" onClick={() => setListen(true)} className="mt-1 inline-flex shrink-0 items-center gap-1.5 rounded-full border border-line bg-surface px-3 py-1.5 text-sm font-semibold hover:border-accent">
+              <LineIcon name="volume" className="h-4 w-4" />Listen
+            </button>
+          </div>
           {refs.length > 0 && (
             <div className="mt-3 flex flex-wrap gap-2">
               {refs.map((r) => (
@@ -161,8 +169,27 @@ function TopicPlan() {
             </div>
           )}
           <div className="mt-4 space-y-3 text-[17px] leading-relaxed">
-            {reading.day.body.split(/\n{2,}/).map((para, i) => <p key={i} className="whitespace-pre-line">{linkRefs(para, setVerse)}</p>)}
+            {reading.day.body.split(/\n{2,}/).map((para, i) => (
+              <p key={i} id={`tp-${i}`} className={`whitespace-pre-line transition ${speaking === i ? '-mx-2 rounded-xl bg-accent-soft/70 px-2 py-1' : ''}`}>{linkRefs(para, setVerse)}</p>
+            ))}
           </div>
+          {listen && (
+            <ListenBar
+              key={`tp-${day}`}
+              title={reading.day.title || `Day ${day}`}
+              items={[reading.day.title || `Day ${day}`, ...reading.day.body.split(/\n{2,}/).map((x) => x.trim()).filter(Boolean), ...(reading.day.prayer ? [`Let us pray. ${reading.day.prayer}`] : [])]}
+              autoStart
+              onIndex={(i) => {
+                const k = i === null || i === 0 ? null : i - 1
+                setSpeaking(k)
+                if (k !== null) document.getElementById(`tp-${k}`)?.scrollIntoView({ block: 'center', behavior: 'smooth' })
+              }}
+              onClose={() => {
+                setListen(false)
+                setSpeaking(null)
+              }}
+            />
+          )}
           {reading.day.prayer && (
             <div className="mt-5">
               <p className="flex items-center gap-1.5 text-xs font-semibold tracking-[0.12em] text-muted uppercase"><LineIcon name="prayer" className="h-4 w-4 text-accent" />Pray</p>
