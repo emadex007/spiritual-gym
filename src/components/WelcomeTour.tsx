@@ -59,6 +59,19 @@ function screens(minutes: number): Screen[] {
       find: ['Bible', 'Explore'],
       where: 'Bible has its own tab. Plans, books and your journal are in Explore.',
     },
+    {
+      eyebrow: 'Any time',
+      title: 'Someone to talk to: Coach',
+      text: 'Feeling dry, anxious or stuck? Coach is a gentle, private companion. Talk about what’s on your heart and get Scripture, a prayer and one simple next step.',
+      art: ['chatHeart', 'bookOpen', 'prayer', 'heart'],
+      points: [
+        ['chatHeart', 'Tap the chat button at the top of Home'],
+        ['smile', 'Or after you say how you are today'],
+        ['lock', 'Your conversation is private to you'],
+      ],
+      find: ['Home', 'Explore'],
+      where: 'The chat button at the top of Home, or Talk to Coach at the top of Explore.',
+    },
   ]
 }
 

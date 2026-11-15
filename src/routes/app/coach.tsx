@@ -7,6 +7,8 @@ import { errorText } from '~/components/AuthShell'
 import { LineIcon } from '~/components/LineIcon'
 
 export const Route = createFileRoute('/app/coach')({
+  // ?q= starts the message box with something (from the Home check-in); it's never sent by itself
+  validateSearch: (s: Record<string, unknown>): { q?: string } => ({ q: typeof s.q === 'string' ? s.q.slice(0, 500) : undefined }),
   loader: () => getCoach(),
   component: Coach,
 })
@@ -57,7 +59,7 @@ function Coach() {
   const data = Route.useLoaderData()
   const router = useRouter()
   const [messages, setMessages] = useState<Msg[]>(data.messages)
-  const [text, setText] = useState('')
+  const [text, setText] = useState(Route.useSearch().q ?? '')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [left, setLeft] = useState(data.left)

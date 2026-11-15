@@ -58,7 +58,7 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
       { icon: 'music', title: 'My songs', text: 'Your worship songs with lyrics, to sing along in your workouts.', to: '/app/journal/worship' },
       { icon: 'flame', title: 'Fasting', text: 'Choose a fast and keep it with guidance along the way.', to: '/app/fasting' },
       { icon: 'alarm', title: 'Wake-up', text: 'A Scripture alarm: bells, then a spoken word that keeps going until you’re up.', to: '/app/wake' },
-      { icon: 'chatHeart', title: 'Coach', text: 'A gentle, private companion to talk to about your walk with God.', to: '/app/coach' },
+      { icon: 'chatHeart', title: 'Coach', text: 'A gentle, private companion to talk to about your walk with God. Tap the chat button at the top of Home, or talk it through after your daily check-in.', to: '/app/coach', isNew: true },
     ],
   },
   {

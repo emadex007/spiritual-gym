@@ -22,6 +22,19 @@ function Explore() {
         <input className="input !pl-9" placeholder="Find something (prayer, notes, fasting…)" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Search Explore" />
       </div>
 
+      {!term && (
+        <Link to="/app/coach" className="mt-6 flex items-center gap-4 rounded-[1.75rem] p-5 text-white shadow-lg transition hover:-translate-y-0.5" style={{ background: 'linear-gradient(135deg,#3a2f86,#6f5ce6)' }}>
+          <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-white/15" aria-hidden>
+            <LineIcon name="chatHeart" className="h-7 w-7" />
+          </span>
+          <span className="flex-1">
+            <span className="block font-display text-xl font-semibold">Talk to Coach</span>
+            <span className="mt-0.5 block text-sm text-white/85">A gentle, private companion for your walk with God. Ask anything, any time.</span>
+          </span>
+          <span className="text-xl" aria-hidden>→</span>
+        </Link>
+      )}
+
       {groups.map((g) => (
         <section key={g.title} className="mt-7">
           <h2 className="mb-3 text-sm font-semibold tracking-[0.12em] uppercase" style={{ color: g.ink }}>{g.title}</h2>
