@@ -220,7 +220,6 @@ function Home() {
           rings={ringsFor({ todayMinutes: h.todayMinutes, goalMinutes: h.goalMinutes, todayByKind: h.todayByKind, todayKinds: h.streak.todayKinds })}
           todayMinutes={h.todayMinutes}
           goalMinutes={h.goalMinutes}
-          total={h.streak.total}
         />
       )}
       <section className="card mt-3">
