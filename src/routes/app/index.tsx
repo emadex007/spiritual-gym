@@ -1,4 +1,5 @@
-import { useState, type ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
+import { isEvening } from '~/lib/night'
 import { ListenBar } from '~/components/ListenBar'
 import { Link, createFileRoute, useRouter } from '@tanstack/react-router'
 import { getHome, saveCheckin } from '~/fns/home'
@@ -182,6 +183,7 @@ function Home() {
       {understand && word && <UnderstandSheet reference={word.reference} onClose={() => setUnderstand(false)} />}
 
       {/* Events and group meetings coming up (public, or ones I'm in) */}
+      <EveningCard />
       <ComingUp items={h.comingUp} />
 
       {/* The newest books and topic plans, each in its own slider */}
@@ -457,5 +459,22 @@ function CheckIn({ current, tuck = true }: { current: { mood: string; note: stri
         </div>
       )}
     </section>
+  )
+}
+
+/** From 7pm: a gentle invitation to Night mode */
+function EveningCard() {
+  const [show, setShow] = useState(false)
+  useEffect(() => setShow(isEvening()), [])
+  if (!show) return null
+  return (
+    <Link to="/app/night" className="mt-5 flex items-center gap-4 rounded-[1.75rem] bg-[radial-gradient(ellipse_at_top_left,#1c2a5e_0%,#070b1c_75%)] p-5 text-white transition hover:-translate-y-0.5">
+      <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#f4e3a1]/10 text-[#f4e3a1] shadow-[0_0_40px_rgba(244,227,161,0.25)]"><LineIcon name="moon" className="h-6 w-6" /></span>
+      <span className="min-w-0 flex-1">
+        <span className="block font-display text-lg font-semibold">Wind down with God</span>
+        <span className="block text-sm text-white/65">A bedtime Scripture, a prayer and calm sounds to fall asleep to.</span>
+      </span>
+      <span className="text-[#f4e3a1]">→</span>
+    </Link>
   )
 }

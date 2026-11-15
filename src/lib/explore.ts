@@ -25,6 +25,7 @@ export const EXPLORE: ExploreGroup[] = [
       { to: '/app/fasting', icon: 'flame', title: 'Fasting', text: 'Choose a fast and keep it' },
       { to: '/app/journal/worship', icon: 'music', title: 'My songs', text: 'Worship songs to sing along' },
       { to: '/app/wake', icon: 'alarm', title: 'Wake-up', text: 'Start the day with a word' },
+      { to: '/app/night', icon: 'moon', title: 'Night', text: 'Wind down with God and fall asleep in peace' },
       { to: '/app/coach', icon: 'chatHeart', title: 'Coach', text: 'A gentle companion to talk to' },
     ],
   },
