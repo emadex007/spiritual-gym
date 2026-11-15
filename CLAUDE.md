@@ -30,7 +30,7 @@ Free Christian spiritual-growth web app (installable PWA) at therenewgym.org. Ow
 - Notifications: `src/lib/notify.ts`, `public/sw.js` (focus mode), `src/lib/push-client.ts` (`syncPush` self-repair).
 
 ## Change log (newest first)
-- 2026-11-15 · Growth tree removed (Home was too busy); the card now shows only today's three rings.
+- 2026-11-15 · Growth card removed entirely (tree, then rings): Home was too busy. Only the streak chip remains.
 - 2026-11-15 · Growth card on Home → Your progress (`src/components/Growth.tsx`, rules in `src/lib/growth.ts`): three rings
   for today (time vs goal; Word = 5 min Scripture or any reading; Prayer = 5 min prayer or a retreat day / Night mode) and
   a tree with 10 stages by total days with God (`getStreak` now returns `total` + `todayKinds`). "Your tree grew!" badge.
