@@ -2,3 +2,7 @@ BSB: Berean Standard Bible, dedicated to the public domain (CC0).
 ASV: American Standard Version (1901), public domain.
 BBE: Bible in Basic English (1949/1964), public domain.
 Source: github.com/scrollmapper/bible_databases
+YOR: Biblica® ní oore ọ̀fẹ́ láti lo Bíbélì Mímọ́ ní Èdè Yorùbá Òde-Òní. Copyright © 2017 Biblica, Inc.
+IBO: Biblica® Baịbụlụ Nsọ nʼIgbo Ndị Ugbu a nke dịrị onye ọbụla ịgụ. Copyright © 2020 Biblica, Inc.
+HAU: Biblica® Buɗaɗɗen Littafi Mai Tsarki, Sabon Rai Don Kowa™. Copyright © 2020 Biblica, Inc.
+YOR, IBO, HAU: licensed under the Creative Commons Attribution-ShareAlike 4.0 International License (CC BY-SA 4.0), https://creativecommons.org/licenses/by-sa/4.0/. The original works by Biblica, Inc. are available for free at www.biblica.com and open.bible. Text unchanged (verses merged into the verse before are left out as separate empty lines). Source: ebible.org via github.com/BibleNLP/ebible.

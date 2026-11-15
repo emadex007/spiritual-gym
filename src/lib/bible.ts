@@ -57,10 +57,32 @@ export const bookFromSlug = (slug: string) => BOOKS.findIndex((b) => b.toLowerCa
 
 /** Translations available in the reader. KJV lives in D1 (searchable); the others are static files in /public/bible. */
 export const TRANSLATIONS = [
-  { code: 'KJV', name: 'King James Version', note: 'Classic' },
-  { code: 'BSB', name: 'Berean Standard Bible', note: 'Modern English' },
-  { code: 'ASV', name: 'American Standard Version', note: 'Classic, 1901' },
-  { code: 'BBE', name: 'Bible in Basic English', note: 'Simple English' },
+  { code: 'KJV', name: 'King James Version', note: 'Classic', lang: 'en', credit: '' },
+  { code: 'BSB', name: 'Berean Standard Bible', note: 'Modern English', lang: 'en', credit: '' },
+  { code: 'ASV', name: 'American Standard Version', note: 'Classic, 1901', lang: 'en', credit: '' },
+  { code: 'BBE', name: 'Bible in Basic English', note: 'Simple English', lang: 'en', credit: '' },
+  // Nigerian languages: Biblica's open Bibles, CC BY-SA 4.0 (the credit line must show with the text)
+  {
+    code: 'YOR',
+    name: 'Bíbélì Mímọ́ ní Èdè Yorùbá Òde-Òní',
+    note: 'Yorùbá',
+    lang: 'yo',
+    credit: 'Biblica® ní oore ọ̀fẹ́ láti lo Bíbélì Mímọ́ ní Èdè Yorùbá Òde-Òní. Copyright © 2017 Biblica, Inc. Used under CC BY-SA 4.0. Free at biblica.com and open.bible.',
+  },
+  {
+    code: 'IBO',
+    name: 'Baịbụlụ Nsọ nʼIgbo Ndị Ugbu a',
+    note: 'Igbo',
+    lang: 'ig',
+    credit: 'Biblica® Baịbụlụ Nsọ nʼIgbo Ndị Ugbu a nke dịrị onye ọbụla ịgụ. Copyright © 2020 Biblica, Inc. Used under CC BY-SA 4.0. Free at biblica.com and open.bible.',
+  },
+  {
+    code: 'HAU',
+    name: 'Littafi Mai Tsarki, Sabon Rai Don Kowa',
+    note: 'Hausa',
+    lang: 'ha',
+    credit: 'Biblica® Buɗaɗɗen Littafi Mai Tsarki, Sabon Rai Don Kowa™. Copyright © 2020 Biblica, Inc. Used under CC BY-SA 4.0. Free at biblica.com and open.bible.',
+  },
 ] as const
 export type TranslationCode = (typeof TRANSLATIONS)[number]['code']
 

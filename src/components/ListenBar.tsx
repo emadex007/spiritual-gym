@@ -1,7 +1,7 @@
 import { Portal } from '~/components/Portal'
 import { LineIcon } from '~/components/LineIcon'
 import { useEffect, useRef, useState } from 'react'
-import { speak, speechChunks, speechSupported, unlockSpeech } from '~/lib/audio'
+import { speak, speechChunks, speechSupported, unlockSpeech, voiceFor } from '~/lib/audio'
 
 const SPEEDS = [0.75, 1, 1.25, 1.5] as const
 
@@ -15,6 +15,7 @@ export function ListenBar({
   onFinished,
   onClose,
   nextLabel,
+  lang = 'en',
 }: {
   items: string[]
   title: string
@@ -23,6 +24,8 @@ export function ListenBar({
   onFinished?: () => void
   onClose: () => void
   nextLabel?: string
+  /** The language being read ('en', 'yo', 'ig', 'ha'). Other languages need a matching voice on the phone. */
+  lang?: string
 }) {
   const [i, setI] = useState(0)
   const [playing, setPlaying] = useState(false)
@@ -54,7 +57,7 @@ export function ListenBar({
       onIndex?.(k)
       for (const part of speechChunks(items[k])) {
         if (run.current !== id) return
-        await speak(part, { rate })
+        await speak(part, { rate, lang })
       }
       await new Promise((r) => setTimeout(r, 250))
     }
@@ -82,6 +85,17 @@ export function ListenBar({
     if (playing) play(i, s)
   }
 
+  // Reading Yoruba / Igbo / Hausa needs a voice for that language on the phone (an English voice would sound wrong)
+  const noVoice = ok && lang !== 'en' && !voiceFor(lang)
+  if (noVoice)
+    return (
+      <Portal><div className="fixed inset-x-0 bottom-20 z-40 px-4 md:bottom-6">
+        <div className="mx-auto max-w-lg rounded-3xl bg-navy p-4 text-sm text-white shadow-2xl">
+          This phone has no {({ yo: 'Yorùbá', ig: 'Igbo', ha: 'Hausa' } as Record<string, string>)[lang] ?? 'matching'} voice yet, so it can’t read this aloud. Switch to an English Bible to listen, or add the language in your phone’s text-to-speech settings.{' '}
+          <button type="button" className="ml-1 underline" onClick={onClose}>Close</button>
+        </div>
+      </div></Portal>
+    )
   if (!ok)
     return (
       <Portal><div className="fixed inset-x-0 bottom-20 z-40 px-4 md:bottom-6">
